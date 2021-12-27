@@ -32,7 +32,7 @@ static void parse_args(int argc, char **argv) {
         switch (opt) {
 			
 			case 'n':
-				if (!(validate_ip(optarg) || validate_dns(optarg))) {
+				if (!(validate_ip(optarg) || validate_hostname(optarg))) {
 					fprintf(stderr, "Invalid format: -n must be followed by a valid IPv4 address or hostname.\n");
 					exit(EXIT_FAILURE);
 				}
