@@ -13,6 +13,9 @@
 char *server_ip = "127.0.0.1";
 char *server_port = "58043";
 
+char UID[5];
+char password[8];
+
 int udp_socket, errcode; 
 ssize_t n;
 struct addrinfo hints, *res;
@@ -164,7 +167,6 @@ int unregister_user(char *user, char *pass) {
 int login(char *user, char *pass) {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
 	sprintf(buf, "%s %s %s\n", "LOG", user, pass);
-	printf("%s", buf);
 
 	if (!send_message_udp(buf)) {
 		return FAIL;
@@ -184,6 +186,38 @@ int login(char *user, char *pass) {
 	}
 
 	if (!strcmp(status, "OK")) {
+		strcpy(UID, user);
+		strcpy(password, pass);
+		return STATUS_OK;
+	} else if (!strcmp(status, "NOK")) {
+		return STATUS_NOK;
+	} 
+	return FAIL;	
+}
+
+int logout() {
+	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
+	sprintf(buf, "%s %s %s\n", "OUT", UID, password);
+	
+
+	if (!send_message_udp(buf)) {
+		return FAIL;
+	}
+
+	memset(buf, 0, sizeof(buf));
+
+	if (!rcv_message_udp(buf)) {
+		return FAIL;
+	}
+
+	printf("Received: %s", buf);
+	
+	int numTokens = sscanf(buf, "%s %s\n", command, status);
+	if (numTokens != 2 || strcmp(command, "ROU") != 0) {
+		return FAIL;
+	}
+
+	if (!strcmp(status, "OK")) {
 		return STATUS_OK;
 	} else if (!strcmp(status, "NOK")) {
 		return STATUS_NOK;
@@ -192,7 +226,6 @@ int login(char *user, char *pass) {
 }
 
 int rcv_message_udp(char *buffer) {
-	printf("Here\n");
 	if (recvfrom(udp_socket, buffer, MAX_LINE_SIZE , 0, (struct sockaddr*) &addr, &addrlen) > 0) {
 		return 1;
 	}

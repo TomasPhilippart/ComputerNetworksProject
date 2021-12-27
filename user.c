@@ -14,7 +14,6 @@ int check_pass(char *pass);
 int check_uid(char *uid);
 
 int main(int argc, char **argv) {
-
 	parse_args(argc, argv);
 	setup();
 	process_input();
@@ -72,7 +71,7 @@ void process_input() {
 						printf("Error. UID %s is duplicated.\n", arg1);
 						break;
 					case STATUS_NOK:
-						printf("Error.\n");
+						printf("Error registering user.\n");
 						break;
 					case FAIL:
 						printf("Error during transmission.\n");
@@ -99,7 +98,7 @@ void process_input() {
 						printf("User %s unregistered sucessfully.\n", arg1);
 						break;
 					case STATUS_NOK:
-						printf("Error.\n");
+						printf("Error unregistering user.\n");
 						break;
 					case FAIL:
 						printf("Error during transmission.\n");
@@ -120,7 +119,19 @@ void process_input() {
 			
 			// Check "UID" and "pass" arguments 
 			if (check_uid(arg1) && check_pass(arg2)) {
-				login(arg1, arg2);
+				res = login(arg1, arg2);
+				switch(res) {
+					case STATUS_OK:
+						printf("User %s logged in sucessfully.\n", arg1);
+						break;
+					case STATUS_NOK:
+						printf("Error logging in.\n");
+						break;
+					case FAIL:
+						printf("Error during transmission.\n");
+						break;
+				}
+
 			} else {
 				fprintf(stderr, "Invalid. UID must be 5 digits and pass must be 8 alphanumeric digits.\n");
 			}
@@ -129,7 +140,20 @@ void process_input() {
 
 		// ===== LOGOUT =====
 		if (!strcmp(command, "logout")) {
-			// Locally forget credentials of previously logged in user
+			
+			res = logout();
+			switch(res) {
+				case STATUS_OK:
+					printf("User %s logged out sucessfully.\n", arg1);
+					break;
+				case STATUS_NOK:
+					printf("Error logging out.\n");
+					break;
+				case FAIL:
+					printf("Error during transmission.\n");
+					break;
+			}
+
 			continue;
 		}
 		

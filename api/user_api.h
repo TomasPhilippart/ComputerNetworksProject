@@ -25,6 +25,7 @@ int unregister_user(char *user, char *pass);
 
 // User access management
 int login(char *user, char *pass);
+int logout();
 
 // UDP protocol functions
 int send_message_udp(char *message);
