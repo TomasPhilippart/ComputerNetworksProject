@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <string.h>
+#include <stdio.h>
 
 // To be shared with user.c
 char *server_ip = "127.0.0.1";
@@ -16,7 +17,7 @@ int server_port = 58043;
 int fd,errcode; 
 ssize_t n;
 socklen_t addrlen;
-struct addrinfo hints,*res;
+struct addrinfo hints, *res;
 struct sockaddr_in addr;
 char buffer[128];
 
@@ -32,6 +33,13 @@ int startup() {
 }
 
 int validate_dns(char *name) {
-    return getaddrinfo(name, server_port, &hints, &res);
+    return getaddrinfo(name, NULL, &hints, &res) == 0;
 }
 
+int validate_ip(char *ip_addr) {
+	return inet_pton(AF_INET, ip_addr, &addr.sin_addr) > 0;
+}
+
+int validate_port(int port) {
+	return port > 0 && port <= 65535;
+}
