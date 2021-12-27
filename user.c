@@ -8,18 +8,15 @@
 #include <stdio.h>
 #include <ctype.h>
 
-#define MAX_LINE_SIZE 300
-#define MAX_ARG_SIZE 250
-#define TRUE 1
-
 static void parse_args(int argc, char **argv);
 void process_input();
+int check_pass(char *pass);
+int check_uid(char *uid);
 
 int main(int argc, char **argv) {
-	startup();
+
 	parse_args(argc, argv);
-	printf("Arguments parsed successfully.\n");
-	create_connection();
+	setup();
 	process_input();
 	return 0;
 }
@@ -30,7 +27,6 @@ static void parse_args(int argc, char **argv) {
 
     while ((opt = getopt(argc, argv, "n:p:")) != -1) {
         switch (opt) {
-			
 			case 'n':
 				if (!(validate_ip(optarg) || validate_hostname(optarg))) {
 					fprintf(stderr, "Invalid format: -n must be followed by a valid IPv4 address or hostname.\n");
@@ -48,44 +44,70 @@ static void parse_args(int argc, char **argv) {
     }
 }
 
+
 void process_input() {
 	char line[MAX_LINE_SIZE];
 
-	while (TRUE) {
+	while (1) {
 		fgets(line, sizeof(line)/sizeof(char), stdin);
-		
-		char *command;
-		char arg1[MAX_ARG_SIZE], arg2[MAX_ARG_SIZE];
+		char command[MAX_ARG_SIZE], arg1[MAX_ARG_SIZE], arg2[MAX_ARG_SIZE];
 		int res;
-
 		int numTokens = sscanf(line, "%s %s %s", command, arg1, arg2);
-
-		/* perform minimal validation */
-		if (numTokens < 1) {
-			continue;
-		}
 		
+		// ===== REGISTER =====
 		if (!strcmp(command, "reg")) {
 			if (numTokens != 3) {
 				fprintf(stderr, "Invalid. Format: reg UID pass\n");
+				continue;
 			}
 			
-			//register_user(arg1, arg2);
-
+			// Check "UID" and "pass" arguments 
+			if (check_uid(arg1) && check_pass(arg2)) {
+				res = register_user(arg1, arg2);
+				if (res == FAIL) {
+					printf("Deu merda chavalo");
+				}
+			} else {
+				fprintf(stderr, "Invalid. UID must be 5 digits and pass must be 8 alphanumeric digits.\n");
+			}
 			continue;
 		}
 
-
+		// ===== UNREGISTER =====
 		if (!strcmp(command, "unregister") || !strcmp(command, "unr")) {
+			if (numTokens != 3) {
+				fprintf(stderr, "Invalid. Format: %s UID pass\n", command);
+				continue;
+			}
+			
+			// Check "UID" and "pass" arguments 
+			if (check_uid(arg1) && check_pass(arg2)) {
+				unregister_user(arg1, arg2);
+			} else {
+				fprintf(stderr, "Invalid. UID must be 5 digits and pass must be 8 alphanumeric digits.\n");
+			}
 			continue;
 		}
 		
-
+		// ===== LOGIN =====
 		if (!strcmp(command, "login")) {
+			if (numTokens != 3) {
+				fprintf(stderr, "Invalid. Format: %s UID pass\n", command);
+				continue;
+			}
+			
+			// Check "UID" and "pass" arguments 
+			if (check_uid(arg1) && check_pass(arg2)) {
+				//login(arg1, arg2);
+			} else {
+				fprintf(stderr, "Invalid. UID must be 5 digits and pass must be 8 alphanumeric digits.\n");
+			}
 			continue;
 		}
 
+		// ===== LOGOUT =====
 		if (!strcmp(command, "logout")) {
+			// Locally forget credentials of previously logged in user
 			continue;
 		}
 		
@@ -135,4 +157,23 @@ void process_input() {
 
 	}
 
+}
+
+// Check if UID must be 5 digits and not 0000
+int check_uid(char *uid) {
+	return strlen(uid) == 5 &&((atoi(uid) > 0) || !strcmp(uid, "00000"));
+}
+
+// Check if password is alphanumeric and has 8 characters
+int check_pass(char *pass) {
+	if (strlen(pass) != 8) {
+		return 0;
+	}
+
+	for (int i = 0; i < strlen(pass); i++) {
+		if (!isalnum(pass[i])) {
+			return 0;
+		}
+	}
+	return 1;
 }
