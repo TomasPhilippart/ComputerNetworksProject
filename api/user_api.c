@@ -10,20 +10,23 @@
 #include <string.h>
 #include <stdio.h>
 
-// To be shared with user.c
-char *server_ip = "127.0.0.1";
-int server_port = 58043;
+#define MAX_LINE_SIZE 300
 
-int fd,errcode; 
+
+char *server_ip = "127.0.0.1";
+char *server_port = "58043";
+
+int udp_socket, errcode; 
 ssize_t n;
 socklen_t addrlen;
 struct addrinfo hints, *res;
 struct sockaddr_in addr;
-char buffer[128];
+char buffer[MAX_LINE_SIZE];
 
 int startup() {
-	fd = socket(AF_INET, SOCK_DGRAM, 0); // UDP socket
-	if (fd == 1) {
+	// Create UDP socket
+	udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
+	if (udp_socket == -1) {
 		exit(1);
 	}
 
@@ -32,14 +35,39 @@ int startup() {
 	hints.ai_socktype = SOCK_DGRAM; // UDP socket
 }
 
+int create_connection() {
+	if (getaddrinfo(server_ip, server_port, &hints, &res) != 0) {
+		return -1;
+	}
+
+	return 0;
+}
 int validate_dns(char *name) {
-    return getaddrinfo(name, NULL, &hints, &res) == 0;
+    if (getaddrinfo(name, NULL, &hints, &res) == 0) {
+		server_ip = strdup(name);
+		return 1;
+	} 
+	return 0;
 }
 
 int validate_ip(char *ip_addr) {
-	return inet_pton(AF_INET, ip_addr, &addr.sin_addr) > 0;
+	if (inet_pton(AF_INET, ip_addr, &addr.sin_addr) > 0) {
+		server_ip = strdup(ip_addr);
+		return 1;
+	}
+	return 0;
 }
 
-int validate_port(int port) {
-	return port > 0 && port <= 65535;
+int validate_port(char *port) {
+	int port_number = atoi(port);
+	if (port_number > 0 && port_number <= 65535) {
+		server_port = strdup(port);
+		return 1;
+	}
+	return 0;
+}
+
+int send_message_udp(char *message) {
+	n = sendto(udp_socket, message, strlen(message)+1, 0, res->ai_addr, res->ai_addrlen);
+		
 }

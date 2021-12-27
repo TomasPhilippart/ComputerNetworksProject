@@ -1,7 +1,0 @@
-{
-    "C_Cpp.errorSquiggles": "Enabled",
-    "files.associations": {
-        "user_api.h": "c",
-        "un.h": "c"
-    }
-}
