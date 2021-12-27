@@ -18,6 +18,7 @@ int main(int argc, char **argv) {
 	parse_args(argc, argv);
 	setup();
 	process_input();
+	end_session();
 	return 0;
 }
 
@@ -60,12 +61,22 @@ void process_input() {
 				fprintf(stderr, "Invalid. Format: reg UID pass\n");
 				continue;
 			}
-			
 			// Check "UID" and "pass" arguments 
 			if (check_uid(arg1) && check_pass(arg2)) {
 				res = register_user(arg1, arg2);
-				if (res == FAIL) {
-					printf("Deu merda chavalo");
+				switch(res) {
+					case STATUS_OK:
+						printf("User registration successful with UID %s.\n", arg1);
+						break;
+					case STATUS_DUP:
+						printf("Error. UID %s is duplicated.\n", arg1);
+						break;
+					case STATUS_NOK:
+						printf("Error.\n");
+						break;
+					case FAIL:
+						printf("Error during transmission.\n");
+						break;
 				}
 			} else {
 				fprintf(stderr, "Invalid. UID must be 5 digits and pass must be 8 alphanumeric digits.\n");
@@ -82,7 +93,18 @@ void process_input() {
 			
 			// Check "UID" and "pass" arguments 
 			if (check_uid(arg1) && check_pass(arg2)) {
-				unregister_user(arg1, arg2);
+				res = unregister_user(arg1, arg2);
+				switch(res) {
+					case STATUS_OK:
+						printf("User %s unregistered sucessfully.\n", arg1);
+						break;
+					case STATUS_NOK:
+						printf("Error.\n");
+						break;
+					case FAIL:
+						printf("Error during transmission.\n");
+						break;
+				}
 			} else {
 				fprintf(stderr, "Invalid. UID must be 5 digits and pass must be 8 alphanumeric digits.\n");
 			}
@@ -98,7 +120,7 @@ void process_input() {
 			
 			// Check "UID" and "pass" arguments 
 			if (check_uid(arg1) && check_pass(arg2)) {
-				//login(arg1, arg2);
+				login(arg1, arg2);
 			} else {
 				fprintf(stderr, "Invalid. UID must be 5 digits and pass must be 8 alphanumeric digits.\n");
 			}
@@ -116,7 +138,7 @@ void process_input() {
 		}
 
 		if (!strcmp(command, "exit")) {
-			continue;
+			break;
 		}
 
 		if (!strcmp(command, "groups") || !strcmp(command, "gl")) {
@@ -156,7 +178,6 @@ void process_input() {
 		}
 
 	}
-
 }
 
 // Check if UID must be 5 digits and not 0000

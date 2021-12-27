@@ -17,10 +17,14 @@ int setup();
 int validate_hostname(char *name);
 int validate_ip(char *ip_addr);
 int validate_port(char *port);
+void end_session();
 
 // User registration management
 int register_user(char *user, char *pass);
 int unregister_user(char *user, char *pass);
+
+// User access management
+int login(char *user, char *pass);
 
 // UDP protocol functions
 int send_message_udp(char *message);

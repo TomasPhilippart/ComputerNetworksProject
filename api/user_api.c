@@ -83,10 +83,15 @@ int validate_port(char *port) {
 	return 0;
 }
 
+/*	Registers a user
+	Input:
+	- UID: a 5 char numerical string
+	- pass: a 8 char alphanumerical string
+	Output: OK, DUP, NOK
+*/
 int register_user(char *user, char *pass) {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
 	sprintf(buf, "%s %s %s\n", "REG", user, pass);
-	printf("%s", buf);
 
 	if (!send_message_udp(buf)) {
 		return FAIL;
@@ -97,6 +102,8 @@ int register_user(char *user, char *pass) {
 	if (!rcv_message_udp(buf)) {
 		return FAIL;
 	}
+
+	printf("Received: %s\n", buf);
 	
 	int numTokens = sscanf(buf, "%s %s\n", command, status);
 	if (numTokens != 2 || strcmp(command, "RRG") != 0) {
@@ -113,6 +120,12 @@ int register_user(char *user, char *pass) {
 	return FAIL;	
 }
 
+/*	Unregisters a user
+	Input:
+	- UID: a 5 char numerical string
+	- pass: a 8 char alphanumerical string
+	Output: TODO
+*/
 int unregister_user(char *user, char *pass) {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
 	snprintf(buf, sizeof(buf), "%s %s %s\n", "UNR", user, pass);
@@ -126,11 +139,9 @@ int unregister_user(char *user, char *pass) {
 	if (!rcv_message_udp(buf)) {
 		return FAIL;
 	}
-	
-		/* Check response */
-	printf("response : %s", buf);
-	
-	char *status, *command;
+
+	printf("Received: %s", buf);
+
 	int numTokens = sscanf(buf, "%s %s", command, status);
 	if (numTokens != 2 || strcmp(command, "RUN") != 0) {
 		return FAIL;
@@ -144,7 +155,44 @@ int unregister_user(char *user, char *pass) {
 	return FAIL;
 }
 
+/*	Login
+	Input:
+	- UID: a 5 char numerical string
+	- pass: a 8 char alphanumerical string
+	Output: TODO
+*/
+int login(char *user, char *pass) {
+	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
+	sprintf(buf, "%s %s %s\n", "LOG", user, pass);
+	printf("%s", buf);
+
+	if (!send_message_udp(buf)) {
+		return FAIL;
+	}
+
+	memset(buf, 0, sizeof(buf));
+
+	if (!rcv_message_udp(buf)) {
+		return FAIL;
+	}
+
+	printf("Received: %s", buf);
+	
+	int numTokens = sscanf(buf, "%s %s\n", command, status);
+	if (numTokens != 2 || strcmp(command, "RLO") != 0) {
+		return FAIL;
+	}
+
+	if (!strcmp(status, "OK")) {
+		return STATUS_OK;
+	} else if (!strcmp(status, "NOK")) {
+		return STATUS_NOK;
+	} 
+	return FAIL;	
+}
+
 int rcv_message_udp(char *buffer) {
+	printf("Here\n");
 	if (recvfrom(udp_socket, buffer, MAX_LINE_SIZE , 0, (struct sockaddr*) &addr, &addrlen) > 0) {
 		return 1;
 	}
@@ -157,4 +205,8 @@ int send_message_udp(char *message) {
 		return 1;
 	}
 	return 0;
+}
+
+void end_session(){
+	close(udp_socket);
 }
