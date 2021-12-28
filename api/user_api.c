@@ -28,7 +28,7 @@ int setup() {
 	/* Create UDP socket */
 	udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
 	if (udp_socket == -1) {
-		exit(1);
+		exit(EXITFAILURE);
 	}
 
 	memset(&hints, 0, sizeof(hints));
@@ -218,6 +218,8 @@ int logout() {
 	}
 
 	if (!strcmp(status, "OK")) {
+		memset(UID, 0, sizeof(buf));
+		memset(password, 0, sizeof(buf));
 		return STATUS_OK;
 	} else if (!strcmp(status, "NOK")) {
 		return STATUS_NOK;
@@ -225,6 +227,8 @@ int logout() {
 	return FAIL;	
 }
 
+/* NOTE: Maybe perform a check on the number of received bytes? */
+/* NOTE: Implement some kind of realibility mechanism? */
 int rcv_message_udp(char *buffer) {
 	if (recvfrom(udp_socket, buffer, MAX_LINE_SIZE , 0, (struct sockaddr*) &addr, &addrlen) > 0) {
 		return 1;
@@ -233,6 +237,7 @@ int rcv_message_udp(char *buffer) {
 }
 
 
+/* NOTE: Maybe perform a check on the number of bytes sent? */
 int send_message_udp(char *message) {
 	if (sendto(udp_socket, message, strlen(message), 0, res->ai_addr, res->ai_addrlen) > 0) {
 		return 1;
