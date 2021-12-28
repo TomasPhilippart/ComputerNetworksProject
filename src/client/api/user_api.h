@@ -27,8 +27,5 @@ int unregister_user(char *user, char *pass);
 int login(char *user, char *pass);
 int logout();
 
-// UDP protocol functions
-int send_message_udp(char *message);
-int rcv_message_udp(char *buffer);
 
 #endif

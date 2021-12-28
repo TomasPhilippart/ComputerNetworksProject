@@ -10,18 +10,22 @@
 #include <string.h>
 #include <stdio.h>
 
+#define EXITFAILURE 1
+
 char *server_ip = "127.0.0.1";
 char *server_port = "58043";
 
 char UID[5];
 char password[8];
 
-int udp_socket, errcode; 
+int udp_socket; 
 ssize_t n;
 struct addrinfo hints, *res;
 struct sockaddr_in addr;
 socklen_t addrlen;
 char buffer[MAX_LINE_SIZE];
+
+void exchange_messages_udp(char *message);
 
 /* Creates client socket and sets up the server address */
 int setup() {
@@ -96,17 +100,7 @@ int register_user(char *user, char *pass) {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
 	sprintf(buf, "%s %s %s\n", "REG", user, pass);
 
-	if (!send_message_udp(buf)) {
-		return FAIL;
-	}
-
-	memset(buf, 0, sizeof(buf));
-
-	if (!rcv_message_udp(buf)) {
-		return FAIL;
-	}
-
-	printf("Received: %s\n", buf);
+	exchange_messages_udp(buf);
 	
 	int numTokens = sscanf(buf, "%s %s\n", command, status);
 	if (numTokens != 2 || strcmp(command, "RRG") != 0) {
@@ -133,17 +127,7 @@ int unregister_user(char *user, char *pass) {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
 	snprintf(buf, sizeof(buf), "%s %s %s\n", "UNR", user, pass);
 
-	if (!send_message_udp(buf)) {
-		return FAIL;
-	}
-
-	memset(buf, 0, sizeof(buf));
-
-	if (!rcv_message_udp(buf)) {
-		return FAIL;
-	}
-
-	printf("Received: %s", buf);
+	exchange_messages_udp(buf);
 
 	int numTokens = sscanf(buf, "%s %s", command, status);
 	if (numTokens != 2 || strcmp(command, "RUN") != 0) {
@@ -168,17 +152,9 @@ int login(char *user, char *pass) {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
 	sprintf(buf, "%s %s %s\n", "LOG", user, pass);
 
-	if (!send_message_udp(buf)) {
-		return FAIL;
-	}
+	exchange_messages_udp(buf);
 
-	memset(buf, 0, sizeof(buf));
-
-	if (!rcv_message_udp(buf)) {
-		return FAIL;
-	}
-
-	printf("Received: %s", buf);
+	printf("Ok!!!!");
 	
 	int numTokens = sscanf(buf, "%s %s\n", command, status);
 	if (numTokens != 2 || strcmp(command, "RLO") != 0) {
@@ -198,19 +174,8 @@ int login(char *user, char *pass) {
 int logout() {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
 	sprintf(buf, "%s %s %s\n", "OUT", UID, password);
-	
 
-	if (!send_message_udp(buf)) {
-		return FAIL;
-	}
-
-	memset(buf, 0, sizeof(buf));
-
-	if (!rcv_message_udp(buf)) {
-		return FAIL;
-	}
-
-	printf("Received: %s", buf);
+	exchange_messages_udp(buf);
 	
 	int numTokens = sscanf(buf, "%s %s\n", command, status);
 	if (numTokens != 2 || strcmp(command, "ROU") != 0) {
@@ -218,8 +183,8 @@ int logout() {
 	}
 
 	if (!strcmp(status, "OK")) {
-		memset(UID, 0, sizeof(buf));
-		memset(password, 0, sizeof(buf));
+		memset(UID, 0, sizeof(UID));
+		memset(password, 0, sizeof(password));
 		return STATUS_OK;
 	} else if (!strcmp(status, "NOK")) {
 		return STATUS_NOK;
@@ -227,22 +192,22 @@ int logout() {
 	return FAIL;	
 }
 
-/* NOTE: Maybe perform a check on the number of received bytes? */
+/* NOTE: Maybe perform a check on the number of sent bytes? */
 /* NOTE: Implement some kind of realibility mechanism? */
-int rcv_message_udp(char *buffer) {
-	if (recvfrom(udp_socket, buffer, MAX_LINE_SIZE , 0, (struct sockaddr*) &addr, &addrlen) > 0) {
-		return 1;
-	}
-	return 0;
-}
+void exchange_messages_udp(char *buffer) {
 
-
-/* NOTE: Maybe perform a check on the number of bytes sent? */
-int send_message_udp(char *message) {
-	if (sendto(udp_socket, message, strlen(message), 0, res->ai_addr, res->ai_addrlen) > 0) {
-		return 1;
+	if (sendto(udp_socket, buffer, strlen(buffer), 0, res->ai_addr, res->ai_addrlen) != strlen(buffer) * sizeof(char)) {
+		exit(EXITFAILURE);
 	}
-	return 0;
+
+	memset(buffer, 0, strlen(buffer) * sizeof(char));
+
+	if (recvfrom(udp_socket, buffer, MAX_LINE_SIZE , 0, (struct sockaddr*) &addr, &addrlen) <= 0) {
+		exit(EXITFAILURE);
+	}
+	
+	printf("Received: %s\n", buffer);
+	
 }
 
 void end_session(){
