@@ -5,6 +5,12 @@
 #define STATUS_OK 2
 #define STATUS_NOK 3
 #define STATUS_DUP 4
+#define STATUS_NOGROUPS 5
+#define STATUS_NEW_GROUP 6
+#define STATUS_USR_INVALID 7
+#define STATUS_GID_INVALID 8
+#define STATUS_GNAME_INVALID 9
+#define STATUS_GROUPS_FULL 10
 
 #define FAIL 0
 #define SUCCESS 1
@@ -26,6 +32,14 @@ int unregister_user(char *user, char *pass);
 // User access management
 int login(char *user, char *pass);
 int logout();
+char* get_uid();
+
+// Group management
+char ***get_all_groups();
+int subscribe_group(char *gid, char *gName);
+
+// Auxiliary
+int is_logged_in();
 
 
 #endif

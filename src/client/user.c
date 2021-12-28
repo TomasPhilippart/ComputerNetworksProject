@@ -73,9 +73,6 @@ void process_input() {
 					case STATUS_NOK:
 						printf("Error registering user.\n");
 						break;
-					case FAIL:
-						printf("Error during transmission.\n");
-						break;
 				}
 			} else {
 				fprintf(stderr, "Invalid. UID must be 5 digits and pass must be 8 alphanumeric digits.\n");
@@ -99,9 +96,6 @@ void process_input() {
 						break;
 					case STATUS_NOK:
 						printf("Error unregistering user.\n");
-						break;
-					case FAIL:
-						printf("Error during transmission.\n");
 						break;
 				}
 			} else {
@@ -127,9 +121,6 @@ void process_input() {
 					case STATUS_NOK:
 						printf("Error logging in.\n");
 						break;
-					case FAIL:
-						printf("Error during transmission.\n");
-						break;
 				}
 
 			} else {
@@ -141,50 +132,112 @@ void process_input() {
 		// ===== LOGOUT =====
 		if (!strcmp(command, "logout")) {
 			
+			if (!is_logged_in()) {
+				printf("Error: No user is logged in.\n");
+				continue;
+			}
+
 			res = logout();
 			switch(res) {
 				case STATUS_OK:
-					printf("User %s logged out sucessfully.\n", arg1);
+					printf("User %s logged out sucessfully.\n", get_uid());
 					break;
 				case STATUS_NOK:
 					printf("Error logging out.\n");
-					break;
-				case FAIL:
-					printf("Error during transmission.\n");
 					break;
 			}
 
 			continue;
 		}
 		
+		// ===== SHOW UID =====
 		if (!strcmp(command, "showuid") || !strcmp(command, "su")) {
+			char* UID = get_uid();
+
+			if (!is_logged_in()) {
+				printf("Error: User not be logged in.\n");
+			} else {
+				printf("UID: %s\n", get_uid());
+			}
 			continue;
 		}
 
+		// ===== EXIT =====
 		if (!strcmp(command, "exit")) {
 			break;
 		}
 
+		// ===== GROUPS =====
 		if (!strcmp(command, "groups") || !strcmp(command, "gl")) {
+			char ***groups = get_all_groups();
+
+			if (!strcmp(groups[0][0], "")) {
+				printf("No groups are available.\n");
+			} else {				
+				for (int i = 0; strcmp(groups[i][0], ""); i++) {
+					printf("%s %s\n", groups[i][0], groups[i][1]);
+				}
+			}
+
 			continue;
 		}
 
+		// NOTE The following group management commands can only be issued after a user has logged in
+		// ===== SUBSCRIBE =====
 		if (!strcmp(command, "subscribe") || !strcmp(command, "s")) {
+			if (numTokens != 3) {
+				fprintf(stderr, "Invalid. Format: %s GID GName\n", command);
+				continue;
+			}
+
+			if (!is_logged_in()) {
+				printf("Error: User not be logged in.\n");
+				continue;
+			}
+
+			res = subscribe_group(arg1, arg2);
+			switch(res) {
+				case STATUS_OK:
+					// TODO
+					break;
+				case STATUS_NEW_GROUP:
+					// TODO
+					break;
+				case STATUS_USR_INVALID:
+					// TODO
+					break;
+				case STATUS_GID_INVALID:
+					// TODO
+					break;
+				case STATUS_GNAME_INVALID:
+					// TODO
+					break;
+				case STATUS_GROUPS_FULL:
+					// TODO
+					break;
+				case STATUS_NOK:
+					// TODO
+					break;
+			}
 			continue;
 		}
 
+		// ===== UNSUBSCRIBE =====
 		if (!strcmp(command, "unsubscribe") || !strcmp(command, "u")) {
 			continue;
 		}
 
+		// ===== MY GROUPS =====
 		if (!strcmp(command, "my_groups") || !strcmp(command, "mgl")) {
 			continue;
 		}
 
+		// ===== SELECT =====
 		if (!strcmp(command, "select") || !strcmp(command, "sag")) {
 			continue;
 		}
 
+		// ===== SHOW GID =====
 		if (!strcmp(command, "showgid") || !strcmp(command, "sg")) {
 			continue;
 		}

@@ -11,21 +11,23 @@
 #include <stdio.h>
 
 #define EXITFAILURE 1
+#define GIANT_SIZE 3500
 
 char *server_ip = "127.0.0.1";
 char *server_port = "58043";
 
 char UID[5];
 char password[8];
+int logged_in = 0;
 
 int udp_socket; 
 ssize_t n;
 struct addrinfo hints, *res;
 struct sockaddr_in addr;
 socklen_t addrlen;
-char buffer[MAX_LINE_SIZE];
+char buf[MAX_LINE_SIZE];
 
-void exchange_messages_udp(char *message);
+void exchange_messages_udp(char *buf, ssize_t max_rcv_size);
 
 /* Creates client socket and sets up the server address */
 int setup() {
@@ -100,7 +102,7 @@ int register_user(char *user, char *pass) {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
 	sprintf(buf, "%s %s %s\n", "REG", user, pass);
 
-	exchange_messages_udp(buf);
+	exchange_messages_udp(buf, MAX_LINE_SIZE);
 	
 	int numTokens = sscanf(buf, "%s %s\n", command, status);
 	if (numTokens != 2 || strcmp(command, "RRG") != 0) {
@@ -127,7 +129,7 @@ int unregister_user(char *user, char *pass) {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
 	snprintf(buf, sizeof(buf), "%s %s %s\n", "UNR", user, pass);
 
-	exchange_messages_udp(buf);
+	exchange_messages_udp(buf, MAX_LINE_SIZE);
 
 	int numTokens = sscanf(buf, "%s %s", command, status);
 	if (numTokens != 2 || strcmp(command, "RUN") != 0) {
@@ -152,9 +154,7 @@ int login(char *user, char *pass) {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
 	sprintf(buf, "%s %s %s\n", "LOG", user, pass);
 
-	exchange_messages_udp(buf);
-
-	printf("Ok!!!!");
+	exchange_messages_udp(buf, MAX_LINE_SIZE);
 	
 	int numTokens = sscanf(buf, "%s %s\n", command, status);
 	if (numTokens != 2 || strcmp(command, "RLO") != 0) {
@@ -164,6 +164,8 @@ int login(char *user, char *pass) {
 	if (!strcmp(status, "OK")) {
 		strcpy(UID, user);
 		strcpy(password, pass);
+		logged_in = 1;
+		
 		return STATUS_OK;
 	} else if (!strcmp(status, "NOK")) {
 		return STATUS_NOK;
@@ -175,7 +177,7 @@ int logout() {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
 	sprintf(buf, "%s %s %s\n", "OUT", UID, password);
 
-	exchange_messages_udp(buf);
+	exchange_messages_udp(buf, MAX_LINE_SIZE);
 	
 	int numTokens = sscanf(buf, "%s %s\n", command, status);
 	if (numTokens != 2 || strcmp(command, "ROU") != 0) {
@@ -183,8 +185,7 @@ int logout() {
 	}
 
 	if (!strcmp(status, "OK")) {
-		memset(UID, 0, sizeof(UID));
-		memset(password, 0, sizeof(password));
+		logged_in = 0;
 		return STATUS_OK;
 	} else if (!strcmp(status, "NOK")) {
 		return STATUS_NOK;
@@ -192,24 +193,94 @@ int logout() {
 	return FAIL;	
 }
 
+char *get_uid () {
+	return UID;
+	
+}
+
+char ***get_all_groups() {
+	char *command, *num_groups, buf[GIANT_SIZE];
+	char ***response = NULL;
+	
+	sprintf(buf, "%s\n", "GLS");
+	
+	exchange_messages_udp(buf, GIANT_SIZE);
+
+	command = strtok(buf, " ");
+	num_groups = strtok(NULL, " ");
+	printf("%s %s\n", command, num_groups);
+	if (command == NULL || num_groups == NULL) {
+		return FAIL;
+	} 
+	
+	response = (char***) malloc(sizeof(char**) * (atoi(num_groups) + 1));
+	for (int i = 0; i < atoi(num_groups) + 1; i++) {
+		response[i] = (char **) malloc(sizeof(char*) * 2);
+		for (int j = 0; j < 2; j++) {
+			response[i][j] = (char *) malloc(sizeof(char) * 24);
+		}
+	}
+
+	for (int i = 0; i < atoi(num_groups); i++) {
+		response[i][0] = strtok(NULL, " ");
+		response[i][1] = strtok(NULL, " ");
+		strtok(NULL, " ");
+	}
+
+	response[atoi(num_groups)][0] = "";
+
+	return response; // TODO tratar do buf para print no user
+}
+
+int subscribe_group(char *gid, char *gName) {
+	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
+	sprintf(buf, "%s %s %s %s\n", "GSR", UID, gid, gName);
+
+	exchange_messages_udp(buf, MAX_LINE_SIZE);
+
+	int numTokens = sscanf(buf, "%s %s\n", command, status);
+	if (numTokens != 2 || strcmp(command, "RGS") != 0) {
+		return FAIL;
+	}
+
+	if (!strcmp(status, "OK")) {
+		return STATUS_OK;
+	} else if (!strcmp(status, "NEW")) {
+		return STATUS_NEW_GROUP;
+	} else if (!strcmp(status, "E_SR")) {
+		return STATUS_USR_INVALID;
+	} else if (!strcmp(status, "E_GRP")) {
+		return STATUS_GID_INVALID;
+	} else if (!strcmp(status, "E_GNAME")) {
+		return STATUS_GNAME_INVALID;
+	} else if (!strcmp(status, "E_FULL")) {
+		return STATUS_GROUPS_FULL;
+	}
+	return FAIL;
+}
+
 /* NOTE: Maybe perform a check on the number of sent bytes? */
 /* NOTE: Implement some kind of realibility mechanism? */
-void exchange_messages_udp(char *buffer) {
-
-	if (sendto(udp_socket, buffer, strlen(buffer), 0, res->ai_addr, res->ai_addrlen) != strlen(buffer) * sizeof(char)) {
+void exchange_messages_udp(char *buf, ssize_t max_rcv_size) {
+	
+	if (sendto(udp_socket, buf, strlen(buf), 0, res->ai_addr, res->ai_addrlen) != strlen(buf) * sizeof(char)) {
 		exit(EXITFAILURE);
 	}
 
-	memset(buffer, 0, strlen(buffer) * sizeof(char));
-
-	if (recvfrom(udp_socket, buffer, MAX_LINE_SIZE , 0, (struct sockaddr*) &addr, &addrlen) <= 0) {
+	memset(buf, 0, strlen(buf) * sizeof(char));
+	
+	if (recvfrom(udp_socket, buf, max_rcv_size, 0, (struct sockaddr*) &addr, &addrlen) <= 0) {
 		exit(EXITFAILURE);
 	}
 	
-	printf("Received: %s\n", buffer);
+	printf("Received: %s\n", buf);
 	
 }
 
 void end_session(){
 	close(udp_socket);
+}
+
+int is_logged_in () {
+	return logged_in;
 }
