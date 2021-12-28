@@ -104,8 +104,8 @@ int register_user(char *user, char *pass) {
 
 	exchange_messages_udp(buf, MAX_LINE_SIZE);
 	
-	int numTokens = sscanf(buf, "%s %s\n", command, status);
-	if (numTokens != 2 || strcmp(command, "RRG") != 0) {
+	int num_tokens = sscanf(buf, "%s %s\n", command, status);
+	if (num_tokens != 2 || strcmp(command, "RRG") != 0) {
 		return FAIL;
 	}
 
@@ -121,8 +121,8 @@ int register_user(char *user, char *pass) {
 
 /*	Unregisters a user
 	Input:
-	- UID: a 5 char numerical string
-	- pass: a 8 char alphanumerical string
+	- UID: a valid UID (a 5 char numerical string)
+	- pass: a valid pass (8 char alphanumerical string)
 	Output: TODO
 */
 int unregister_user(char *user, char *pass) {
@@ -131,8 +131,8 @@ int unregister_user(char *user, char *pass) {
 
 	exchange_messages_udp(buf, MAX_LINE_SIZE);
 
-	int numTokens = sscanf(buf, "%s %s", command, status);
-	if (numTokens != 2 || strcmp(command, "RUN") != 0) {
+	int num_tokens = sscanf(buf, "%s %s", command, status);
+	if (num_tokens != 2 || strcmp(command, "RUN") != 0) {
 		return FAIL;
 	}
 
@@ -144,11 +144,13 @@ int unregister_user(char *user, char *pass) {
 	return FAIL;
 }
 
-/*	Login
+/*	Login a user 
 	Input:
-	- UID: a 5 char numerical string
-	- pass: a 8 char alphanumerical string
-	Output: TODO
+	- UID: a valid UID 
+	- pass: a valid pass 
+	Output: A integer s.t.:
+	- OK: if the login was successful
+	- NOK: otherwise
 */
 int login(char *user, char *pass) {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
@@ -156,8 +158,8 @@ int login(char *user, char *pass) {
 
 	exchange_messages_udp(buf, MAX_LINE_SIZE);
 	
-	int numTokens = sscanf(buf, "%s %s\n", command, status);
-	if (numTokens != 2 || strcmp(command, "RLO") != 0) {
+	int num_tokens = sscanf(buf, "%s %s\n", command, status);
+	if (num_tokens != 2 || strcmp(command, "RLO") != 0) {
 		return FAIL;
 	}
 
@@ -165,7 +167,6 @@ int login(char *user, char *pass) {
 		strcpy(UID, user);
 		strcpy(password, pass);
 		logged_in = 1;
-		
 		return STATUS_OK;
 	} else if (!strcmp(status, "NOK")) {
 		return STATUS_NOK;
@@ -173,14 +174,22 @@ int login(char *user, char *pass) {
 	return FAIL;	
 }
 
+/*	Logout
+	Input:
+	- UID: a valid UID 
+	- pass: a valid pass 
+	Output: A integer s.t.:
+	- OK: if the login was successful
+	- NOK: otherwise
+*/
 int logout() {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
 	sprintf(buf, "%s %s %s\n", "OUT", UID, password);
 
 	exchange_messages_udp(buf, MAX_LINE_SIZE);
 	
-	int numTokens = sscanf(buf, "%s %s\n", command, status);
-	if (numTokens != 2 || strcmp(command, "ROU") != 0) {
+	int num_tokens = sscanf(buf, "%s %s\n", command, status);
+	if (num_tokens != 2 || strcmp(command, "ROU") != 0) {
 		return FAIL;
 	}
 
@@ -193,11 +202,20 @@ int logout() {
 	return FAIL;	
 }
 
+/*	Getter for the current user ID
+	Input: None
+	Returns: the current UID. If there is
+	no user logged in, UID is an empty string
+*/
 char *get_uid () {
-	return UID;
-	
+	return UID;	
 }
 
+/*	Getter for all the available groups in the DS server
+	Input: None
+	Returns: an array of arrays of 2 string of the format
+	[GID, Gname], one for each available group
+*/
 char ***get_all_groups() {
 	char *command, *num_groups, buf[GIANT_SIZE];
 	char ***response = NULL;
@@ -232,14 +250,23 @@ char ***get_all_groups() {
 	return response; // TODO tratar do buf para print no user
 }
 
+/*	Subscribes current user to the specified group
+	Input: A valid GID and a group name
+	Returns: one of the following integer status codes:
+	- OK: if the subscription was successful
+	- NEW: if a group was created
+	- E_SR: if the provided user is invalid
+	- E_GNAME: if the proivdade group name is invalid
+	- E_FULL: if a new group could not be created
+*/
 int subscribe_group(char *gid, char *gName) {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
 	sprintf(buf, "%s %s %s %s\n", "GSR", UID, gid, gName);
 
 	exchange_messages_udp(buf, MAX_LINE_SIZE);
 
-	int numTokens = sscanf(buf, "%s %s\n", command, status);
-	if (numTokens != 2 || strcmp(command, "RGS") != 0) {
+	int num_tokens = sscanf(buf, "%s %s\n", command, status);
+	if (num_tokens != 2 || strcmp(command, "RGS") != 0) {
 		return FAIL;
 	}
 
@@ -259,8 +286,13 @@ int subscribe_group(char *gid, char *gName) {
 	return FAIL;
 }
 
-/* NOTE: Maybe perform a check on the number of sent bytes? */
-/* NOTE: Implement some kind of realibility mechanism? */
+/*	Sends the message in buf to the server through the UDP socket 
+	and puts a response of size max_rcv_size in buf 
+	Input:
+	- buf: a buffer that contains the message to be sent and that will
+	contained the received message
+	- max_rcv_size: maximum size of the response
+*/
 void exchange_messages_udp(char *buf, ssize_t max_rcv_size) {
 	
 	if (sendto(udp_socket, buf, strlen(buf), 0, res->ai_addr, res->ai_addrlen) != strlen(buf) * sizeof(char)) {
@@ -273,7 +305,7 @@ void exchange_messages_udp(char *buf, ssize_t max_rcv_size) {
 		exit(EXITFAILURE);
 	}
 	
-	printf("Received: %s\n", buf);
+	//printf("Received: %s\n", buf);
 	
 }
 
