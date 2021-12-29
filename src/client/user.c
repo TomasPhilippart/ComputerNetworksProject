@@ -100,7 +100,7 @@ void process_input() {
 						break;
 				}
 			} else {
-				fprintf(stderr, "Invalid. UID must be 5 digits and pass must be 8 alphanumeric digits.\n");
+				printf("Invalid. UID must be 5 digits and pass must be 8 alphanumeric digits.\n");
 			}
 			continue;
 		}
@@ -124,7 +124,7 @@ void process_input() {
 						break;
 				}
 			} else {
-				fprintf(stderr, "Invalid. UID must be 5 digits and pass must be 8 alphanumeric digits.\n");
+				printf("Invalid. UID must be 5 digits and pass must be 8 alphanumeric digits.\n");
 			}
 			continue;
 		}
@@ -149,7 +149,7 @@ void process_input() {
 				}
 
 			} else {
-				fprintf(stderr, "Invalid. UID must be 5 digits and pass must be 8 alphanumeric digits.\n");
+				printf("Invalid. UID must be 5 digits and pass must be 8 alphanumeric digits.\n");
 			}
 			continue;
 		}
@@ -203,6 +203,7 @@ void process_input() {
 					printf("%s %s\n", groups[i][0], groups[i][1]);
 				}
 			}
+			free(groups);
 
 			continue;
 		}
@@ -215,33 +216,33 @@ void process_input() {
 				continue;
 			}
 
-			//if (!is_logged_in()) {
-			//	printf("Error: User not be logged in.\n");
-			//	continue;
-			//}
+			if (!is_logged_in()) {
+				printf("Error: User not be logged in.\n");
+				continue;
+			}
 
 			res = subscribe_group(arg1, arg2);
 			switch(res) {
 				case STATUS_OK:
-					// TODO
+					printf("User with UID %s subscribed successfully to group %s with GID %s\n", get_uid(), arg2, arg1);
 					break;
 				case STATUS_NEW_GROUP:
-					// TODO
+					printf("Created new group %s\n", arg2);
 					break;
-				case STATUS_USR_INVALID:
-					// TODO
+				case STATUS_USR_INVALID: // TODO: see this
+					printf("UID : %s is not valid\n", get_uid());
 					break;
-				case STATUS_GID_INVALID:
-					// TODO
+				case STATUS_GID_INVALID: 
+					printf("GID : %s is not valid\n", arg1);
 					break;
 				case STATUS_GNAME_INVALID:
-					// TODO
+					printf("Group name : %s is not valid\n", arg2);
 					break;
 				case STATUS_GROUPS_FULL:
-					// TODO
+					printf("Error : \n");
 					break;
 				case STATUS_NOK:
-					// TODO
+					printf("Error subscribing to group %s with GID %s\n", arg2, arg1);
 					break;
 			}
 			continue;
@@ -249,11 +250,57 @@ void process_input() {
 
 		// ===== UNSUBSCRIBE =====
 		if (!strcmp(command, "unsubscribe") || !strcmp(command, "u")) {
+			if (numTokens != 2) {
+				fprintf(stderr, "Invalid. Format: %s GID\n", command);
+				continue;
+			}
+
+			if (!is_logged_in()) {
+				printf("Error: User not be logged in.\n");
+				continue;
+			}
+
+			res = unsubscribe_group(arg1);
+			switch(res) {
+				case STATUS_OK:
+					printf("User with UID %s unsubscribed successfully from group with GID %s\n", get_uid(), arg1);
+					break;
+				case STATUS_USR_INVALID: // TODO: see this
+					printf("UID : %s is not valid\n", get_uid());
+					break;
+				case STATUS_GID_INVALID: 
+					printf("GID : %s is not valid\n", arg1);
+					break;
+				case STATUS_NOK:
+					printf("Error unsubscribing from group with GID %s\n", arg1);
+					break;
+			}
 			continue;
 		}
 
 		// ===== MY GROUPS =====
 		if (!strcmp(command, "my_groups") || !strcmp(command, "mgl")) {
+			if (numTokens != 1) {
+				fprintf(stderr, "Invalid. Format: %s\n", command);
+				continue;
+			}
+
+			if (!is_logged_in()) {
+				printf("Error: User not be logged in.\n");
+				continue;
+			}
+
+			char ***groups = get_subscribed_groups();
+			if (!strcmp(groups[0][0], "")) {
+				printf("No groups are available.\n");
+			} else if (!strcmp(groups[0][0], "E_USR")) {
+				printf("Error: %s not logged in.\n", get_uid());
+			} else {			
+				for (int i = 0; strcmp(groups[i][0], ""); i++) {
+					printf("%s %s\n", groups[i][0], groups[i][1]);
+				}
+			}
+			free(groups);
 			continue;
 		}
 

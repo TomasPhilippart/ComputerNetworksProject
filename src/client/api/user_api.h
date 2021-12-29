@@ -35,7 +35,9 @@ char* get_uid();
 
 // Group management
 char ***get_all_groups();
+char ***get_subscribed_groups();
 int subscribe_group(char *gid, char *gName);
+int unsubscribe_group(char *gid);
 
 // Auxiliary
 int is_logged_in();

@@ -30,6 +30,7 @@ struct sockaddr_in addr;
 socklen_t addrlen;
 char buf[MAX_LINE_SIZE];
 
+char ***parse_response (char *buf);
 void exchange_messages_udp(char *buf, ssize_t max_rcv_size);
 
 /*	Creates client socket and sets up the server address.
@@ -225,16 +226,100 @@ char *get_uid () {
 	[GID, Gname], one for each available group
 */
 char ***get_all_groups() {
-	char *command, *num_groups, buf[GIANT_SIZE];
-	char ***response = NULL;
+	char buf[GIANT_SIZE];
 	
 	sprintf(buf, "%s\n", "GLS");
 	
 	exchange_messages_udp(buf, GIANT_SIZE);
+	
+	return parse_response(buf);
+}
+
+/*	Subscribes current user to the specified group
+	Input: A valid GID and a group name
+	Returns: one of the following integer status codes:
+	- OK: if the subscription was successful
+	- NEW: if a group was created
+	- E_SR: if the provided user is invalid
+	- E_GNAME: if the proivdade group name is invalid
+	- E_FULL: if a new group could not be created
+*/
+int subscribe_group(char *gid, char *gName) {
+	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
+	sprintf(buf, "%s %s %s %s\n", "GSR", UID, gid, gName);
+
+	exchange_messages_udp(buf, MAX_LINE_SIZE);
+
+	int num_tokens = sscanf(buf, "%s %s\n", command, status);
+	if (num_tokens != 2 || strcmp(command, "RGS") != 0) {
+		return FAIL;
+	}
+
+	if (!strcmp(status, "OK")) {
+		return STATUS_OK;
+	} else if (!strcmp(status, "NEW")) {
+		return STATUS_NEW_GROUP;
+	} else if (!strcmp(status, "E_USR")) {
+		return STATUS_USR_INVALID;
+	} else if (!strcmp(status, "E_GRP")) {
+		return STATUS_GID_INVALID;
+	} else if (!strcmp(status, "E_GNAME")) {
+		return STATUS_GNAME_INVALID;
+	} else if (!strcmp(status, "E_FULL")) {
+		return STATUS_GROUPS_FULL;
+	} else if (!strcmp(status, "NOK")) {
+		return STATUS_NOK;
+	}
+
+	return FAIL;
+}
+
+/*	Unsubscribes current user from the specified group
+	Input: A valid GID and a group name
+	Returns: one of the following integer status codes:
+	- OK: if the unsubscription was successful
+	- E_USR: if the provided user is invalid
+	- E_GNAME: if the proivdade group name is invalid
+	- E_FULL: if a new group could not be created
+*/
+int unsubscribe_group(char *gid) {
+	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
+	sprintf(buf, "%s %s %s\n", "GUR", UID, gid);
+
+	exchange_messages_udp(buf, MAX_LINE_SIZE);
+
+	int num_tokens = sscanf(buf, "%s %s\n", command, status);
+	if (num_tokens != 2 || strcmp(command, "RGU") != 0) {
+		return FAIL;
+	}
+
+	if (!strcmp(status, "OK")) {
+		return STATUS_OK;
+	} else if (!strcmp(status, "E_USR")) {
+		return STATUS_USR_INVALID;
+	} else if (!strcmp(status, "E_GRP")) {
+		return STATUS_GID_INVALID;
+	} else if (!strcmp(status, "NOK")) {
+		return STATUS_NOK;
+	}
+	return FAIL;
+}
+
+char ***get_subscribed_groups() {
+	char buf[GIANT_SIZE];
+	
+	sprintf(buf, "%s %s\n", "GLM", UID);
+	exchange_messages_udp(buf, GIANT_SIZE);
+	
+	return parse_response(buf);
+}
+
+char ***parse_response (char *buf) {
+	char *command, *num_groups;
+	char ***response = NULL;
 
 	command = strtok(buf, " ");
 	num_groups = strtok(NULL, " ");
-	printf("%s %s\n", command, num_groups);
 	if (command == NULL || num_groups == NULL) {
 		return FAIL;
 	} 
@@ -255,48 +340,9 @@ char ***get_all_groups() {
 
 	response[atoi(num_groups)][0] = "";
 
-	return response; // TODO tratar do buf para print no user
+	return response;
 }
 
-/*	Subscribes current user to the specified group
-	Input: A valid GID and a group name
-	Returns: one of the following integer status codes:
-	- OK: if the subscription was successful
-	- NEW: if a group was created
-	- E_SR: if the provided user is invalid
-	- E_GNAME: if the proivdade group name is invalid
-	- E_FULL: if a new group could not be created
-*/
-int subscribe_group(char *gid, char *gName) {
-	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
-	sprintf(buf, "%s %s %s %s\n", "GSR", "95565", gid, gName);
-
-	printf("Yeee\n");
-
-	exchange_messages_udp(buf, MAX_LINE_SIZE);
-
-	printf("Yeee\n");
-
-	int num_tokens = sscanf(buf, "%s %s\n", command, status);
-	if (num_tokens != 2 || strcmp(command, "RGS") != 0) {
-		return FAIL;
-	}
-
-	if (!strcmp(status, "OK")) {
-		return STATUS_OK;
-	} else if (!strcmp(status, "NEW")) {
-		return STATUS_NEW_GROUP;
-	} else if (!strcmp(status, "E_SR")) {
-		return STATUS_USR_INVALID;
-	} else if (!strcmp(status, "E_GRP")) {
-		return STATUS_GID_INVALID;
-	} else if (!strcmp(status, "E_GNAME")) {
-		return STATUS_GNAME_INVALID;
-	} else if (!strcmp(status, "E_FULL")) {
-		return STATUS_GROUPS_FULL;
-	}
-	return FAIL;
-}
 
 /*	Sends the message in buf to the server through the UDP socket 
 	and puts a response of size max_rcv_size in buf 
@@ -317,6 +363,7 @@ void exchange_messages_udp(char *buf, ssize_t max_rcv_size) {
 		exit(EXITFAILURE);
 	}
 	
+	// DEBUG :
 	//printf("Received: %s\n", buf);
 	
 }
