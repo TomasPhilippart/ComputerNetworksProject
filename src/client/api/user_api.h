@@ -18,8 +18,7 @@
 #define MAX_LINE_SIZE 300
 #define MAX_ARG_SIZE 250
 
-
-int setup();
+void setup();
 int validate_hostname(char *name);
 int validate_ip(char *ip_addr);
 int validate_port(char *port);
@@ -40,6 +39,5 @@ int subscribe_group(char *gid, char *gName);
 
 // Auxiliary
 int is_logged_in();
-
 
 #endif

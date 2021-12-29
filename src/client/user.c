@@ -21,17 +21,35 @@ int main(int argc, char **argv) {
 	return 0;
 }
 
-// ./user [-n DSIP] [-p DSport]
+/*	Parse arguments from the command line according to 
+	format ./user [-n DSIP] [-p DSport] */
 static void parse_args(int argc, char **argv) {
-    int opt;
 
-    while ((opt = getopt(argc, argv, "n:p:")) != -1) {
+    int opt;
+	int opt_counter = 0;
+	
+    while (1) {
+
+		if (argv[optind] == NULL) {
+			break;
+		}
+
+		/* Check for wrong non-argument words in the middle of argv[] or
+		   existence of more than 2 options */
+		if (argv[optind][0] != '-' || opt_counter >= 2) {
+			fprintf(stderr, "Invalid format. Usage: ./user [-n DSIP] [-p DSport]\n");
+			exit(EXIT_FAILURE);
+		}
+
+		/* parse option-argument tuples */
+		opt = getopt(argc, argv, "n:p:");
         switch (opt) {
 			case 'n':
 				if (!(validate_ip(optarg) || validate_hostname(optarg))) {
 					fprintf(stderr, "Invalid format: -n must be followed by a valid IPv4 address or hostname.\n");
 					exit(EXIT_FAILURE);
 				}
+				opt_counter ++;
 				break;
 
 			case 'p':
@@ -39,9 +57,16 @@ static void parse_args(int argc, char **argv) {
 					fprintf(stderr, "Invalid format: -p must be followed by a valid port number.\n");
 					exit(EXIT_FAILURE);
 				}
+				opt_counter ++;
 				break;
+
+			default:
+				fprintf(stderr, "Invalid format. Usage: ./user [-n DSIP] [-p DSport]\n");
+				exit(EXIT_FAILURE);
 			}
+			
     }
+
 }
 
 
@@ -190,10 +215,10 @@ void process_input() {
 				continue;
 			}
 
-			if (!is_logged_in()) {
-				printf("Error: User not be logged in.\n");
-				continue;
-			}
+			//if (!is_logged_in()) {
+			//	printf("Error: User not be logged in.\n");
+			//	continue;
+			//}
 
 			res = subscribe_group(arg1, arg2);
 			switch(res) {

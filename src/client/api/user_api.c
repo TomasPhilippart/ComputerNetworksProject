@@ -13,13 +13,16 @@
 #define EXITFAILURE 1
 #define GIANT_SIZE 3500
 
+/* Default server ip and port */
 char *server_ip = "127.0.0.1";
 char *server_port = "58043";
 
+/* User ID, password, and flag for when a user is logged in */
 char UID[5];
 char password[8];
 int logged_in = 0;
 
+/* variables needed for UDP connection */
 int udp_socket; 
 ssize_t n;
 struct addrinfo hints, *res;
@@ -29,12 +32,17 @@ char buf[MAX_LINE_SIZE];
 
 void exchange_messages_udp(char *buf, ssize_t max_rcv_size);
 
-/* Creates client socket and sets up the server address */
-int setup() {
+/*	Creates client socket and sets up the server address.
+	Terminates program if socked could not be created or hostname/IP address
+	could not be resolved.
+	Input: None
+	Output: None
+*/
+void setup() {
 	/* Create UDP socket */
 	udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
 	if (udp_socket == -1) {
-		exit(EXITFAILURE);
+		exit(EXIT_FAILURE);
 	}
 
 	memset(&hints, 0, sizeof(hints));
@@ -44,15 +52,15 @@ int setup() {
 	addrlen = sizeof(addr); /* for receiving messages */
 
 	if (getaddrinfo(server_ip, server_port, &hints, &res) != 0) {
-		return -1;
+		exit(EXIT_FAILURE);
 	}
-	return 0;
+	
 }
 
-/* Checks if name points to a valid hostname that exists in the DNS
+/* Checks if name points to a valid hostname that exists in the DNS.
    Input:
 	- name: the name to be checked
-   Output: 1 if name is a valid hostname, 0 otherwise
+   Output: 1 if name is a valid hostname, 0 otherwise.
 */
 int validate_hostname(char *name) {
 	struct addrinfo *aux;
@@ -64,10 +72,10 @@ int validate_hostname(char *name) {
 	return 0;
 }
 
-/* Checks if ipd_addr points to a string with a valid IPv4 address 
+/* Checks if ip_addr is a valid IPv4 address.
    Input:
 	- ip_addr: string to be checked
-   Output: 1 if ip_addr is a valid address, 0 otherwise
+   Output: 1 if ip_addr is a valid address, 0 otherwise.
 */
 int validate_ip(char *ip_addr) {
 	struct sockaddr_in addr;
@@ -78,10 +86,10 @@ int validate_ip(char *ip_addr) {
 	return 0;
 }
 
-/* Checks if port points to a string with a valid port number
+/* Checks if port points to a string with a valid port number.
    Input:
 	- port: string to be checked 
-   Output: 1 if port is a valid port, 0 otherwise
+   Output: 1 if port is a valid port, 0 otherwise.
 */
 int validate_port(char *port) {
 	int port_number = atoi(port);
@@ -164,8 +172,8 @@ int login(char *user, char *pass) {
 	}
 
 	if (!strcmp(status, "OK")) {
-		strcpy(UID, user);
-		strcpy(password, pass);
+		strncpy(UID, user, 5);
+		strncpy(password, pass, 8);
 		logged_in = 1;
 		return STATUS_OK;
 	} else if (!strcmp(status, "NOK")) {
@@ -261,9 +269,13 @@ char ***get_all_groups() {
 */
 int subscribe_group(char *gid, char *gName) {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
-	sprintf(buf, "%s %s %s %s\n", "GSR", UID, gid, gName);
+	sprintf(buf, "%s %s %s %s\n", "GSR", "95565", gid, gName);
+
+	printf("Yeee\n");
 
 	exchange_messages_udp(buf, MAX_LINE_SIZE);
+
+	printf("Yeee\n");
 
 	int num_tokens = sscanf(buf, "%s %s\n", command, status);
 	if (num_tokens != 2 || strcmp(command, "RGS") != 0) {
