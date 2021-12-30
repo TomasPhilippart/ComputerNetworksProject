@@ -1,0 +1,13 @@
+reg 14567 12345678
+reg 14568 12345678
+unr 14568 12345678
+login 14567 12345678
+showuid
+gl
+subscribe 42 n
+u 42
+subscribe 42 n
+mgl
+select 42
+select 43
+exit

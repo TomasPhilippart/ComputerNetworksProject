@@ -12,13 +12,14 @@ static void parse_args(int argc, char **argv);
 void process_input();
 int check_pass(char *pass);
 int check_uid(char *uid);
+int check_gid(char *gid);
 
 int main(int argc, char **argv) {
 	parse_args(argc, argv);
-	setup();
+	setup_udp();
+	setup_tcp();
 	process_input();
-	end_session();
-	return 0;
+	end_session(EXIT_SUCCESS);
 }
 
 /*	Parse arguments from the command line according to 
@@ -74,9 +75,9 @@ void process_input() {
 
 	while (1) {
 		fgets(line, sizeof(line)/sizeof(char), stdin);
-		char command[MAX_ARG_SIZE], arg1[MAX_ARG_SIZE], arg2[MAX_ARG_SIZE];
-		int res;
-		int num_tokens = sscanf(line, "%s %s %s", command, arg1, arg2);
+		char command[MAX_ARG_SIZE], arg1[MAX_ARG_SIZE], arg2[MAX_ARG_SIZE], arg3[MAX_ARG_SIZE];
+		int status;
+		int num_tokens = sscanf(line, "%s %s %s %s", command, arg1, arg2, arg3);
 		
 		// ===== REGISTER =====
 		if (!strcmp(command, "reg")) {
@@ -86,8 +87,8 @@ void process_input() {
 			}
 			// Check "UID" and "pass" arguments 
 			if (check_uid(arg1) && check_pass(arg2)) {
-				res = register_user(arg1, arg2);
-				switch(res) {
+				status = register_user(arg1, arg2);
+				switch(status) {
 					case STATUS_OK:
 						printf("User registration successful with UID %s.\n", arg1);
 						break;
@@ -113,8 +114,8 @@ void process_input() {
 			
 			// Check "UID" and "pass" arguments 
 			if (check_uid(arg1) && check_pass(arg2)) {
-				res = unregister_user(arg1, arg2);
-				switch(res) {
+				status = unregister_user(arg1, arg2);
+				switch(status) {
 					case STATUS_OK:
 						printf("User %s unregistered sucessfully.\n", arg1);
 						break;
@@ -139,8 +140,8 @@ void process_input() {
 			
 			// Check "UID" and "pass" arguments 
 			if (check_uid(arg1) && check_pass(arg2)) {
-				res = login(arg1, arg2);
-				switch(res) {
+				status = login(arg1, arg2);
+				switch(status) {
 					case STATUS_OK:
 						printf("User %s logged in sucessfully.\n", arg1);
 						break;
@@ -163,8 +164,8 @@ void process_input() {
 				continue;
 			}
 
-			res = logout();
-			switch(res) {
+			status = logout();
+			switch(status) {
 				case STATUS_OK:
 					printf("User %s logged out sucessfully.\n", get_uid());
 					break;
@@ -198,8 +199,9 @@ void process_input() {
 
 		// ===== GROUPS =====
 		if (!strcmp(command, "groups") || !strcmp(command, "gl")) {
-			char ***groups = get_all_groups();
+			char ***groups;
 
+			get_all_groups(&groups);
 			if (!strcmp(groups[0][0], "")) {
 				printf("No groups are available.\n");
 			} else {				
@@ -207,8 +209,8 @@ void process_input() {
 					printf("%s %s\n", groups[i][0], groups[i][1]);
 				}
 			}
-			free(groups);
 
+			free(groups);
 			continue;
 		}
 
@@ -225,8 +227,8 @@ void process_input() {
 				continue;
 			}
 
-			res = subscribe_group(arg1, arg2);
-			switch(res) {
+			status = subscribe_group(arg1, arg2);
+			switch(status) {
 				case STATUS_OK:
 					printf("User with UID %s subscribed successfully to group %s with GID %s\n", get_uid(), arg2, arg1);
 					break;
@@ -260,12 +262,12 @@ void process_input() {
 			}
 
 			if (!is_logged_in()) {
-				printf("Error: User not be logged in.\n");
+				printf("Error: User not logged in.\n");
 				continue;
 			}
 
-			res = unsubscribe_group(arg1);
-			switch(res) {
+			status = unsubscribe_group(arg1);
+			switch(status) {
 				case STATUS_OK:
 					printf("User with UID %s unsubscribed successfully from group with GID %s\n", get_uid(), arg1);
 					break;
@@ -290,15 +292,15 @@ void process_input() {
 			}
 
 			if (!is_logged_in()) {
-				printf("Error: User not be logged in.\n");
+				printf("Error: User not logged in.\n");
 				continue;
 			}
 
-			char ***groups = get_subscribed_groups();
-			if (!strcmp(groups[0][0], "")) {
-				printf("No groups are available.\n");
-			} else if (!strcmp(groups[0][0], "E_USR")) {
-				printf("Error: %s not logged in.\n", get_uid());
+			char ***groups;
+
+			status = get_subscribed_groups(&groups);
+			if (status == STATUS_USR_INVALID) {
+				printf("Error: Invalid UID.\n");
 			} else {			
 				for (int i = 0; strcmp(groups[i][0], ""); i++) {
 					printf("%s %s\n", groups[i][0], groups[i][1]);
@@ -310,15 +312,62 @@ void process_input() {
 
 		// ===== SELECT =====
 		if (!strcmp(command, "select") || !strcmp(command, "sag")) {
+			if (num_tokens != 2) {
+				fprintf(stderr, "Invalid. Format: %s GID\n", command);
+				continue;
+			}
+
+			if (!is_logged_in()) {
+				printf("Error: User not logged in.\n");
+			} else if (check_gid(arg1)) {
+				set_gid(arg1);
+				printf("GID %s selected.\n", arg1);
+			} else {
+				printf("Error: GID %s is invalid.\n", arg1);
+			}
+			
 			continue;
 		}
 
 		// ===== SHOW GID =====
 		if (!strcmp(command, "showgid") || !strcmp(command, "sg")) {
+			if (num_tokens != 1) {
+				fprintf(stderr, "Invalid. Format: %s\n", command);
+				continue;
+			}
+
+			if (!is_logged_in()) {
+				printf("Error: User not be logged in.\n");
+			} else if (get_gid() != "") {
+				printf("Selected GID: %s\n", get_gid());
+			} else {
+				printf("Error: No GID selected.\n");
+			}
+			
 			continue;
 		}
 
 		if (!strcmp(command, "ulist") || !strcmp(command, "ul")) {
+		
+			if (num_tokens != 2) {
+				fprintf(stderr, "Invalid. Format: %s\n", command);
+				continue;
+			}
+			if (!is_logged_in()) {
+				printf("Error: User not be logged in.\n");
+				continue;
+			}
+			char **uids;
+			status = get_uids_group(&uids);
+			if (!strcmp(uids[0], "")) {
+				printf("Group %s is not subscribed by any user.\n", get_gid());
+			} else if (get_gid() == "") {
+				printf("User %s has not selected any group.\n", get_uid());
+			} else {			
+				for (int i = 0; strcmp(uids[i], ""); i++) {
+					printf("%s\n", uids[i]);
+				}
+			}
 			continue;
 		}
 
@@ -329,13 +378,17 @@ void process_input() {
 		if (!strcmp(command, "retrieve") || !strcmp(command, "r")) {
 			continue;
 		}
-
 	}
 }
 
-// Check if UID must be 5 digits and not 0000
+// Check if UID is 5 digits and not 0000
 int check_uid(char *uid) {
-	return strlen(uid) == 5 &&((atoi(uid) > 0) || !strcmp(uid, "00000"));
+	return strlen(uid) == 5 && atoi(uid) > 0;
+}
+
+// Check if GID is 2 digits
+int check_gid(char *gid) {
+	return strlen(gid) == 2 && atoi(gid) > 0;
 }
 
 // Check if password is alphanumeric and has 8 characters
