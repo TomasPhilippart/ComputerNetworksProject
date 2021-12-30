@@ -69,7 +69,6 @@ static void parse_args(int argc, char **argv) {
 
 }
 
-
 void process_input() {
 	char line[MAX_LINE_SIZE];
 
@@ -77,11 +76,11 @@ void process_input() {
 		fgets(line, sizeof(line)/sizeof(char), stdin);
 		char command[MAX_ARG_SIZE], arg1[MAX_ARG_SIZE], arg2[MAX_ARG_SIZE];
 		int res;
-		int numTokens = sscanf(line, "%s %s %s", command, arg1, arg2);
+		int num_tokens = sscanf(line, "%s %s %s", command, arg1, arg2);
 		
 		// ===== REGISTER =====
 		if (!strcmp(command, "reg")) {
-			if (numTokens != 3) {
+			if (num_tokens != 3) {
 				fprintf(stderr, "Invalid. Format: reg UID pass\n");
 				continue;
 			}
@@ -107,7 +106,7 @@ void process_input() {
 
 		// ===== UNREGISTER =====
 		if (!strcmp(command, "unregister") || !strcmp(command, "unr")) {
-			if (numTokens != 3) {
+			if (num_tokens != 3) {
 				fprintf(stderr, "Invalid. Format: %s UID pass\n", command);
 				continue;
 			}
@@ -131,10 +130,12 @@ void process_input() {
 		
 		// ===== LOGIN =====
 		if (!strcmp(command, "login")) {
-			if (numTokens != 3) {
+			if (num_tokens != 3) {
 				fprintf(stderr, "Invalid. Format: %s UID pass\n", command);
 				continue;
 			}
+
+			// NOTE: check is user already logged in?
 			
 			// Check "UID" and "pass" arguments 
 			if (check_uid(arg1) && check_pass(arg2)) {
@@ -179,6 +180,9 @@ void process_input() {
 		if (!strcmp(command, "showuid") || !strcmp(command, "su")) {
 			char* UID = get_uid();
 
+			/* NOTE: it would make more sense for this verification to be made inside get_uid.
+			   If the user is not logged in, then it returns NULL or something. Otherwise we are
+			   forcing ourselves to make a verification to guarantee that the UID is not garbled */
 			if (!is_logged_in()) {
 				printf("Error: User not be logged in.\n");
 			} else {
@@ -211,7 +215,7 @@ void process_input() {
 		// NOTE The following group management commands can only be issued after a user has logged in
 		// ===== SUBSCRIBE =====
 		if (!strcmp(command, "subscribe") || !strcmp(command, "s")) {
-			if (numTokens != 3) {
+			if (num_tokens != 3) {
 				fprintf(stderr, "Invalid. Format: %s GID GName\n", command);
 				continue;
 			}
@@ -250,7 +254,7 @@ void process_input() {
 
 		// ===== UNSUBSCRIBE =====
 		if (!strcmp(command, "unsubscribe") || !strcmp(command, "u")) {
-			if (numTokens != 2) {
+			if (num_tokens != 2) {
 				fprintf(stderr, "Invalid. Format: %s GID\n", command);
 				continue;
 			}
@@ -280,7 +284,7 @@ void process_input() {
 
 		// ===== MY GROUPS =====
 		if (!strcmp(command, "my_groups") || !strcmp(command, "mgl")) {
-			if (numTokens != 1) {
+			if (num_tokens != 1) {
 				fprintf(stderr, "Invalid. Format: %s\n", command);
 				continue;
 			}

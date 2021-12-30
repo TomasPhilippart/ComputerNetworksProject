@@ -11,12 +11,13 @@
 #include <stdio.h>
 
 #define EXITFAILURE 1
-#define GIANT_SIZE 3500
+#define GIANT_SIZE 3500		//NOTE: please change this in the future ffs
 
 /* Default server ip and port */
 char *server_ip = "127.0.0.1";
 char *server_port = "58043";
 
+/* NOTE: I think we need +1 size because of '\0' */
 /* User ID, password, and flag for when a user is logged in */
 char UID[5];
 char password[8];
@@ -30,7 +31,7 @@ struct sockaddr_in addr;
 socklen_t addrlen;
 char buf[MAX_LINE_SIZE];
 
-char ***parse_response (char *buf);
+char ***parse_response (char *buf, char *flag);
 void exchange_messages_udp(char *buf, ssize_t max_rcv_size);
 
 /*	Creates client socket and sets up the server address.
@@ -58,10 +59,10 @@ void setup() {
 	
 }
 
-/* Checks if name points to a valid hostname that exists in the DNS.
-   Input:
+/*	Checks if name points to a valid hostname that exists in the DNS.
+	Input:
 	- name: the name to be checked
-   Output: 1 if name is a valid hostname, 0 otherwise.
+	Output: 1 if name is a valid hostname, 0 otherwise.
 */
 int validate_hostname(char *name) {
 	struct addrinfo *aux;
@@ -73,10 +74,10 @@ int validate_hostname(char *name) {
 	return 0;
 }
 
-/* Checks if ip_addr is a valid IPv4 address.
-   Input:
+/*	Checks if ip_addr is a valid IPv4 address.
+	Input:
 	- ip_addr: string to be checked
-   Output: 1 if ip_addr is a valid address, 0 otherwise.
+	Output: 1 if ip_addr is a valid address, 0 otherwise.
 */
 int validate_ip(char *ip_addr) {
 	struct sockaddr_in addr;
@@ -87,10 +88,10 @@ int validate_ip(char *ip_addr) {
 	return 0;
 }
 
-/* Checks if port points to a string with a valid port number.
-   Input:
+/*	Checks if port points to a string with a valid port number.
+	Input:
 	- port: string to be checked 
-   Output: 1 if port is a valid port, 0 otherwise.
+    Output: 1 if port is a valid port, 0 otherwise.
 */
 int validate_port(char *port) {
 	int port_number = atoi(port);
@@ -105,7 +106,10 @@ int validate_port(char *port) {
 	Input:
 	- UID: a 5 char numerical string
 	- pass: a 8 char alphanumerical string
-	Output: OK, DUP, NOK
+	Output: 
+	- OK, if the registration was successfull
+	- DUP, if the registration UID is duplicated
+	- NOK, if UID is invalid or pass is wrong
 */
 int register_user(char *user, char *pass) {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
@@ -132,7 +136,9 @@ int register_user(char *user, char *pass) {
 	Input:
 	- UID: a valid UID (a 5 char numerical string)
 	- pass: a valid pass (8 char alphanumerical string)
-	Output: TODO
+	Output: 
+	- OK, if the unregistration was successfull
+	- NOK, if UID is invalid or pass is wrong 
 */
 int unregister_user(char *user, char *pass) {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
@@ -159,7 +165,7 @@ int unregister_user(char *user, char *pass) {
 	- pass: a valid pass 
 	Output: A integer s.t.:
 	- OK: if the login was successful
-	- NOK: otherwise
+	- NOK: invalid user or wrong pass
 */
 int login(char *user, char *pass) {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
@@ -189,7 +195,9 @@ int login(char *user, char *pass) {
 	- pass: a valid pass 
 	Output: A integer s.t.:
 	- OK: if the login was successful
-	- NOK: otherwise
+	- NOK: otherwise (NOTE: this is a little bit
+	redundant, since we guarantee that both are correct, unless another
+	session unregisters the account or something)
 */
 int logout() {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
@@ -232,7 +240,7 @@ char ***get_all_groups() {
 	
 	exchange_messages_udp(buf, GIANT_SIZE);
 	
-	return parse_response(buf);
+	return parse_response(buf, "RGL");
 }
 
 /*	Subscribes current user to the specified group
@@ -246,7 +254,18 @@ char ***get_all_groups() {
 */
 int subscribe_group(char *gid, char *gName) {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
+	printf("%s\n", UID);
+
+	/* add a zero on the left if gid < 10 */
+	if (strlen(gid) == 1) {
+		char *aux = gid;
+		gid = (char *) malloc(sizeof(*aux) + 1);
+		gid[0] = '0';
+		strcpy(gid + 1, aux);
+	}
+
 	sprintf(buf, "%s %s %s %s\n", "GSR", UID, gid, gName);
+	printf("Sent: %s\n", buf);
 
 	exchange_messages_udp(buf, MAX_LINE_SIZE);
 
@@ -259,15 +278,15 @@ int subscribe_group(char *gid, char *gName) {
 		return STATUS_OK;
 	} else if (!strcmp(status, "NEW")) {
 		return STATUS_NEW_GROUP;
-	} else if (!strcmp(status, "E_USR")) {
+	} else if (!strcmp(status, "E_USR")) {	/* Not logged in */
 		return STATUS_USR_INVALID;
-	} else if (!strcmp(status, "E_GRP")) {
+	} else if (!strcmp(status, "E_GRP")) {	/* Bad names */
 		return STATUS_GID_INVALID;
 	} else if (!strcmp(status, "E_GNAME")) {
 		return STATUS_GNAME_INVALID;
 	} else if (!strcmp(status, "E_FULL")) {
 		return STATUS_GROUPS_FULL;
-	} else if (!strcmp(status, "NOK")) {
+	} else if (!strcmp(status, "NOK")) { /* NOTE: This is activated, for example, when a negative UID is given */
 		return STATUS_NOK;
 	}
 
@@ -311,19 +330,30 @@ char ***get_subscribed_groups() {
 	sprintf(buf, "%s %s\n", "GLM", UID);
 	exchange_messages_udp(buf, GIANT_SIZE);
 	
-	return parse_response(buf);
+	return parse_response(buf, "RGM");
 }
 
-char ***parse_response (char *buf) {
+/*	Parses a response from the server regarding group listing
+	to an array of arrays of 2 string of the format
+	{GID, Gname}, one for each available group. The last entry
+	has GID = ""
+	Input: 
+	- buf: the buffer with the response
+	- flag: the expected response flag
+	Output:
+	- the array of {GID, Gname} elements
+*/
+char ***parse_response(char *buf, char *flag) {
 	char *command, *num_groups;
 	char ***response = NULL;
 
 	command = strtok(buf, " ");
 	num_groups = strtok(NULL, " ");
-	if (command == NULL || num_groups == NULL) {
+	if (strcmp(command, flag) || atoi(num_groups) == 0) {
 		return FAIL;
 	} 
 	
+	/* Allocate and fill response entries with each GID and GNAME */
 	response = (char***) malloc(sizeof(char**) * (atoi(num_groups) + 1));
 	for (int i = 0; i < atoi(num_groups) + 1; i++) {
 		response[i] = (char **) malloc(sizeof(char*) * 2);
@@ -364,7 +394,7 @@ void exchange_messages_udp(char *buf, ssize_t max_rcv_size) {
 	}
 	
 	// DEBUG :
-	//printf("Received: %s\n", buf);
+	printf("Received: %s\n", buf);
 	
 }
 
