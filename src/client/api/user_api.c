@@ -10,7 +10,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#define GIANT_SIZE 3500		//NOTE: please change this in the future ffs
+#define GIANT_SIZE 3500		// NOTE: please change this in the future ffs
 
 /* Default server ip and port */
 char *server_ip = "127.0.0.1";
@@ -36,7 +36,8 @@ ssize_t n;
 struct sockaddr_in addr;
 socklen_t addrlen;
 
-char ***parse_response (char *buf, int num_groups);
+char ***parse_groups (char *buf, int num_groups);
+char **parse_uids (char *buf);
 void exchange_messages_udp(char *buf, ssize_t max_rcv_size);
 void exchange_messages_tcp(char **buf);
 
@@ -80,6 +81,8 @@ void setup_tcp() {
 	if (getaddrinfo(server_ip, server_port, &hints_tcp, &res_tcp) != 0) {
 		exit(EXIT_FAILURE);
 	}
+
+	connect(tcp_socket, res_tcp->ai_addr, res_tcp->ai_addrlen); 
 }
 
 /*	Checks if name points to a valid hostname that exists in the DNS.
@@ -275,7 +278,7 @@ void get_all_groups(char ****list) {
 		end_session(EXIT_FAILURE);
 	} 
 	
-	*list = parse_response(buf, atoi(num_groups));
+	*list = parse_groups(buf, atoi(num_groups));
 
 }
 
@@ -381,7 +384,7 @@ int get_subscribed_groups(char ****list) {
 		end_session(EXIT_FAILURE);
 	} 
 	
-	*list = parse_response(buf, atoi(num_groups));
+	*list = parse_groups(buf, atoi(num_groups));
 
 	return STATUS_OK;
 
@@ -393,11 +396,10 @@ int get_subscribed_groups(char ****list) {
 	has GID = ""
 	Input: 
 	- buf: the buffer with the response
-	- flag: the expected response flag
 	Output:
 	- the array of {GID, Gname} elements
 */
-char ***parse_response(char *buf, int num_groups) {
+char ***parse_groups(char *buf, int num_groups) {
 	char ***response = NULL;
 	
 	/* Allocate and fill response entries with each GID and GNAME */
@@ -428,11 +430,18 @@ char* get_gid() {
 	return GID;
 }
 
+/*	Parses a response from the server regarding listing
+	users from a group.
+	Input: 
+	- list: the list to be filled with the UID's
+	Output: None
+*/
 int get_uids_group(char ***list) {
+
 	char *buf = (char *) malloc(sizeof(char) * GIANT_SIZE);
 	char *command, *status, *group_name;
 
-	sprintf(buf, "%s %s\n", "ULS", UID);
+	sprintf(buf, "%s %s\n", "ULS", GID);
 	exchange_messages_tcp(&buf);
 
 	command = strtok(buf, " ");
@@ -440,6 +449,7 @@ int get_uids_group(char ***list) {
 	group_name = strtok(NULL, " ");
 
 	if (strcmp(command, "RUL")) {
+		printf("Here 1\n");
 		end_session(EXIT_FAILURE);
 	} 
 
@@ -447,14 +457,53 @@ int get_uids_group(char ***list) {
 		return STATUS_NOK;
 	} 
 
-	if (group_name != NULL) {
+	if (group_name == NULL) {
+		printf("Here 2\n");
 		end_session(EXIT_FAILURE);
 	} 
 
-	//*list = parse_response(buf, atoi(num_groups));
+	*list = parse_uids(buf);
 
 	return STATUS_OK;
 
+}
+
+/*	Parses a response from the server regarding listing
+	users from a group.
+	Input: 
+	- buf: the buffer with the response
+	Output:
+	- the array of {UID} elements. The last element is an 
+	empty string.
+*/
+char **parse_uids(char *buf) {
+	char **response = NULL;
+	ssize_t base_size = GIANT_SIZE;
+	char *token;
+	int parsed_tokens = 0;
+	
+	/* Allocate and fill response entries with each UID */
+	response = (char**) malloc(sizeof(char*) * base_size);
+
+	for (int i = 0; i < base_size; i++) {
+		response[i] = (char *) malloc(sizeof(char*) * 6);
+	}
+
+	while ((token = strtok(NULL, " ")) != NULL) {
+		response[parsed_tokens ++] = token;
+		if (parsed_tokens % base_size == 0) {
+			response = (char **) realloc(response, (sizeof(response) + base_size) * sizeof(char *));
+		}
+	}
+
+	/* Deal with '\n' at the end */
+	if (parsed_tokens > 0) {
+		response[parsed_tokens - 1][strlen(response[parsed_tokens - 1]) - 1] = '\0';
+	}
+
+	response[parsed_tokens] = "";
+
+	return response;
 }
 
 
@@ -491,42 +540,36 @@ void exchange_messages_udp(char *buf, ssize_t max_rcv_size) {
 */
 void exchange_messages_tcp(char **buf) {
 
-	int n = connect(tcp_socket, res_tcp->ai_addr, res_tcp->ai_addrlen); 
-
-	if (n == -1) {
-		exit(EXIT_FAILURE);
-	}
-
-	printf("sending message\n");
+	setup_tcp();
 
 	ssize_t num_bytes = sizeof(char) * strlen(*buf); 
 	ssize_t num_bytes_left = num_bytes;
-	ssize_t num_bytes_written;
+	ssize_t num_bytes_written, num_bytes_read, base_bytes;
 	char *aux = *buf;
 
 	while (num_bytes_left > 0) {
 		num_bytes_written = write(tcp_socket, aux, num_bytes_left);
 		if (num_bytes_written <= 0) {
 			exit(EXIT_FAILURE);
-		 }
+		}
+		
 		num_bytes_left -= num_bytes_written;
 		aux += num_bytes_written;
 	}
 
-	printf("message sent %s\n", *buf);
+	memset(*buf, '\0', sizeof(*buf) * sizeof(char));
 
-	memset(*buf, 0, sizeof(*buf) * sizeof(char));
-
-	num_bytes_left = sizeof(char) * strlen(*buf);  
-	ssize_t num_bytes_read;
-	ssize_t base_bytes = num_bytes_left;
+	num_bytes_left = sizeof(char) * GIANT_SIZE;  
 	aux = *buf;
 	while (1) {
 		num_bytes_read = read(tcp_socket, aux, num_bytes_left);
 		if (num_bytes_read == -1) {
 			exit(EXIT_FAILURE);
 		}
-		else if (num_bytes_read == 0) break;
+		else if (num_bytes_read == 0) {
+			*aux = '\0';
+			break;
+		}
 		aux += num_bytes_read;
 		num_bytes_left -= num_bytes_read;
 		if (num_bytes_left == 0) {
@@ -538,7 +581,8 @@ void exchange_messages_tcp(char **buf) {
 		}
 	}
 
-	printf("Received: %s\n", *buf);
+	// Debug
+	//printf("Received: %s\n", *buf);
 }
 
 void end_session(int status) {

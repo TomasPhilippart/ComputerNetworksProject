@@ -17,7 +17,6 @@ int check_gid(char *gid);
 int main(int argc, char **argv) {
 	parse_args(argc, argv);
 	setup_udp();
-	setup_tcp();
 	process_input();
 	end_session(EXIT_SUCCESS);
 }
@@ -338,7 +337,7 @@ void process_input() {
 
 			if (!is_logged_in()) {
 				printf("Error: User not be logged in.\n");
-			} else if (get_gid() != "") {
+			} else if (strcmp(get_gid(), "")) {
 				printf("Selected GID: %s\n", get_gid());
 			} else {
 				printf("Error: No GID selected.\n");
@@ -347,27 +346,29 @@ void process_input() {
 			continue;
 		}
 
+		// ===== LIST UIDS IN CURRENT GROUP =====
 		if (!strcmp(command, "ulist") || !strcmp(command, "ul")) {
 		
-			if (num_tokens != 2) {
-				fprintf(stderr, "Invalid. Format: %s\n", command);
-				continue;
-			}
 			if (!is_logged_in()) {
 				printf("Error: User not be logged in.\n");
+				continue;
+			}
+			if (!strcmp(get_gid(), "")) {
+				printf("Error: no group is currently selected.\n");
 				continue;
 			}
 			char **uids;
 			status = get_uids_group(&uids);
 			if (!strcmp(uids[0], "")) {
 				printf("Group %s is not subscribed by any user.\n", get_gid());
-			} else if (get_gid() == "") {
+			} else if (!strcmp(get_gid(), "")) {
 				printf("User %s has not selected any group.\n", get_uid());
-			} else {			
+			} else {		
 				for (int i = 0; strcmp(uids[i], ""); i++) {
 					printf("%s\n", uids[i]);
 				}
 			}
+			free(uids);
 			continue;
 		}
 
