@@ -15,4 +15,4 @@ api/user_api.o: client/api/user_api.c
 
 clean:
 	@echo Cleaning...
-	rm -f fs/*.o *.o user
+	rm -f client/api/*.o client/*.o user
