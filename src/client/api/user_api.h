@@ -44,7 +44,7 @@ int unsubscribe_group(char *gid);
 int get_uids_group(char ***list);
 
 // Messaging
-int post(char *text, char *group);
+int post(char* text, char *group, char *filename);
 
 // Auxiliary
 int is_logged_in();

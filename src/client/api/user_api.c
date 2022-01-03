@@ -9,6 +9,7 @@
 #include <netdb.h>
 #include <string.h>
 #include <stdio.h>
+#include <sys/stat.h>
 
 #define GIANT_SIZE 3500		// NOTE: please change this in the future ffs
 
@@ -510,10 +511,42 @@ char **parse_uids(char *buf) {
 }
 
 
-int post(char* text, char *group) {
+int post(char* text, char *group, char *filename) {
 	char *buf = (char *) malloc(sizeof(char) * GIANT_SIZE);
+	unsigned char *content;
 	char command[MAX_ARG_SIZE], status[MAX_ARG_SIZE];
-	sprintf(buf, "%s %s %s %ld %s\n", "PST", UID, GID, strlen(text), text);
+	FILE *file;
+	ssize_t filesize;
+
+	if (filename == NULL) { // no filename provided
+		sprintf(buf, "%s %s %s %ld %s\n", "PST", UID, GID, strlen(text), text);
+
+	} else if ((file = fopen(filename, "rb"))) { // filename provided
+		fseek(file, 0, SEEK_END);
+		filesize = ftell(file);
+		fseek (file, 0, SEEK_SET);
+
+		content = (unsigned char *) malloc (filesize * sizeof(unsigned char *));
+		if (content) {
+			fread(content, sizeof(unsigned char), filesize, file);
+		}
+		fclose(file);
+		//file = fopen("resultado.png", "wb");
+		//fwrite(content, 1, filesize, file);		
+		//fclose(file);
+		buf = (unsigned char *) realloc(buf, (GIANT_SIZE + filesize) * sizeof(char));
+		sprintf(buf, "%s %s %s %ld %s %s %ld ", "PST", UID, GID, strlen(text), text, filename, filesize);
+
+		char *ptr = buf + strlen(*buf) + 1;
+		for (int i = 0; i < filesize; i++) {
+			sprintf(ptr[i], "%02X", content[i]);
+		}
+
+		printf("Sent: %s\n, Size: %lu\n", buf, sizeof(*buf));
+	} else {	
+		return FAIL;
+	}
+
 	exchange_messages_tcp(&buf);
 
 	int num_tokens = sscanf(buf, "%s %s\n", command, status);

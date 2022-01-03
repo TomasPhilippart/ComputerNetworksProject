@@ -14,6 +14,7 @@ int check_pass(char *pass);
 int check_uid(char *uid);
 int check_gid(char *gid);
 int get_text(char *buf, char *group);
+int check_filename(char *filename);
 
 int main(int argc, char **argv) {
 	parse_args(argc, argv);
@@ -21,6 +22,8 @@ int main(int argc, char **argv) {
 	process_input();
 	end_session(EXIT_SUCCESS);
 }
+
+// NOTE: make error messages uniform
 
 /*	Parse arguments from the command line according to 
 	format ./user [-n DSIP] [-p DSport] */
@@ -384,23 +387,28 @@ void process_input() {
 			}
 			
 			if (get_text(buf, rest) == FAIL) {
-				printf("Invalid format 0. Usage: post \"text\" [Fname].\n");
+				printf("Invalid format. Usage: post \"text\" [Fname].\n");
 				continue;
 			}
 		
-
-			char group[5];	
+			char mid[5];	
 			
-			if (*(rest + strlen(buf) + 2) == '\n') {
-				post(buf, group);
+			if (*(rest + strlen(buf) + 2) == '\n') { // no Fname
+				post(buf, mid, NULL);
 			} else if (*(rest + strlen(buf) + 2) == ' ') {
 				num_tokens = sscanf(rest + strlen(buf) + 2, " %s %s", arg2, arg3);
-				printf("%d\n", num_tokens);
+				
 				if (num_tokens != 1) {
-					printf("Invalid format 1. Usage: post \"text\" [Fname].\n");
+					printf("Invalid format. Usage: post \"text\" [Fname].\n");
 					continue;
 				}
-				post(buf, group);
+
+				if (!check_filename(arg2)) {
+					printf("Invalid filename.\n");
+					continue;
+				}
+				
+				post(buf, mid, arg2);
 			} else {
 				printf("Invalid format. Usage: post \"text\" [Fname].\n");
 				continue;
@@ -439,15 +447,6 @@ int check_pass(char *pass) {
 	return 1;
 }
 
-char *remove_quotes(char* text) {
-    size_t len = strlen(text);
-    if (text[0] == '"' && text[len-1] == '"') {
-        text[len-1] = '\0';
-        memmove(text, text+1, len-1);
-    }
-    return text;
-}
-
 int get_text(char *buf, char *str) {
 
 	char c;
@@ -464,6 +463,38 @@ int get_text(char *buf, char *str) {
 	}
 
 	buf[i - 1] ='\0';
+
+	return SUCCESS;
+}
+
+int check_filename(char *filename) {
+
+	if (!((strlen(filename) < 24) && (strlen(filename) > 5))) {
+		return FAIL;
+	}
+
+	for (int i = 0; i < strlen(filename); i++) {
+		if (!(filename[i] == '_' || filename[i] == '.' || filename[i] == '-'|| isalnum(filename[i]))) {
+			return FAIL;
+		}
+	}
+
+	// Check extension separating dot
+	if (!(filename[strlen(filename) - 4] == '.')) {
+		return FAIL;
+	}
+
+	// Check extension is 3 letters
+	for (int i = strlen(filename) - 3; i < strlen(filename); i++) {
+		if (!(isalpha(filename[i]))) {
+			return FAIL;
+		}
+	}
+	
+	// Check if file exists
+	if (access(filename, F_OK ) != 0 ) {
+		return FAIL;
+	}
 
 	return SUCCESS;
 }
