@@ -394,7 +394,7 @@ void process_input() {
 			char mid[5];	
 			
 			if (*(rest + strlen(buf) + 2) == '\n') { // no Fname
-				post(buf, mid, NULL);
+				status = post(buf, mid, NULL);
 			} else if (*(rest + strlen(buf) + 2) == ' ') {
 				num_tokens = sscanf(rest + strlen(buf) + 2, " %s %s", arg2, arg3);
 				
@@ -408,11 +408,23 @@ void process_input() {
 					continue;
 				}
 				
-				post(buf, mid, arg2);
+				status = post(buf, mid, arg2);
 			} else {
 				printf("Invalid format. Usage: post \"text\" [Fname].\n");
 				continue;
 			}
+
+			switch (status) {
+				case STATUS_OK: 
+					printf("Message successfully sent with MID %d\n.", mid);
+					continue;
+				case STATUS_NOK:
+					printf("Error ");
+					continue;
+
+			}
+
+
 
 			continue;
 		}

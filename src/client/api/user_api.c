@@ -511,7 +511,7 @@ char **parse_uids(char *buf) {
 }
 
 
-int post(char* text, char *group, char *filename) {
+int post(char* text, char *mid, char *filename) {
 	char *buf = (char *) malloc(sizeof(char) * GIANT_SIZE);
 	unsigned char *content;
 	char command[MAX_ARG_SIZE], status[MAX_ARG_SIZE];
@@ -539,13 +539,13 @@ int post(char* text, char *group, char *filename) {
 
 		char *ptr = buf + initial_size;
 		int i;
-		for (i = 0; i < filesize; i++) {
-			sprintf(ptr + i, "%c", content[i]);
-		}
-		printf("Imprimi %i bytes\n", i);
+		//for (i = 0; i < filesize; i++) {
+		//	sprintf(ptr + i, "%c", content[i]);
+		//}
+		//
 		ptr[i] = '\n';
 
-		printf("Sent: %s\n, Size: %lu\n", buf, strlen(buf));
+		//printf("Sent: %s\n, Size: %lu\n", buf, strlen(buf));
 	} else {	
 		return FAIL;
 	}
@@ -565,7 +565,7 @@ int post(char* text, char *group, char *filename) {
 		exit(EXIT_SUCCESS);
 	}
 
-	strcpy(group, status);
+	strcpy(mid, status);
 	return STATUS_OK;
 }
 
@@ -648,7 +648,7 @@ void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 	}
 
 	// Debug
-	printf("Received: %s\n", *buf);
+	//printf("Received: %s\n", *buf);
 }
 
 void end_session(int status) {
