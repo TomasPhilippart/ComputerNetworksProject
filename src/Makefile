@@ -5,13 +5,13 @@
 all: user
 
 user: client/user.o client/api/user_api.o
-	gcc -o user client/user.o client/api/user_api.o -g
+	gcc -o user client/user.o client/api/user_api.o -g3
 	
 user.o: client/user.c client/api/user_api.h
-	gcc -o client/user.o -c client/user.c -g
+	gcc -o client/user.o -c client/user.c -g3
 
 api/user_api.o: client/api/user_api.c
-	gcc -o client/api/user_api.o -c client/api/user_api.c -g
+	gcc -o client/api/user_api.o -c client/api/user_api.c -g3
 
 clean:
 	@echo Cleaning...
