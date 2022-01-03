@@ -13,6 +13,7 @@ void process_input();
 int check_pass(char *pass);
 int check_uid(char *uid);
 int check_gid(char *gid);
+int get_text(char *buf, char *group);
 
 int main(int argc, char **argv) {
 	parse_args(argc, argv);
@@ -336,7 +337,7 @@ void process_input() {
 			}
 
 			if (!is_logged_in()) {
-				printf("Error: User not be logged in.\n");
+				printf("Error: User not logged in.\n");
 			} else if (strcmp(get_gid(), "")) {
 				printf("Selected GID: %s\n", get_gid());
 			} else {
@@ -350,7 +351,7 @@ void process_input() {
 		if (!strcmp(command, "ulist") || !strcmp(command, "ul")) {
 		
 			if (!is_logged_in()) {
-				printf("Error: User not be logged in.\n");
+				printf("Error: User not logged in.\n");
 				continue;
 			}
 			if (!strcmp(get_gid(), "")) {
@@ -373,6 +374,38 @@ void process_input() {
 		}
 
 		if (!strcmp(command, "post")) {
+			
+			char *rest = line + (strlen(command) * sizeof(char)) + 1;
+			char buf[250];
+
+			if (!is_logged_in()) {
+				printf("Error: User not logged in.\n");
+				continue;
+			}
+			
+			if (get_text(buf, rest) == FAIL) {
+				printf("Invalid format 0. Usage: post \"text\" [Fname].\n");
+				continue;
+			}
+		
+
+			char group[5];	
+			
+			if (*(rest + strlen(buf) + 2) == '\n') {
+				post(buf, group);
+			} else if (*(rest + strlen(buf) + 2) == ' ') {
+				num_tokens = sscanf(rest + strlen(buf) + 2, " %s %s", arg2, arg3);
+				printf("%d\n", num_tokens);
+				if (num_tokens != 1) {
+					printf("Invalid format 1. Usage: post \"text\" [Fname].\n");
+					continue;
+				}
+				post(buf, group);
+			} else {
+				printf("Invalid format. Usage: post \"text\" [Fname].\n");
+				continue;
+			}
+
 			continue;
 		}
 
@@ -404,4 +437,33 @@ int check_pass(char *pass) {
 		}
 	}
 	return 1;
+}
+
+char *remove_quotes(char* text) {
+    size_t len = strlen(text);
+    if (text[0] == '"' && text[len-1] == '"') {
+        text[len-1] = '\0';
+        memmove(text, text+1, len-1);
+    }
+    return text;
+}
+
+int get_text(char *buf, char *str) {
+
+	char c;
+	int i = 0;
+
+	if (str[i++] != '\"') {
+		return FAIL;
+	}
+
+	while ((buf[i - 1] = str[i]) != '\"') {
+		if (str[i++] == '\n') {
+			return FAIL;
+		}
+	}
+
+	buf[i - 1] ='\0';
+
+	return SUCCESS;
 }

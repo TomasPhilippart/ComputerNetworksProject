@@ -63,9 +63,11 @@ void setup_udp() {
 	if (getaddrinfo(server_ip, server_port, &hints_udp, &res_udp) != 0) {
 		exit(EXIT_FAILURE);
 	}
+
 }
 
 void setup_tcp() {
+
 	/* Create TCP socket */
 	tcp_socket = socket(AF_INET, SOCK_STREAM, 0);
 	if (tcp_socket == -1) {
@@ -157,6 +159,7 @@ int register_user(char *user, char *pass) {
 	} else {
 		end_session(EXIT_FAILURE);	
 	}
+
 }
 
 /*	Unregisters a user
@@ -507,7 +510,31 @@ char **parse_uids(char *buf) {
 }
 
 
-/*	Sends the message in buf to the server through the UDP socket 
+int post(char* text, char *group) {
+	char *buf = (char *) malloc(sizeof(char) * GIANT_SIZE);
+	char command[MAX_ARG_SIZE], status[MAX_ARG_SIZE];
+	sprintf(buf, "%s %s %s %ld %s\n", "PST", UID, GID, strlen(text), text);
+	exchange_messages_tcp(&buf);
+
+	int num_tokens = sscanf(buf, "%s %s\n", command, status);
+	if (num_tokens != 2 || strcmp(command, "RPT") != 0) {
+		end_session(EXIT_FAILURE);
+	}
+
+	if (!strcmp(status, "NOK")) {
+		return STATUS_NOK;
+	}
+
+	if (atoi(status) == 0 || strlen(status) != 4) {
+		exit(EXIT_SUCCESS);
+	}
+
+	strcpy(group, status);
+	return STATUS_OK;
+}
+
+
+/* The message in buf to the server through the UDP socket 
 	and puts a response of size max_rcv_size in buf 
 	Input:
 	- buf: a buffer that contains the message to be sent and that will
@@ -528,6 +555,7 @@ void exchange_messages_udp(char *buf, ssize_t max_rcv_size) {
 	
 	// DEBUG :
 	//printf("Received: %s\n", buf);
+	// NOTE : must the client close the socket? or the server?
 	
 }
 
@@ -573,7 +601,6 @@ void exchange_messages_tcp(char **buf) {
 		aux += num_bytes_read;
 		num_bytes_left -= num_bytes_read;
 		if (num_bytes_left == 0) {
-			printf("%ld\n", sizeof(*buf));
 			int offset = aux - (*buf);
 			*buf = (char *) realloc(buf, sizeof(*buf) + base_bytes);
 			aux = (*buf) + offset;
@@ -582,7 +609,7 @@ void exchange_messages_tcp(char **buf) {
 	}
 
 	// Debug
-	//printf("Received: %s\n", *buf);
+	printf("Received: %s\n", *buf);
 }
 
 void end_session(int status) {
