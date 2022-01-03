@@ -40,7 +40,7 @@ socklen_t addrlen;
 char ***parse_groups (char *buf, int num_groups);
 char **parse_uids (char *buf);
 void exchange_messages_udp(char *buf, ssize_t max_rcv_size);
-void exchange_messages_tcp(char **buf);
+void exchange_messages_tcp(char **buf, ssize_t num_bytes);
 
 /*	Creates client socket and sets up the server address.
 	Terminates program if socked could not be created or hostname/IP address
@@ -446,7 +446,7 @@ int get_uids_group(char ***list) {
 	char *command, *status, *group_name;
 
 	sprintf(buf, "%s %s\n", "ULS", GID);
-	exchange_messages_tcp(&buf);
+	exchange_messages_tcp(&buf, strlen(buf) * sizeof(char));
 
 	command = strtok(buf, " ");
 	status = strtok(NULL, " ");
@@ -517,6 +517,7 @@ int post(char* text, char *group, char *filename) {
 	char command[MAX_ARG_SIZE], status[MAX_ARG_SIZE];
 	FILE *file;
 	ssize_t filesize;
+	ssize_t initial_size;
 
 	if (filename == NULL) { // no filename provided
 		sprintf(buf, "%s %s %s %ld %s\n", "PST", UID, GID, strlen(text), text);
@@ -531,23 +532,25 @@ int post(char* text, char *group, char *filename) {
 			fread(content, sizeof(unsigned char), filesize, file);
 		}
 		fclose(file);
-		//file = fopen("resultado.png", "wb");
-		//fwrite(content, 1, filesize, file);		
-		//fclose(file);
+
 		buf = (unsigned char *) realloc(buf, (GIANT_SIZE + filesize) * sizeof(char));
 		sprintf(buf, "%s %s %s %ld %s %s %ld ", "PST", UID, GID, strlen(text), text, filename, filesize);
+		initial_size = strlen(buf) * sizeof(char);
 
-		char *ptr = buf + strlen(*buf) + 1;
-		for (int i = 0; i < filesize; i++) {
-			sprintf(ptr[i], "%02X", content[i]);
+		char *ptr = buf + initial_size;
+		int i;
+		for (i = 0; i < filesize; i++) {
+			sprintf(ptr + i, "%c", content[i]);
 		}
+		printf("Imprimi %i bytes\n", i);
+		ptr[i] = '\n';
 
-		printf("Sent: %s\n, Size: %lu\n", buf, sizeof(*buf));
+		printf("Sent: %s\n, Size: %lu\n", buf, strlen(buf));
 	} else {	
 		return FAIL;
 	}
 
-	exchange_messages_tcp(&buf);
+	exchange_messages_tcp(&buf, initial_size + filesize + 1);
 
 	int num_tokens = sscanf(buf, "%s %s\n", command, status);
 	if (num_tokens != 2 || strcmp(command, "RPT") != 0) {
@@ -599,28 +602,31 @@ void exchange_messages_udp(char *buf, ssize_t max_rcv_size) {
 	contained the received message
 	- max_rcv_size: maximum size of the response
 */
-void exchange_messages_tcp(char **buf) {
+void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 
 	setup_tcp();
 
-	ssize_t num_bytes = sizeof(char) * strlen(*buf); 
+	printf("I want to send %d bytes\n", num_bytes);
+
 	ssize_t num_bytes_left = num_bytes;
 	ssize_t num_bytes_written, num_bytes_read, base_bytes;
 	char *aux = *buf;
-
+	int i = 0;
 	while (num_bytes_left > 0) {
 		num_bytes_written = write(tcp_socket, aux, num_bytes_left);
 		if (num_bytes_written <= 0) {
 			exit(EXIT_FAILURE);
 		}
-		
+		printf("Ye %d\n", i++);
+		printf("Sent %d bytes\n", num_bytes_written);
 		num_bytes_left -= num_bytes_written;
 		aux += num_bytes_written;
 	}
 
 	memset(*buf, '\0', sizeof(*buf) * sizeof(char));
 
-	num_bytes_left = sizeof(char) * GIANT_SIZE;  
+	num_bytes_left = num_bytes;  
+	base_bytes = num_bytes;
 	aux = *buf;
 	while (1) {
 		num_bytes_read = read(tcp_socket, aux, num_bytes_left);
