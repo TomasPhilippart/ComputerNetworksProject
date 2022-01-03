@@ -539,10 +539,10 @@ int post(char* text, char *mid, char *filename) {
 
 		char *ptr = buf + initial_size;
 		int i;
-		//for (i = 0; i < filesize; i++) {
-		//	sprintf(ptr + i, "%c", content[i]);
-		//}
-		//
+		for (i = 0; i < filesize; i++) {
+			sprintf(ptr + i, "%c", content[i]);
+		}
+		
 		ptr[i] = '\n';
 
 		//printf("Sent: %s\n, Size: %lu\n", buf, strlen(buf));
@@ -564,9 +564,6 @@ int post(char* text, char *mid, char *filename) {
 	if (atoi(status) == 0 || strlen(status) != 4) {
 		exit(EXIT_SUCCESS);
 	}
-
-	// NOTE: change this in the future
-	status[strlen(status) - 1] = '\0';
 
 	strcpy(mid, status);
 	return STATUS_OK;
