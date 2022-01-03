@@ -565,6 +565,9 @@ int post(char* text, char *mid, char *filename) {
 		exit(EXIT_SUCCESS);
 	}
 
+	// NOTE: change this in the future
+	status[strlen(status) - 1] = '\0';
+
 	strcpy(mid, status);
 	return STATUS_OK;
 }
@@ -606,8 +609,6 @@ void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 
 	setup_tcp();
 
-	printf("I want to send %d bytes\n", num_bytes);
-
 	ssize_t num_bytes_left = num_bytes;
 	ssize_t num_bytes_written, num_bytes_read, base_bytes;
 	char *aux = *buf;
@@ -617,8 +618,6 @@ void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 		if (num_bytes_written <= 0) {
 			exit(EXIT_FAILURE);
 		}
-		printf("Ye %d\n", i++);
-		printf("Sent %d bytes\n", num_bytes_written);
 		num_bytes_left -= num_bytes_written;
 		aux += num_bytes_written;
 	}

@@ -416,7 +416,7 @@ void process_input() {
 
 			switch (status) {
 				case STATUS_OK: 
-					printf("Message successfully sent with MID %d\n.", mid);
+					printf("Message successfully sent with MID %s\n.", mid);
 					continue;
 				case STATUS_NOK:
 					printf("Error ");
