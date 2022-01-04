@@ -403,7 +403,7 @@ int get_subscribed_groups(char ****list) {
 	has GID = ""
 	Input: 
 	- buf: the buffer with the response
-	Output:
+	Output: 
 	- the array of {GID, Gname} elements
 */
 char ***parse_groups(char *buf, int num_groups) {
@@ -554,7 +554,7 @@ int post(char* text, char *mid, char *filename) {
 		return FAIL;
 	}
 
-	exchange_messages_tcp(&buf, initial_size + filesize + 1);
+	exchange_messages_tcp(&buf, initial_size + filesize);
 
 	int num_tokens = sscanf(buf, "%s %s\n", command, status);
 	if (num_tokens != 2 || strcmp(command, "RPT") != 0) {
@@ -616,7 +616,7 @@ char ***parse_messages(char *buf, int num_messages) {
 	ssize_t text_size;
 	FILE *file;
 
-	printf("Parsed %s\n", strtok_r(ptr, " ", &ptr));
+	strtok_r(ptr, " ", &ptr);
 	
 	/* Allocate and fill response entries  */
 	response = (char***) malloc((sizeof(char**) * num_messages) + 1);
@@ -705,7 +705,6 @@ void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 	while (num_bytes_left > 0) {
 		num_bytes_written = write(tcp_socket, aux, num_bytes_left);
 		if (num_bytes_written < 0) {
-			printf("What 1?\n");
 			exit(EXIT_FAILURE);
 		}
 		num_bytes_left -= num_bytes_written;
@@ -720,12 +719,13 @@ void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 	aux = *buf;
 	while (1) {
 		num_bytes_read = read(tcp_socket, aux, num_bytes_left);
+		
 		if (num_bytes_read == -1) {
-			printf("Yeee\n");
-			printf("O que é que se passou mano? %s\n", strerror(errno));
+			printf("Error: %s\n", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
-		else if (num_bytes_read == 0) {
+		
+		if (num_bytes_read == 0) {
 			*aux = '\0';
 			break;
 		}
@@ -741,7 +741,9 @@ void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 	}
 
 	// Debug
-	printf("Received: %s", *buf);
+	// printf("Received: %s\n", *buf);
+
+	close(tcp_socket);
 }
 
 void end_session(int status) {
