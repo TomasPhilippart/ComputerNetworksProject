@@ -450,12 +450,15 @@ void process_input() {
 				case STATUS_OK:
 					// TODO display new messages
 					for (int i = 0; list[i] != NULL; i++) {
-						printf("%d %s %s\n", i, list[i][0], list[i][1]);
+						printf("%04d %s ", atoi(arg1) + i, list[i][0]);
+						if (list[i][1] != NULL) {
+							printf("%s", list[i][1]);
+						}
+						putchar('\n');
 					}
 					continue;
 				case STATUS_NOK:
-					// TODO error message
-					printf("Error\n");
+					printf("Error with something man idk\n");
 					continue;
 				case STATUS_EOF:
 					printf("There are no new messages to read\n");

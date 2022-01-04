@@ -302,7 +302,6 @@ void get_all_groups(char ****list) {
 */
 int subscribe_group(char *gid, char *gName) {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
-	printf("%s\n", UID);
 
 	/* add a zero on the left if gid = 0 for new group creation */
 	if (!strcmp(gid, "0")) {
@@ -587,7 +586,6 @@ int retrieve(char *mid, char ****list) {
 	status = strtok_r(NULL, " ", &saveptr);
 	num_messages = strtok_r(NULL, " ", &saveptr);
 
-
 	if (strcmp(command, "RRT")) {
 		end_session(EXIT_FAILURE);
 	} 
@@ -618,7 +616,7 @@ char ***parse_messages(char *buf, int num_messages) {
 	ssize_t text_size;
 	FILE *file;
 
-	//printf("Ye 1\n");
+	printf("Parsed %s\n", strtok_r(ptr, " ", &ptr));
 	
 	/* Allocate and fill response entries  */
 	response = (char***) malloc((sizeof(char**) * num_messages) + 1);
@@ -626,65 +624,40 @@ char ***parse_messages(char *buf, int num_messages) {
 		response[i] = (char **) malloc(sizeof(char*) * 2);
 
 		strtok_r(ptr, " ", &ptr);
-		strtok_r(NULL, " ", &ptr);
 
-		//printf("Ye 2\n");
-
-		int text_size = atoi(strtok_r(NULL, " ", &ptr));
-
+		int text_size = atoi(strtok_r(ptr, " ", &ptr));
+		
 		if (text_size <= 0) {
 			exit(EXIT_FAILURE);
 		}
 
-		//printf("Ye 3\n");
-
-		response[i][0] = (char *) malloc(sizeof(char) * (text_size + 1));
-		int j;
-		for (j = 0; j < text_size; j++) {
-			response[i][0][j] = *(ptr + j);
-		}
-		response[i][0][j - 1] = '\0'; 
-
-		//printf("Ye 4\n");
-
-		if (strcmp((strtok_r(ptr + text_size, " ", &ptr)), "/")) {
+		response[i][0] = strtok_r(ptr, "\n", &ptr);
+	
+		if (strcmp(strtok_r(ptr, " ", &ptr), "/")) {
+			response[i][1] = NULL;
 			continue;
 		}
 
-		//printf("Ye 5\n");
+		response[i][1] = strtok_r(ptr, " ", &ptr);
 
-		response[i][1] = (char *) malloc(sizeof(char) * 25);
-		response[i][1] = strtok_r(NULL, " ", &ptr);
-
-		//printf("Ye 6\n");
-		
-		int file_size = atoi(strtok_r(NULL, " ", &ptr));
+		int file_size = atoi(strtok_r(ptr, " ", &ptr));
 
 		if (file_size <= 0) {
 			exit(EXIT_FAILURE);
 		}
-
-		//printf("Ye 7\n");
 
 		file = fopen(response[i][1], "wb");
 		if (file == NULL){
 			exit(EXIT_FAILURE);
 		}
 
-		//printf("Ye 8\n");
-
-		content = strtok_r(NULL, " ", &ptr);
+		content = strtok_r(ptr, " ", &ptr);
 		fwrite(content, sizeof(char), file_size, file); // Check sys call result
-
-		//printf("Ye 9\n");
 
 		ptr = content + file_size;
 	}
 
 	response[num_messages] = NULL;
-
-	//printf("Ye 10\n");
-
 	return response;
 }
 
@@ -738,8 +711,6 @@ void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 		num_bytes_left -= num_bytes_written;
 		aux += num_bytes_written;
 	}
-
-	printf("Sent: %s", *buf);
 
 	memset(*buf, '\0', num_bytes * sizeof(char));
 
