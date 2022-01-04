@@ -10,8 +10,11 @@
 #include <string.h>
 #include <stdio.h>
 #include <sys/stat.h>
+// NOTE remove just for debug
+#include <errno.h>
 
 #define GIANT_SIZE 3500		// NOTE: please change this in the future ffs
+// NOTE need to free malloc stuff
 
 /* Default server ip and port */
 char *server_ip = "127.0.0.1";
@@ -39,6 +42,7 @@ socklen_t addrlen;
 
 char ***parse_groups (char *buf, int num_groups);
 char **parse_uids (char *buf);
+char ***parse_messages(char *buf, int num_messages);
 void exchange_messages_udp(char *buf, ssize_t max_rcv_size);
 void exchange_messages_tcp(char **buf, ssize_t num_bytes);
 
@@ -569,6 +573,123 @@ int post(char* text, char *mid, char *filename) {
 	return STATUS_OK;
 }
 
+int retrieve(char *mid, char ****list) {
+
+	char *buf = (char *) malloc(sizeof(char) * GIANT_SIZE);
+	char *command, *status, *num_messages;
+	char *saveptr;
+
+	sprintf(buf, "%s %s %s %s\n", "RTV", UID, GID, mid);
+	exchange_messages_tcp(&buf, strlen(buf) * sizeof(char));
+
+	command = strtok_r(buf, " ", &saveptr);
+	status = strtok_r(NULL, " ", &saveptr);
+	num_messages = strtok_r(NULL, " ", &saveptr);
+
+
+	if (strcmp(command, "RRT")) {
+		end_session(EXIT_FAILURE);
+	} 
+
+	if (!strcmp(status, "NOK")) {
+		return STATUS_NOK;
+	} else if (!strcmp(status, "EOF")) {
+		return STATUS_EOF;
+	} 
+
+	if (atoi(num_messages) == 0) {
+		end_session(EXIT_FAILURE);
+	} 
+
+	printf("Numero de mensagens: %d\n", atoi(num_messages));
+
+	*list = parse_messages(saveptr, atoi(num_messages));
+
+	return STATUS_OK;
+
+}
+
+/*
+*/
+char ***parse_messages(char *buf, int num_messages) {
+
+	char ***response = NULL;
+	char *content, *ptr = buf;
+	char *saveptr;
+	ssize_t text_size;
+	FILE *file;
+
+	printf("Ye 1\n");
+	
+	/* Allocate and fill response entries  */
+	response = (char***) malloc((sizeof(char**) * num_messages) + 1);
+	for (int i = 0; i < num_messages; i++) {
+		response[i] = (char **) malloc(sizeof(char*) * 2);
+
+		strtok(ptr, " ");
+		strtok(NULL, " ");
+
+		printf("Ye 2\n");
+
+		int text_size = atoi(strtok(NULL, " "));
+
+		if (text_size <= 0) {
+			exit(EXIT_FAILURE);
+		}
+
+		printf("Ye 3\n");
+
+		//response[i][0] = (char *) malloc(sizeof(char) * (text_size + 1));
+		//int j;
+		//for (j = 0;  < text_size; j++) {
+		//	response[i][0][j] = *(ptr + j);
+		//}
+		//response[i][0][j] = '\0'; 
+
+
+		printf("Ye 4\n");
+
+		if (strcmp((ptr = strtok(ptr + text_size, " ")), "/")) {
+			continue;
+		}
+
+		printf("Ye 5\n");
+
+		response[i][1] = (char *) malloc(sizeof(char) * 25);
+		response[i][1] = strtok(NULL, " ");
+
+		printf("Ye 6\n");
+		
+		int file_size = atoi(strtok(NULL, " "));
+
+		if (file_size <= 0) {
+			exit(EXIT_FAILURE);
+		}
+
+		printf("Ye 7\n");
+
+		file = fopen(response[i][1], "wb");
+		if (file == NULL){
+			exit(EXIT_FAILURE);
+		}
+
+		printf("Ye 8\n");
+
+		content = strtok(NULL, " ");
+		fwrite(content, sizeof(char), file_size, file); // Check sys call result
+
+		printf("Ye 9\n");
+
+		ptr = content + file_size;
+	}
+
+	response[num_messages] = NULL;
+
+	printf("Ye 10\n");
+
+	return response;
+}
+
 
 /* The message in buf to the server through the UDP socket 
 	and puts a response of size max_rcv_size in buf 
@@ -612,12 +733,15 @@ void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 	int i = 0;
 	while (num_bytes_left > 0) {
 		num_bytes_written = write(tcp_socket, aux, num_bytes_left);
-		if (num_bytes_written <= 0) {
+		if (num_bytes_written < 0) {
+			printf("What 1?\n");
 			exit(EXIT_FAILURE);
 		}
 		num_bytes_left -= num_bytes_written;
 		aux += num_bytes_written;
 	}
+
+	printf("Sent: %s\n", *buf);
 
 	memset(*buf, '\0', sizeof(*buf) * sizeof(char));
 
@@ -627,6 +751,8 @@ void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 	while (1) {
 		num_bytes_read = read(tcp_socket, aux, num_bytes_left);
 		if (num_bytes_read == -1) {
+			printf("What 2?\n");
+			printf("Manoooo, o que é que se passou mano? %s\n", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 		else if (num_bytes_read == 0) {
@@ -637,14 +763,14 @@ void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 		num_bytes_left -= num_bytes_read;
 		if (num_bytes_left == 0) {
 			int offset = aux - (*buf);
-			*buf = (char *) realloc(buf, sizeof(*buf) + base_bytes);
+			*buf = (char *) realloc(*buf, sizeof(*buf) + base_bytes);
 			aux = (*buf) + offset;
 			num_bytes_left = base_bytes;
 		}
 	}
 
 	// Debug
-	//printf("Received: %s\n", *buf);
+	printf("Received: %s\n", *buf);
 }
 
 void end_session(int status) {

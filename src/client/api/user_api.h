@@ -11,6 +11,7 @@
 #define STATUS_GID_INVALID 8
 #define STATUS_GNAME_INVALID 9
 #define STATUS_GROUPS_FULL 10
+#define STATUS_EOF 11
 
 #define FAIL 0
 #define SUCCESS 1
@@ -44,7 +45,8 @@ int unsubscribe_group(char *gid);
 int get_uids_group(char ***list);
 
 // Messaging
-int post(char* text, char *mid, char *filename);
+int post(char *text, char *mid, char *filename);
+int retrieve(char *mid, char ****list);
 
 // Auxiliary
 int is_logged_in();

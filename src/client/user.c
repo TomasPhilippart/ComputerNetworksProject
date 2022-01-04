@@ -357,6 +357,7 @@ void process_input() {
 				printf("Error: User not logged in.\n");
 				continue;
 			}
+
 			if (!strcmp(get_gid(), "")) {
 				printf("Error: no group is currently selected.\n");
 				continue;
@@ -376,6 +377,7 @@ void process_input() {
 			continue;
 		}
 
+		// ===== POST A MESSAGE =====
 		if (!strcmp(command, "post")) {
 			
 			char *rest = line + (strlen(command) * sizeof(char)) + 1;
@@ -392,7 +394,8 @@ void process_input() {
 			}
 		
 			char mid[5];	
-			
+
+			// NOTE: check if we are subscribed to group
 			if (*(rest + strlen(buf) + 2) == '\n') { // no Fname
 				status = post(buf, mid, NULL);
 			} else if (*(rest + strlen(buf) + 2) == ' ') {
@@ -419,17 +422,47 @@ void process_input() {
 					printf("Message successfully sent with MID %s.\n", mid);
 					continue;
 				case STATUS_NOK:
+					// TODO error message
 					printf("Error\n");
 					continue;
 
 			}
-
-
-
+			
 			continue;
 		}
 
 		if (!strcmp(command, "retrieve") || !strcmp(command, "r")) {
+
+			if (num_tokens != 2) {
+				fprintf(stderr, "Invalid. Format: %s\n", command);
+				continue;
+			}
+
+			if (!is_logged_in()) {
+				printf("Error: User not logged in.\n");
+				continue;
+			}
+
+			char *** list; 
+			status = retrieve(arg1, &list);
+
+			switch (status) {
+				case STATUS_OK:
+					// TODO display new messages
+					//for (int i = 0; strcmp(groups[i][0], ""); i++) {
+					//	printf("%s %s\n", groups[i][0], groups[i][1]);
+					//}
+					continue;
+				case STATUS_NOK:
+					// TODO error message
+					printf("Error\n");
+					continue;
+				case STATUS_EOF:
+					printf("There are no new messages to read\n");
+					continue;
+			}
+
+			
 			continue;
 		}
 	}
