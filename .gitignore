@@ -2,3 +2,6 @@
 .vscode
 user
 .DS_Store
+*.png
+*.wav
+*.mp3
