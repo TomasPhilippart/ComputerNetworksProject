@@ -639,12 +639,12 @@ char ***parse_messages(char *buf, int num_messages) {
 
 		printf("Ye 3\n");
 
-		//response[i][0] = (char *) malloc(sizeof(char) * (text_size + 1));
-		//int j;
-		//for (j = 0;  < text_size; j++) {
-		//	response[i][0][j] = *(ptr + j);
-		//}
-		//response[i][0][j] = '\0'; 
+		response[i][0] = (char *) malloc(sizeof(char) * (text_size + 1));
+		int j;
+		for (j = 0; j < text_size; j++) {
+			response[i][0][j] = *(ptr + j);
+		}
+		response[i][0][j] = '\0'; 
 
 
 		printf("Ye 4\n");
