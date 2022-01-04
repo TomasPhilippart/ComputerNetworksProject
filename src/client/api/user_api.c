@@ -307,7 +307,7 @@ int subscribe_group(char *gid, char *gName) {
 	/* add a zero on the left if gid = 0 for new group creation */
 	if (!strcmp(gid, "0")) {
 		char *aux = gid;
-		gid = (char *) malloc(sizeof(*aux) + 1);
+		gid = (char *) malloc(strlen(aux) + 1);
 		gid[0] = '0';
 		strcpy(gid + 1, aux);
 	}
