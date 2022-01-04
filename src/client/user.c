@@ -433,10 +433,10 @@ void process_input() {
 
 		if (!strcmp(command, "retrieve") || !strcmp(command, "r")) {
 
-			if (num_tokens != 2) {
-				fprintf(stderr, "Invalid. Format: %s\n", command);
-				continue;
-			}
+			//f (num_tokens != 2) {
+			//	fprintf(stderr, "Invalid. Format: %s\n", command);
+			//	continue;
+			//
 
 			if (!is_logged_in()) {
 				printf("Error: User not logged in.\n");
@@ -449,9 +449,9 @@ void process_input() {
 			switch (status) {
 				case STATUS_OK:
 					// TODO display new messages
-					//for (int i = 0; strcmp(groups[i][0], ""); i++) {
-					//	printf("%s %s\n", groups[i][0], groups[i][1]);
-					//}
+					for (int i = 0; list[i] != NULL; i++) {
+						printf("%d %s %s\n", i, list[i][0], list[i][1]);
+					}
 					continue;
 				case STATUS_NOK:
 					// TODO error message

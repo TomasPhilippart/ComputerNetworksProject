@@ -520,11 +520,12 @@ int post(char* text, char *mid, char *filename) {
 	unsigned char *content;
 	char command[MAX_ARG_SIZE], status[MAX_ARG_SIZE];
 	FILE *file;
-	ssize_t filesize;
+	ssize_t filesize = 0;
 	ssize_t initial_size;
 
 	if (filename == NULL) { // no filename provided
 		sprintf(buf, "%s %s %s %ld %s\n", "PST", UID, GID, strlen(text), text);
+		initial_size = strlen(buf) * sizeof(char);
 
 	} else if ((file = fopen(filename, "rb"))) { // filename provided
 		fseek(file, 0, SEEK_END);
@@ -601,8 +602,6 @@ int retrieve(char *mid, char ****list) {
 		end_session(EXIT_FAILURE);
 	} 
 
-	printf("Numero de mensagens: %d\n", atoi(num_messages));
-
 	*list = parse_messages(saveptr, atoi(num_messages));
 
 	return STATUS_OK;
@@ -619,73 +618,72 @@ char ***parse_messages(char *buf, int num_messages) {
 	ssize_t text_size;
 	FILE *file;
 
-	printf("Ye 1\n");
+	//printf("Ye 1\n");
 	
 	/* Allocate and fill response entries  */
 	response = (char***) malloc((sizeof(char**) * num_messages) + 1);
 	for (int i = 0; i < num_messages; i++) {
 		response[i] = (char **) malloc(sizeof(char*) * 2);
 
-		strtok(ptr, " ");
-		strtok(NULL, " ");
+		strtok_r(ptr, " ", &ptr);
+		strtok_r(NULL, " ", &ptr);
 
-		printf("Ye 2\n");
+		//printf("Ye 2\n");
 
-		int text_size = atoi(strtok(NULL, " "));
+		int text_size = atoi(strtok_r(NULL, " ", &ptr));
 
 		if (text_size <= 0) {
 			exit(EXIT_FAILURE);
 		}
 
-		printf("Ye 3\n");
+		//printf("Ye 3\n");
 
 		response[i][0] = (char *) malloc(sizeof(char) * (text_size + 1));
 		int j;
 		for (j = 0; j < text_size; j++) {
 			response[i][0][j] = *(ptr + j);
 		}
-		response[i][0][j] = '\0'; 
+		response[i][0][j - 1] = '\0'; 
 
+		//printf("Ye 4\n");
 
-		printf("Ye 4\n");
-
-		if (strcmp((ptr = strtok(ptr + text_size, " ")), "/")) {
+		if (strcmp((strtok_r(ptr + text_size, " ", &ptr)), "/")) {
 			continue;
 		}
 
-		printf("Ye 5\n");
+		//printf("Ye 5\n");
 
 		response[i][1] = (char *) malloc(sizeof(char) * 25);
-		response[i][1] = strtok(NULL, " ");
+		response[i][1] = strtok_r(NULL, " ", &ptr);
 
-		printf("Ye 6\n");
+		//printf("Ye 6\n");
 		
-		int file_size = atoi(strtok(NULL, " "));
+		int file_size = atoi(strtok_r(NULL, " ", &ptr));
 
 		if (file_size <= 0) {
 			exit(EXIT_FAILURE);
 		}
 
-		printf("Ye 7\n");
+		//printf("Ye 7\n");
 
 		file = fopen(response[i][1], "wb");
 		if (file == NULL){
 			exit(EXIT_FAILURE);
 		}
 
-		printf("Ye 8\n");
+		//printf("Ye 8\n");
 
-		content = strtok(NULL, " ");
+		content = strtok_r(NULL, " ", &ptr);
 		fwrite(content, sizeof(char), file_size, file); // Check sys call result
 
-		printf("Ye 9\n");
+		//printf("Ye 9\n");
 
 		ptr = content + file_size;
 	}
 
 	response[num_messages] = NULL;
 
-	printf("Ye 10\n");
+	//printf("Ye 10\n");
 
 	return response;
 }
@@ -728,7 +726,7 @@ void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 	setup_tcp();
 
 	ssize_t num_bytes_left = num_bytes;
-	ssize_t num_bytes_written, num_bytes_read, base_bytes;
+	ssize_t num_bytes_written, num_bytes_read, base_bytes, curr_size;
 	char *aux = *buf;
 	int i = 0;
 	while (num_bytes_left > 0) {
@@ -741,18 +739,19 @@ void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 		aux += num_bytes_written;
 	}
 
-	printf("Sent: %s\n", *buf);
+	printf("Sent: %s", *buf);
 
-	memset(*buf, '\0', sizeof(*buf) * sizeof(char));
+	memset(*buf, '\0', num_bytes * sizeof(char));
 
 	num_bytes_left = num_bytes;  
 	base_bytes = num_bytes;
+	curr_size = num_bytes;
 	aux = *buf;
 	while (1) {
 		num_bytes_read = read(tcp_socket, aux, num_bytes_left);
 		if (num_bytes_read == -1) {
-			printf("What 2?\n");
-			printf("Manoooo, o que é que se passou mano? %s\n", strerror(errno));
+			printf("Yeee\n");
+			printf("O que é que se passou mano? %s\n", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 		else if (num_bytes_read == 0) {
@@ -762,15 +761,16 @@ void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 		aux += num_bytes_read;
 		num_bytes_left -= num_bytes_read;
 		if (num_bytes_left == 0) {
-			int offset = aux - (*buf);
-			*buf = (char *) realloc(*buf, sizeof(*buf) + base_bytes);
+			ssize_t offset = aux - (*buf);
+			*buf = (char *) realloc(*buf, curr_size + base_bytes);
+			curr_size += base_bytes;
 			aux = (*buf) + offset;
 			num_bytes_left = base_bytes;
 		}
 	}
 
 	// Debug
-	printf("Received: %s\n", *buf);
+	printf("Received: %s", *buf);
 }
 
 void end_session(int status) {
