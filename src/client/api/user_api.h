@@ -51,4 +51,7 @@ int retrieve(char *mid, char ****list);
 // Auxiliary
 int is_logged_in();
 
+// memory management
+void free_list(char ***list);
+
 #endif

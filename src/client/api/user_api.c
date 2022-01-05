@@ -16,15 +16,18 @@
 #define GIANT_SIZE 4000		// NOTE: please change this in the future ffs
 // NOTE need to free malloc stuff
 
+#define STR2(x) #x			// for variable sized buffers
+#define STR(X) STR2(X)
+
 /* Default server ip and port */
 char *server_ip = "127.0.0.1";
 char *server_port = "58043";
 
 /* User ID, password, group ID and flag for when a user is logged in */
-char UID[6] = ""; // 5 digit numeric
+char UID[6] = "99997"; // 5 digit numeric
 char password[9] = ""; // 8 alphanumeric characters
-char GID[3] = ""; // 2 digit numeric (01-99)
-int logged_in = 0;
+char GID[3] = "57"; // 2 digit numeric (01-99)
+int logged_in = 1;
 
 /* variables needed for UDP connection */
 int udp_socket; 
@@ -411,7 +414,7 @@ char ***parse_groups(char *buf, int num_groups) {
 	/* Allocate and fill response entries with each GID and GNAME */
 	char ***response = (char***) malloc(sizeof(char**) * (num_groups + 1));
 
-	for (int i = 0; i < num_groups + 1; i++) {
+	for (int i = 0; i < num_groups; i++) {
 		response[i] = (char **) malloc(sizeof(char*) * 2);
 		for (int j = 0; j < 2; j++) {
 			response[i][j] = (char *) malloc(sizeof(char) * 24);
@@ -424,7 +427,7 @@ char ***parse_groups(char *buf, int num_groups) {
 		strtok(NULL, " ");
 	}
 
-	response[num_groups][0] = "";
+	response[num_groups] = NULL;
 
 	return response;
 }
@@ -573,18 +576,25 @@ int post(char* text, char *mid, char *filename) {
 	return STATUS_OK;
 }
 
+
+/*
+*/
 int retrieve(char *mid, char ****list) {
 
 	char *buf = (char *) malloc(sizeof(char) * GIANT_SIZE);
-	char *command, *status, *num_messages;
+	char command[5], status[5];								// NOTE: change this to macros-defined sizes
 	char *saveptr;
+	char *num_messages;
+	int num_tokens;
 
 	sprintf(buf, "%s %s %s %s\n", "RTV", UID, GID, mid);
 	exchange_messages_tcp(&buf, strlen(buf) * sizeof(char));
 
-	command = strtok_r(buf, " ", &saveptr);
-	status = strtok_r(NULL, " ", &saveptr);
-	num_messages = strtok_r(NULL, " ", &saveptr);
+	num_tokens = sscanf(buf, "%" STR(5) "s %" STR(5) "s ", command, status);
+
+	if (num_tokens < 2) {			
+		end_session(EXIT_FAILURE);
+	}
 
 	if (strcmp(command, "RRT")) {
 		end_session(EXIT_FAILURE);
@@ -594,9 +604,15 @@ int retrieve(char *mid, char ****list) {
 		return STATUS_NOK;
 	} else if (!strcmp(status, "EOF")) {
 		return STATUS_EOF;
-	} 
-
-	if (atoi(num_messages) == 0) {
+	} else if (!strcmp(status, "ERR")) {
+		// NOTE: think about this
+	} else if (strcmp(status, "OK")) {	// Error in message
+		end_session(EXIT_FAILURE);
+	}
+	
+	num_messages = strtok_r(buf + 2 + strlen(command) + strlen(status), " ", &saveptr);
+	
+	if (num_messages == NULL || atoi(num_messages) == 0) {
 		end_session(EXIT_FAILURE);
 	} 
 
@@ -612,37 +628,58 @@ char ***parse_messages(char *buf, int num_messages) {
 
 	char ***response = NULL;
 	char *content, *ptr = buf;
-	char *saveptr;
+	char *saveptr, *token;
 	ssize_t text_size;
 	FILE *file;
 
-	strtok_r(ptr, " ", &ptr);
-	
+	if (strtok_r(ptr, " ", &ptr) == NULL) {
+		end_session(EXIT_FAILURE);
+	}
+
+	//printf("Parsing %s\n", strtok_r(ptr, " ", &ptr));
 	/* Allocate and fill response entries  */
 	response = (char***) malloc(sizeof(char**) * (num_messages + 1));
 	for (int i = 0; i < num_messages; i++) {
 		response[i] = (char **) malloc(sizeof(char*) * 2);
-
-		strtok_r(ptr, " ", &ptr);
+		//printf("New iteration\n");
+		if (strtok_r(ptr, " ", &ptr) == NULL) {
+			end_session(EXIT_FAILURE);
+		}
+		//printf("Parsing %s\n", strtok_r(ptr, " ", &ptr));
 
 		int text_size = atoi(strtok_r(ptr, " ", &ptr));
+		//printf("Parsing %d\n", text_size);
 		
 		if (text_size <= 0) {
 			exit(EXIT_FAILURE);
 		}
 
-		response[i][0] = strtok_r(ptr, "\n", &ptr);
-	
+		if ((token = strtok_r(ptr, " ", &ptr)) == NULL) {
+			end_session(EXIT_FAILURE);
+		}
+		response[i][0] = (char *) malloc(sizeof(char) * strlen(token))
+		strcpy(response[i][0], token);
+
+		//printf("Parsing %s\n", response[i][0]);
+
 		if (strcmp(strtok_r(ptr, " ", &ptr), "/")) {
 			response[i][1] = NULL;
 			continue;
 		}
 
-		response[i][1] = strtok_r(ptr, " ", &ptr);
+		if ((token = strtok_r(ptr, " ", &ptr)) == NULL) {
+			end_session(EXIT_FAILURE);
+		}
+		response[i][1] = (char *) malloc(sizeof(char) * strlen(token))
+		strcpy(response[i][1], token);
 
-		int file_size = atoi(strtok_r(ptr, " ", &ptr));
+		//printf("Parsing %s\n", response[i][1]);
 
-		if (file_size <= 0) {
+		char* file_size = strtok_r(ptr, " ", &ptr);
+		//printf("Parsing %d\n", atoi(file_size));
+		//printf("With size %d\n", strlen(file_size));
+									
+		if (atoi(file_size) <= 0) {
 			exit(EXIT_FAILURE);
 		}
 
@@ -651,16 +688,38 @@ char ***parse_messages(char *buf, int num_messages) {
 			exit(EXIT_FAILURE);
 		}
 
-		content = strtok_r(ptr, " ", &ptr);
-		fwrite(content, sizeof(char), file_size, file); // Check sys call result
+		content = file_size + strlen(file_size) + 1;
 
-		ptr = content + file_size;
+		if (fwrite(content, sizeof(char), atoi(file_size), file) != atoi(file_size)) {
+			end_session(EXIT_FAILURE);
+		} 
+		if (fclose(file) != 0) {
+			end_session(EXIT_FAILURE);
+		}
+		
+		ptr = content + atoi(file_size);
+
+		//printf("Parsing %s\n", strtok_r(ptr, " ", &ptr));
+		if (strtok_r(ptr, " ", &ptr) == NULL && i != num_messages - 1) {
+			end_session(EXIT_FAILURE);
+		}
 	}
 
 	response[num_messages] = NULL;
 	return response;
 }
 
+void free_list(char ***list) {
+	for (int i = 0; list[i] != NULL; i++) {
+		if (list[i][0]) {
+			free(list[i][0]);
+		}
+		if (list[i][1]) {
+			free(list[i][1]);
+		}
+	}
+	free(list);
+}
 
 /* The message in buf to the server through the UDP socket 
 	and puts a response of size max_rcv_size in buf 
@@ -711,6 +770,9 @@ void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 		aux += num_bytes_written;
 	}
 
+	// Debug
+	//printf("Sent: %s\n", *buf);
+
 	memset(*buf, '\0', num_bytes * sizeof(char));
 
 	num_bytes_left = num_bytes;  
@@ -741,7 +803,9 @@ void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 	}
 
 	// Debug
-	// printf("Received: %s\n", *buf);
+	//if (**buf != '\0') {
+	//	printf("Received: %s\n", *buf);
+	//}
 
 	close(tcp_socket);
 }
