@@ -8,6 +8,9 @@
 #include <stdio.h>
 #include <ctype.h>
 
+#define TRUE 1
+#define FALSE 0
+
 static void parse_args(int argc, char **argv);
 void process_input();
 int check_pass(char *pass);
@@ -32,7 +35,7 @@ static void parse_args(int argc, char **argv) {
     int opt;
 	int opt_counter = 0;
 	
-    while (1) {
+    while (TRUE) {
 
 		if (argv[optind] == NULL) {
 			break;
@@ -218,6 +221,7 @@ void process_input() {
 		}
 
 		// NOTE The following group management commands can only be issued after a user has logged in
+		
 		// ===== SUBSCRIBE =====
 		if (!strcmp(command, "subscribe") || !strcmp(command, "s")) {
 			if (num_tokens != 3) {
@@ -475,9 +479,23 @@ int check_uid(char *uid) {
 	return strlen(uid) == 5 && atoi(uid) > 0;
 }
 
-// Check if GID is 2 digits
+// Check if GID is 2 digits and the user is subscribed to it
 int check_gid(char *gid) {
-	return strlen(gid) == 2 && atoi(gid) > 0;
+	char ***subscribed_groups;
+	int status = get_subscribed_groups(&subscribed_groups);
+
+	if (status != STATUS_OK) {
+		return FALSE;
+	}
+
+	// Check if the user is subscribed to the group with the given GID
+	for (int i = 0; strcmp(subscribed_groups[i][0], ""); i++) {
+		if (!strcmp(subscribed_groups[i][0], gid)) {
+			return strlen(gid) == 2 && atoi(gid) > 0;
+		}
+	}
+
+	return FALSE;
 }
 
 // Check if password is alphanumeric and has 8 characters
