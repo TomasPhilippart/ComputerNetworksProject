@@ -446,9 +446,9 @@ void process_input() {
 				continue;
 			}
 
-			if (set_gid() == "") {
-				printf("Error: No group is selected.\n");
-			}
+			//if (set_gid() == "") {
+			//	printf("Error: No group is selected.\n");
+			//}
 
 			status = retrieve(arg1, &list);
 
@@ -471,7 +471,7 @@ void process_input() {
 	
 			}
 
-			free_msg_list(list);
+			free_list(list);
 
 			continue;
 		}

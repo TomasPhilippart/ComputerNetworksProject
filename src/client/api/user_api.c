@@ -657,7 +657,7 @@ char ***parse_messages(char *buf, int num_messages) {
 		if ((token = strtok_r(ptr, " ", &ptr)) == NULL) {
 			end_session(EXIT_FAILURE);
 		}
-		response[i][0] = (char *) malloc(sizeof(char) * strlen(token))
+		response[i][0] = (char *) malloc(sizeof(char) * strlen(token));
 		strcpy(response[i][0], token);
 
 		//printf("Parsing %s\n", response[i][0]);
@@ -670,7 +670,7 @@ char ***parse_messages(char *buf, int num_messages) {
 		if ((token = strtok_r(ptr, " ", &ptr)) == NULL) {
 			end_session(EXIT_FAILURE);
 		}
-		response[i][1] = (char *) malloc(sizeof(char) * strlen(token))
+		response[i][1] = (char *) malloc(sizeof(char) * strlen(token));
 		strcpy(response[i][1], token);
 
 		//printf("Parsing %s\n", response[i][1]);
