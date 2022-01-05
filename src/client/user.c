@@ -120,7 +120,7 @@ void process_input() {
 				status = unregister_user(arg1, arg2);
 				switch(status) {
 					case STATUS_OK:
-						printf("User %s unregistered sucessfully.\n", arg1);
+						printf("User %s unregistered successfully.\n", arg1);
 						break;
 					case STATUS_NOK:
 						printf("Error unregistering user.\n");
@@ -146,7 +146,7 @@ void process_input() {
 				status = login(arg1, arg2);
 				switch(status) {
 					case STATUS_OK:
-						printf("User %s logged in sucessfully.\n", arg1);
+						printf("User %s logged in successfully.\n", arg1);
 						break;
 					case STATUS_NOK:
 						printf("Error logging in.\n");
@@ -170,7 +170,7 @@ void process_input() {
 			status = logout();
 			switch(status) {
 				case STATUS_OK:
-					printf("User %s logged out sucessfully.\n", get_uid());
+					printf("User %s logged out successfully.\n", get_uid());
 					break;
 				case STATUS_NOK:
 					printf("Error logging out.\n");
@@ -448,7 +448,6 @@ void process_input() {
 
 			switch (status) {
 				case STATUS_OK:
-					// TODO display new messages
 					for (int i = 0; list[i] != NULL; i++) {
 						printf("%04d %s ", atoi(arg1) + i, list[i][0]);
 						if (list[i][1] != NULL) {

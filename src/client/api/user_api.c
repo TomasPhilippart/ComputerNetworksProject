@@ -296,7 +296,7 @@ void get_all_groups(char ****list) {
 	- OK: if the subscription was successful
 	- NEW: if a group was created
 	- E_SR: if the provided user is invalid
-	- E_GNAME: if the proivdade group name is invalid
+	- E_GNAME: if the provided group name is invalid
 	- E_FULL: if a new group could not be created
 	- NOK: if another error occurs
 */
@@ -346,7 +346,7 @@ int subscribe_group(char *gid, char *gName) {
 	Returns: one of the following integer status codes:
 	- OK: if the unsubscription was successful
 	- E_USR: if the provided user is invalid
-	- E_GNAME: if the proivdade group name is invalid
+	- E_GNAME: if the provided group name is invalid
 	- NOK: if another error occurs
 */
 int unsubscribe_group(char *gid) {
