@@ -13,7 +13,7 @@
 // NOTE remove just for debug
 #include <errno.h>
 
-#define GIANT_SIZE 3500		// NOTE: please change this in the future ffs
+#define GIANT_SIZE 4000		// NOTE: please change this in the future ffs
 // NOTE need to free malloc stuff
 
 /* Default server ip and port */
@@ -306,7 +306,7 @@ int subscribe_group(char *gid, char *gName) {
 	/* add a zero on the left if gid = 0 for new group creation */
 	if (!strcmp(gid, "0")) {
 		char *aux = gid;
-		gid = (char *) malloc(strlen(aux) + 1);
+		gid = (char *) malloc(sizeof(char) * (strlen(aux) + 1));
 		gid[0] = '0';
 		strcpy(gid + 1, aux);
 	}
@@ -407,10 +407,10 @@ int get_subscribed_groups(char ****list) {
 	- the array of {GID, Gname} elements
 */
 char ***parse_groups(char *buf, int num_groups) {
-	char ***response = NULL;
 	
 	/* Allocate and fill response entries with each GID and GNAME */
-	response = (char***) malloc(sizeof(char**) * num_groups + 1);
+	char ***response = (char***) malloc(sizeof(char**) * (num_groups + 1));
+
 	for (int i = 0; i < num_groups + 1; i++) {
 		response[i] = (char **) malloc(sizeof(char*) * 2);
 		for (int j = 0; j < 2; j++) {
@@ -419,8 +419,8 @@ char ***parse_groups(char *buf, int num_groups) {
 	}
 
 	for (int i = 0; i < num_groups; i++) {
-		response[i][0] = strtok(NULL, " ");
-		response[i][1] = strtok(NULL, " ");
+		strcpy(response[i][0],  strtok(NULL, " "));
+		strcpy(response[i][1],  strtok(NULL, " "));
 		strtok(NULL, " ");
 	}
 
@@ -619,7 +619,7 @@ char ***parse_messages(char *buf, int num_messages) {
 	strtok_r(ptr, " ", &ptr);
 	
 	/* Allocate and fill response entries  */
-	response = (char***) malloc((sizeof(char**) * num_messages) + 1);
+	response = (char***) malloc(sizeof(char**) * (num_messages + 1));
 	for (int i = 0; i < num_messages; i++) {
 		response[i] = (char **) malloc(sizeof(char*) * 2);
 

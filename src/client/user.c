@@ -19,6 +19,8 @@ int check_gid(char *gid);
 int get_text(char *buf, char *group);
 int check_filename(char *filename);
 
+void free_groups (char ***groups);
+
 int main(int argc, char **argv) {
 	parse_args(argc, argv);
 	setup_udp();
@@ -216,7 +218,7 @@ void process_input() {
 				}
 			}
 
-			free(groups);
+			//free_groups(groups);
 			continue;
 		}
 
@@ -313,7 +315,8 @@ void process_input() {
 					printf("%s %s\n", groups[i][0], groups[i][1]);
 				}
 			}
-			free(groups);
+			
+			//free_groups(groups);
 			continue;
 		}
 
@@ -491,11 +494,31 @@ int check_gid(char *gid) {
 	// Check if the user is subscribed to the group with the given GID
 	for (int i = 0; strcmp(subscribed_groups[i][0], ""); i++) {
 		if (!strcmp(subscribed_groups[i][0], gid)) {
+			//free_groups(subscribed_groups);
 			return strlen(gid) == 2 && atoi(gid) > 0;
 		}
 	}
 
+	//free_groups(subscribed_groups);
 	return FALSE;
+}
+
+void free_groups (char ***groups) {
+	int i = 0;
+	for (; strcmp(groups[i][0], ""); i++) {
+		free(groups[i][0]);
+		free(groups[i][1]);
+
+		free(groups[i]);
+		printf("%d ", i);
+	}
+
+	printf("\nfora : %d\n", i);
+	free(groups[i][0]);
+	free(groups[i][1]);
+	free(groups[i]);
+
+	free(groups);
 }
 
 // Check if password is alphanumeric and has 8 characters
