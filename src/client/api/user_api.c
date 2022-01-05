@@ -710,6 +710,7 @@ char ***parse_messages(char *buf, int num_messages) {
 }
 
 void free_list(char ***list) {
+	
 	for (int i = 0; list[i] != NULL; i++) {
 		if (list[i][0]) {
 			free(list[i][0]);
@@ -717,7 +718,10 @@ void free_list(char ***list) {
 		if (list[i][1]) {
 			free(list[i][1]);
 		}
+
+		free(list[i]);
 	}
+
 	free(list);
 }
 
@@ -812,6 +816,11 @@ void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 
 void end_session(int status) {
 	close(udp_socket);
+	close(tcp_socket);
+
+	freeaddrinfo(res_udp);
+	free(server_ip);
+	free(server_port);
 	exit(status);
 }
 

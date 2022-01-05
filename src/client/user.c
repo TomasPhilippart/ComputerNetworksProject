@@ -205,10 +205,10 @@ void process_input() {
 			char ***groups;
 
 			get_all_groups(&groups);
-			if (!strcmp(groups[0][0], "")) {
+			if (groups[0] == NULL) {
 				printf("No groups are available.\n");
 			} else {				
-				for (int i = 0; strcmp(groups[i][0], ""); i++) {
+				for (int i = 0; groups[i] != NULL; i++) {
 					printf("%s %s\n", groups[i][0], groups[i][1]);
 				}
 			}
@@ -306,7 +306,7 @@ void process_input() {
 			if (status == STATUS_USR_INVALID) {
 				printf("Error: Invalid UID.\n");
 			} else {			
-				for (int i = 0; strcmp(groups[i][0], ""); i++) {
+				for (int i = 0; groups[i] != NULL; i++) {
 					printf("%s %s\n", groups[i][0], groups[i][1]);
 				}
 			}
@@ -497,7 +497,7 @@ int check_if_subcribed(char *gid) {
 	}
 
 	// Check if the user is subscribed to the group with the given GID
-	for (int i = 0; strcmp(subscribed_groups[i][0], ""); i++) {
+	for (int i = 0; subscribed_groups[i] != NULL; i++) {
 		if (!strcmp(subscribed_groups[i][0], gid)) {
 			free_list(subscribed_groups);
 			return TRUE;
