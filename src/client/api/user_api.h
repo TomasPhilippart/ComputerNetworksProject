@@ -12,6 +12,7 @@
 #define STATUS_GNAME_INVALID 9
 #define STATUS_GROUPS_FULL 10
 #define STATUS_EOF 11
+#define STATUS_ERR 12
 
 #define FAIL 0
 #define SUCCESS 1
