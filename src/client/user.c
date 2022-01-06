@@ -208,7 +208,7 @@ void process_input() {
 			if (!strcmp(groups[0][0], "")) {
 				printf("No groups are available.\n");
 			} else {				
-				for (int i = 0; strcmp(groups[i][0], ""); i++) {
+				for (int i = 0; groups[i] != NULL; i++) {
 					printf("%s %s\n", groups[i][0], groups[i][1]);
 				}
 			}
@@ -390,13 +390,17 @@ void process_input() {
 				printf("Error: User not logged in.\n");
 				continue;
 			}
+
+			if (!strcmp(get_gid(), "")) {
+				printf("Error: No group is selected.\n");
+			}
 			
 			if (get_text(buf, rest) == FAIL) {
 				printf("Invalid format. Usage: post \"text\" [Fname].\n");
 				continue;
 			}
 	
-			// NOTE: check if we are subscribed to group
+
 			if (*(rest + strlen(buf) + 2) == '\n') { // no Fname
 				status = post(buf, mid, NULL);
 			} else if (*(rest + strlen(buf) + 2) == ' ') {
@@ -432,6 +436,7 @@ void process_input() {
 			continue;
 		}
 
+		// ===== RETRIEVE UP TO 20 MESSAGES =====
 		if (!strcmp(command, "retrieve") || !strcmp(command, "r")) {
 
 			char *** list; 
@@ -456,8 +461,8 @@ void process_input() {
 				case STATUS_OK:
 					for (int i = 0; list[i] != NULL; i++) {
 						printf("%04d %s ", atoi(arg1) + i, list[i][0]);
-						if (list[i][1] != NULL) {
-							printf("%s", list[i][1]);
+						if (list[i][1] != NULL && list[i][2] != NULL) {
+							printf("%s %s Bytes", list[i][1], list[i][2]);
 						}
 						putchar('\n');
 					}
@@ -522,9 +527,13 @@ int check_pass(char *pass) {
 	return 1;
 }
 
+/*	Parse text between quotes from buf and put it on str
+	Input:
+	- buf: the buffer with text
+	- str: the string that will hold the unquoted text 
+*/
 int get_text(char *buf, char *str) {
 
-	char c;
 	int i = 0;
 
 	if (str[i++] != '\"') {
@@ -561,7 +570,7 @@ int check_filename(char *filename) {
 
 	// Check extension is 3 letters
 	for (int i = strlen(filename) - 3; i < strlen(filename); i++) {
-		if (!(isalpha(filename[i]))) {
+		if (!(isalnum(filename[i]))) {
 			return FAIL;
 		}
 	}
