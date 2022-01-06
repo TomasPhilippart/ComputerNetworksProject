@@ -13,11 +13,14 @@
 
 static void parse_args(int argc, char **argv);
 void process_input();
+
 int check_pass(char *pass);
 int check_uid(char *uid);
 int check_gid(char *gid);
-int get_text(char *buf, char *group);
+int check_if_subcribed(char *gid);
 int check_filename(char *filename);
+
+int get_text(char *buf, char *group);
 
 int main(int argc, char **argv) {
 	parse_args(argc, argv);
@@ -325,13 +328,21 @@ void process_input() {
 
 			if (!is_logged_in()) {
 				printf("Error: User not logged in.\n");
-			} else if (check_gid(arg1)) {
-				set_gid(arg1);
-				printf("GID %s selected.\n", arg1);
-			} else {
+				continue;
+			}
+
+			if (!check_gid(arg1)) {
 				printf("Error: GID %s is invalid.\n", arg1);
+				continue;
+			} 
+			
+			if (check_if_subcribed(arg1) == FALSE) {
+				printf("Error: User is not subscribed to the group with GID %s.\n", arg1);
+				continue;
 			}
 			
+			set_gid(arg1);
+			printf("GID %s selected.\n", arg1);
 			continue;
 		}
 
@@ -505,7 +516,7 @@ int check_if_subcribed(char *gid) {
 	}
 
 	// Check if the user is subscribed to the group with the given GID
-	for (int i = 0; strcmp(subscribed_groups[i][0], ""); i++) {
+	for (int i = 0; subscribed_groups[i] != NULL; i++) {
 		if (!strcmp(subscribed_groups[i][0], gid)) {
 			free_list(subscribed_groups);
 			return TRUE;
