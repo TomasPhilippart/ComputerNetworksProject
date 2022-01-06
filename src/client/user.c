@@ -18,7 +18,6 @@ int check_uid(char *uid);
 int check_gid(char *gid);
 int get_text(char *buf, char *group);
 int check_filename(char *filename);
-int check_if_subscribed(char *gid);
 
 int main(int argc, char **argv) {
 	parse_args(argc, argv);
@@ -206,10 +205,10 @@ void process_input() {
 			char ***groups;
 
 			get_all_groups(&groups);
-			if (groups[0] == NULL) {
+			if (!strcmp(groups[0][0], "")) {
 				printf("No groups are available.\n");
 			} else {				
-				for (int i = 0; groups[i] != NULL; i++) {
+				for (int i = 0; strcmp(groups[i][0], ""); i++) {
 					printf("%s %s\n", groups[i][0], groups[i][1]);
 				}
 			}
@@ -325,8 +324,6 @@ void process_input() {
 
 			if (!is_logged_in()) {
 				printf("Error: User not logged in.\n");
-			} else if (!check_if_subscribed(arg1)) {
-				printf("Error: User not subscribed to group with GID %s\n", arg1);
 			} else if (check_gid(arg1)) {
 				set_gid(arg1);
 				printf("GID %s selected.\n", arg1);
@@ -451,7 +448,6 @@ void process_input() {
 
 			if (!strcmp(get_gid(), "")) {
 				printf("Error: No group is selected.\n");
-				continue;
 			}
 
 			status = retrieve(arg1, &list);
@@ -492,7 +488,7 @@ int check_gid(char *gid) {
 	return strlen(gid) == 2 && atoi(gid) > 0;
 }
 
-int check_if_subscribed(char *gid) {
+int check_if_subcribed(char *gid) {
 	char ***subscribed_groups;
 	int status = get_subscribed_groups(&subscribed_groups);
 
@@ -501,7 +497,7 @@ int check_if_subscribed(char *gid) {
 	}
 
 	// Check if the user is subscribed to the group with the given GID
-	for (int i = 0; subscribed_groups[i] != NULL; i++) {
+	for (int i = 0; strcmp(subscribed_groups[i][0], ""); i++) {
 		if (!strcmp(subscribed_groups[i][0], gid)) {
 			free_list(subscribed_groups);
 			return TRUE;
