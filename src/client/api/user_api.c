@@ -278,19 +278,23 @@ char *get_uid () {
 */
 void get_all_groups(char ****list) {
 	char buf[GIANT_SIZE];
-	char *command, *num_groups;
+	char command[5], num_groups[4];
+	int num_tokens;
 
 	sprintf(buf, "%s %s\n", "GLS", UID);
 	exchange_messages_udp(buf, GIANT_SIZE);
 
-	command = strtok(buf, " ");
-	num_groups = strtok(NULL, " ");
+	num_tokens = sscanf(buf, "%" STR(4) "s %" STR(3) "s ", command, num_groups);
+
+	if (num_tokens < 2) {
+		end_session(EXIT_FAILURE);
+	}
 
 	if (strcmp(command, "RGL") || (atoi(num_groups) == 0 && strcmp(num_groups, "0"))) {
 		end_session(EXIT_FAILURE);
 	} 
 	
-	*list = parse_groups(buf, atoi(num_groups));
+	*list = parse_groups(buf + strlen(command) + strlen(num_groups) + 2, atoi(num_groups));
 
 }
 
@@ -430,7 +434,7 @@ char ***parse_groups(char *buf, int num_groups) {
 
 		strcpy(response[i][0],  strtok_r(buf, " ", &buf));
 		strcpy(response[i][1],  strtok_r(buf, " ", &buf));
-		strtok(NULL, " ");
+		strtok_r(buf, " ", &buf);
 	}
 
 	response[num_groups] = NULL;
@@ -789,8 +793,8 @@ void exchange_messages_udp(char *buf, ssize_t max_rcv_size) {
 	}
 	
 	// DEBUG :
-	// printf("Received: %s\n", buf);
-	// NOTE : must the client close the socket? or the server?
+	//printf("Received: %s\n", buf);
+	 // NOTE : must the client close the socket? or the server?
 	
 }
 
@@ -853,9 +857,9 @@ void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 	}
 
 	// Debug
-	if (**buf != '\0') {
-		printf("Received: %s\n", *buf);
-	}
+	//if (**buf != '\0') {
+	//	printf("Received: %s\n", *buf);
+	//}
 
 	close(tcp_socket);
 }

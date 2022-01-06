@@ -205,7 +205,7 @@ void process_input() {
 			char ***groups;
 
 			get_all_groups(&groups);
-			if (!strcmp(groups[0][0], "")) {
+			if (groups[0] == NULL) {
 				printf("No groups are available.\n");
 			} else {				
 				for (int i = 0; groups[i] != NULL; i++) {
@@ -394,6 +394,7 @@ void process_input() {
 
 			if (!strcmp(get_gid(), "")) {
 				printf("Error: No group is selected.\n");
+				continue;
 			}
 			
 			if (get_text(buf, rest) == FAIL) {
