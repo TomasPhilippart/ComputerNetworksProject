@@ -379,13 +379,17 @@ int unsubscribe_group(char *gid) {
 
 int get_subscribed_groups(char ****list) {
 	char buf[GIANT_SIZE];
-	char *command, *num_groups;
+	char command[5], num_groups[3];
+	int num_tokens;
 
 	sprintf(buf, "%s %s\n", "GLM", UID);
 	exchange_messages_udp(buf, GIANT_SIZE);
 
-	command = strtok(buf, " ");
-	num_groups = strtok(NULL, " ");
+	num_tokens = sscanf(buf, "%" STR(5) "s %" STR(3) "s ", command, num_groups);
+
+	if (num_tokens < 2) {
+		end_session(EXIT_FAILURE);
+	}
 
 	if (!strcmp(num_groups, "E_USR")) {
 		return STATUS_USR_INVALID;
@@ -394,8 +398,8 @@ int get_subscribed_groups(char ****list) {
 	if (strcmp(command, "RGM") || (atoi(num_groups) == 0 && strcmp(num_groups, "0"))) {
 		end_session(EXIT_FAILURE);
 	} 
-	
-	*list = parse_groups(buf, atoi(num_groups));
+
+	*list = parse_groups(buf + strlen(command) + strlen(num_groups) + 2, atoi(num_groups));
 
 	return STATUS_OK;
 
@@ -416,15 +420,16 @@ char ***parse_groups(char *buf, int num_groups) {
 	char ***response = (char***) malloc(sizeof(char**) * (num_groups + 1));
 
 	for (int i = 0; i < num_groups; i++) {
-		response[i] = (char **) malloc(sizeof(char*) * 2);
+		response[i] = (char **) malloc(sizeof(char*) * 3);
 		for (int j = 0; j < 2; j++) {
-			response[i][j] = (char *) malloc(sizeof(char) * 24);
+			response[i][j] = (char *) malloc(sizeof(char) * 25);
 		}
 	}
 
 	for (int i = 0; i < num_groups; i++) {
-		strcpy(response[i][0],  strtok(NULL, " "));
-		strcpy(response[i][1],  strtok(NULL, " "));
+
+		strcpy(response[i][0],  strtok_r(buf, " ", &buf));
+		strcpy(response[i][1],  strtok_r(buf, " ", &buf));
 		strtok(NULL, " ");
 	}
 
@@ -655,48 +660,49 @@ char ***parse_messages(char *buf, int num_messages) {
 	for (int i = 0; i < num_messages; i++) {
 		response[i] = (char **) malloc(sizeof(char*) * 3); 
 	
-		//if (strtok_r(ptr, " ", &saveptr) == NULL) {	/* Ignore MID */
-		//	end_session(EXIT_FAILURE);
-		//}
-		printf("Parsing %s\n", strtok_r(ptr, " ", &saveptr));
+		if (strtok_r(ptr, " ", &saveptr) == NULL) {	/* Ignore MID */
+			end_session(EXIT_FAILURE);
+		}
+		//printf("Parsing %s\n", strtok_r(ptr, " ", &saveptr));
 
-		//if (strtok_r(NULL, " ", &saveptr) == NULL) {	/* Ignore UID */
-		//	end_session(EXIT_FAILURE);
-		//}
-		printf("Parsing %s\n", strtok_r(NULL, " ", &saveptr));
+		if (strtok_r(NULL, " ", &saveptr) == NULL) {	/* Ignore UID */
+			end_session(EXIT_FAILURE);
+		}
+		//printf("Parsing %s\n", strtok_r(NULL, " ", &saveptr));
 
 		char* text_size = strtok_r(NULL, " ", &saveptr);	
-		printf("Parsing %d\n", atoi(text_size));
+		//printf("Parsing %d\n", atoi(text_size));
 		if (atoi(text_size) <= 0) {
 			exit(EXIT_FAILURE);
 		}
 
 		/* Allocate entry in list for text and copy text from buffer */
 		ptr = text_size + strlen(text_size) + 1;
-		response[i][0] = (char *) malloc(sizeof(char) * atoi(text_size));
+		response[i][0] = (char *) malloc(sizeof(char) * (atoi(text_size) + 1));
 		for (int j = 0; j < atoi(text_size); j++) {
 			if (*(ptr + j) == '\0') {
 				end_session(EXIT_FAILURE);
 			}
 			response[i][0][j] = *(ptr + j);
 		}
+		response[i][0][strlen(response[i][0])] = '\0';
 
-		printf("Parsing %s\n", response[i][0]);
+		//printf("Parsing %s\n", response[i][0]);
 
 		ptr += atoi(text_size) + 1;
 
 		/* Check if message has a file, i.e., if there is a / after the space following the text */
 		if (*ptr != '/') {
-			printf("Skip!\n");
+			//printf("Skip!\n");
 			response[i][1] = NULL;
 			response[i][2] = NULL;
 			continue;
 		}
 
-		//if (strtok_r(ptr, " ", &ptr) == NULL) {	/* Ignore the / */
-		//	end_session(EXIT_FAILURE);
-		//}
-		printf("Parsing %s\n", strtok_r(ptr, " ", &saveptr));
+		if (strtok_r(ptr, " ", &saveptr) == NULL) {	/* Ignore the / */
+			end_session(EXIT_FAILURE);
+		}
+		//printf("Parsing %s\n", strtok_r(ptr, " ", &saveptr));
 
 		/* Allocate entry in list for Fname and copy Fname from buffer */
 		if ((filename = strtok_r(NULL, " ", &saveptr)) == NULL) {
@@ -705,7 +711,7 @@ char ***parse_messages(char *buf, int num_messages) {
 
 		response[i][1] = (char *) malloc(sizeof(char) * strlen(filename));
 		strcpy(response[i][1], filename);
-		printf("Parsing %s\n", response[i][1]);
+		//printf("Parsing %s\n", response[i][1]);
 
 		if ((file_size = strtok_r(NULL, " ", &saveptr)) == NULL) {
 			end_session(EXIT_FAILURE);
@@ -713,7 +719,7 @@ char ***parse_messages(char *buf, int num_messages) {
 
 		response[i][2] = (char *) malloc(sizeof(char) * strlen(file_size));
 		strcpy(response[i][2], file_size);
-		printf("Parsing %s\n", response[i][2]);
+		//printf("Parsing %s\n", response[i][2]);
 									
 		if (atoi(file_size) <= 0) {
 			exit(EXIT_FAILURE);
@@ -783,7 +789,7 @@ void exchange_messages_udp(char *buf, ssize_t max_rcv_size) {
 	}
 	
 	// DEBUG :
-	//printf("Received: %s\n", buf);
+	// printf("Received: %s\n", buf);
 	// NOTE : must the client close the socket? or the server?
 	
 }
@@ -814,7 +820,7 @@ void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 	}
 
 	// Debug
-	printf("Sent: %s\n", *buf);
+	//printf("Sent: %s\n", *buf);
 
 	memset(*buf, '\0', num_bytes * sizeof(char));
 

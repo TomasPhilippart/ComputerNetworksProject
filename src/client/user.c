@@ -312,6 +312,7 @@ void process_input() {
 			}
 			
 			free_list(groups);
+			
 			continue;
 		}
 
@@ -453,6 +454,7 @@ void process_input() {
 
 			if (!strcmp(get_gid(), "")) {
 				printf("Error: No group is selected.\n");
+				continue;
 			}
 
 			status = retrieve(arg1, &list);
