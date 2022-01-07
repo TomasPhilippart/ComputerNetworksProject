@@ -1,4 +1,5 @@
 #include "user_api.h"
+#include "../../constants.h"
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -13,22 +14,22 @@
 // NOTE remove just for debug
 #include <errno.h>
 
-#define GIANT_SIZE 4000		// NOTE: please change this in the future ffs
 // NOTE need to free malloc stuff
 // NOTE check malloc syscall return code
 
 #define STR2(x) #x			// for variable sized buffers
 #define STR(X) STR2(X)
+#define SUM(X, Y) (X) + (Y)
 
 /* Default server ip and port */
 char *server_ip = "127.0.0.1";
 char *server_port = "58043";
 
 /* User ID, password, group ID and flag for when a user is logged in */
-char UID[6] = ""; // 5 digit numeric
-char password[9] = ""; // 8 alphanumeric characters
-char GID[3] = ""; // 2 digit numeric (01-99)
-int logged_in = 0;
+char UID[UID_SIZE + 1] = ""; // 5 digit numeric
+char password[PASSWORD_SIZE + 1] = ""; // 8 alphanumeric characters
+char GID[GID_SIZE + 1] = ""; // 2 digit numeric (01-99)
+int logged_in = FALSE;
 
 /* variables needed for UDP connection */
 int udp_socket; 
@@ -106,9 +107,9 @@ int validate_hostname(char *name) {
     if (getaddrinfo(name, NULL, NULL, &aux) == 0) {
 		server_ip = strdup(name);
 		freeaddrinfo(aux);
-		return 1;
+		return TRUE;
 	} 
-	return 0;
+	return FALSE;
 }
 
 /*	Checks if ip_addr is a valid IPv4 address.
@@ -120,9 +121,9 @@ int validate_ip(char *ip_addr) {
 	struct sockaddr_in addr;
 	if (inet_pton(AF_INET, ip_addr, &addr.sin_addr) > 0) {
 		server_ip = strdup(ip_addr);
-		return 1;
+		return TRUE;
 	}
-	return 0;
+	return FALSE;
 }
 
 /*	Checks if port points to a string with a valid port number.
@@ -134,9 +135,9 @@ int validate_port(char *port) {
 	int port_number = atoi(port);
 	if (port_number > 0 && port_number <= 65535) {
 		server_port = strdup(port);
-		return 1;
+		return TRUE;
 	}
-	return 0;
+	return FALSE;
 }
 
 /*	Registers a user
@@ -144,7 +145,7 @@ int validate_port(char *port) {
 	- UID: a 5 char numerical string
 	- pass: a 8 char alphanumerical string
 	Output: 
-	- OK, if the registration was successfull
+	- OK, if the registration was successful
 	- DUP, if the registration UID is duplicated
 	- NOK, if UID is invalid or pass is wrong
 */
@@ -176,7 +177,7 @@ int register_user(char *user, char *pass) {
 	- UID: a valid UID (a 5 char numerical string)
 	- pass: a valid pass (8 char alphanumerical string)
 	Output: 
-	- OK, if the unregistration was successfull
+	- OK, if the unregistration was succesful
 	- NOK, if UID is invalid or pass is wrong 
 */
 int unregister_user(char *user, char *pass) {
@@ -219,9 +220,9 @@ int login(char *user, char *pass) {
 	}
 
 	if (!strcmp(status, "OK")) {
-		strncpy(UID, user, 6);
-		strncpy(password, pass, 9);
-		logged_in = 1;
+		strncpy(UID, user, UID_SIZE + 1);
+		strncpy(password, pass, PASSWORD_SIZE + 1);
+		logged_in = TRUE;
 		return STATUS_OK;
 	} else if (!strcmp(status, "NOK")) {
 		return STATUS_NOK;
@@ -252,7 +253,7 @@ int logout() {
 	}
 
 	if (!strcmp(status, "OK")) {
-		logged_in = 0;
+		logged_in = FALSE;
 		memset(UID, 0, sizeof(UID));
 		return STATUS_OK;
 	} else if (!strcmp(status, "NOK")) {
@@ -278,13 +279,13 @@ char *get_uid () {
 */
 void get_all_groups(char ****list) {
 	char buf[GIANT_SIZE];
-	char command[5], num_groups[4];
+	char command[COMMAND_SIZE + 2], num_groups[GID_SIZE + 2];
 	int num_tokens;
 
 	sprintf(buf, "%s %s\n", "GLS", UID);
 	exchange_messages_udp(buf, GIANT_SIZE);
 
-	num_tokens = sscanf(buf, "%" STR(4) "s %" STR(3) "s ", command, num_groups);
+	num_tokens = sscanf(buf, "%" STR(5) "s %" STR(4) "s ", command, num_groups);
 
 	if (num_tokens < 2) {
 		end_session(EXIT_FAILURE);
@@ -383,7 +384,7 @@ int unsubscribe_group(char *gid) {
 
 int get_subscribed_groups(char ****list) {
 	char buf[GIANT_SIZE];
-	char command[5], num_groups[3];
+	char command[COMMAND_SIZE + 2], num_groups[GID_SIZE + 2];
 	int num_tokens;
 
 	sprintf(buf, "%s %s\n", "GLM", UID);
@@ -424,9 +425,9 @@ char ***parse_groups(char *buf, int num_groups) {
 	char ***response = (char***) malloc(sizeof(char**) * (num_groups + 1));
 
 	for (int i = 0; i < num_groups; i++) {
-		response[i] = (char **) malloc(sizeof(char*) * 3);
+		response[i] = (char **) malloc(sizeof(char*) * (GID_SIZE + 1));
 		for (int j = 0; j < 2; j++) {
-			response[i][j] = (char *) malloc(sizeof(char) * 25);
+			response[i][j] = (char *) malloc(sizeof(char) * (MAX_FNAME + 1));
 		}
 	}
 
@@ -443,7 +444,7 @@ char ***parse_groups(char *buf, int num_groups) {
 }
 
 void set_gid(char *gid) {
-	strncpy(GID, gid, 3);
+	strncpy(GID, gid, GID_SIZE + 1);
 }
 
 char* get_gid() {
@@ -469,20 +470,22 @@ int get_uids_group(char ***list) {
 	group_name = strtok(NULL, " ");
 
 	if (strcmp(command, "RUL")) {
+		free(buf);
 		end_session(EXIT_FAILURE);
 	} 
 
 	if (!strcmp(status, "NOK")) {
+		free(buf);
 		return STATUS_NOK;
 	} 
 
 	if (group_name == NULL) {
-		printf("Here 2\n");
+		free(buf);
 		end_session(EXIT_FAILURE);
 	} 
 
 	*list = parse_uids(buf);
-
+	free(buf);
 	return STATUS_OK;
 
 }
@@ -497,19 +500,17 @@ int get_uids_group(char ***list) {
 */
 char **parse_uids(char *buf) {
 	char **response = NULL;
-	ssize_t base_size = GIANT_SIZE;
+	ssize_t base_size = 100;
 	char *token;
 	int parsed_tokens = 0;
 	
 	/* Allocate and fill response entries with each UID */
 	response = (char**) malloc(sizeof(char*) * base_size);
 
-	for (int i = 0; i < base_size; i++) {
-		response[i] = (char *) malloc(sizeof(char*) * 6);
-	}
-
 	while ((token = strtok(NULL, " ")) != NULL) {
-		response[parsed_tokens ++] = token;
+		response[parsed_tokens] = (char *) malloc(sizeof(char*) * (UID_SIZE + 1));
+		strcpy(response[parsed_tokens ++], token);
+		
 		if (parsed_tokens % base_size == 0) {
 			response = (char **) realloc(response, (sizeof(response) + base_size) * sizeof(char *));
 		}
@@ -520,9 +521,18 @@ char **parse_uids(char *buf) {
 		response[parsed_tokens - 1][strlen(response[parsed_tokens - 1]) - 1] = '\0';
 	}
 
-	response[parsed_tokens] = "";
+	response[parsed_tokens] = NULL;
 
 	return response;
+}
+
+void free_uids (char **response) {
+	int i;
+	for (i = 0; response[i] != NULL; i++) {
+		free(response[i]);
+	}
+
+	free(response);
 }
 
 
@@ -561,9 +571,8 @@ int post(char* text, char *mid, char *filename) {
 		
 		ptr[i] = '\n';
 
-		//printf("Sent: %s\n, Size: %lu\n", buf, strlen(buf));
 	} else {	
-		return FAIL;
+		return FALSE;
 	}
 
 	exchange_messages_tcp(&buf, initial_size + filesize);
@@ -577,7 +586,7 @@ int post(char* text, char *mid, char *filename) {
 		return STATUS_NOK;
 	}
 
-	if (atoi(status) == 0 || strlen(status) != 4) {
+	if (atoi(status) == 0 || strlen(status) != MID_SIZE) {
 		exit(EXIT_SUCCESS);
 	}
 
@@ -593,7 +602,7 @@ int post(char* text, char *mid, char *filename) {
 	- list: a pointer to be filled with entries of the type
 	[GID, Text, [Fname]*], with the last entry being NULL.
 	Output:
-	- STATUS_OK: if the retrieving was successfull
+	- STATUS_OK: if the retrieving was succesful
 	- STATUS_NOK: if there was an error
 	- STATUS_EOF: if there are no messages to retrieve
 	- STATUS_ERR: if the message did not arrive correctly at the server
@@ -601,14 +610,14 @@ int post(char* text, char *mid, char *filename) {
 int retrieve(char *mid, char ****list) {
 
 	char *buf = (char *) malloc(sizeof(char) * GIANT_SIZE);
-	char command[5], status[5];								// NOTE: change this to macros-defined sizes
+	char command[COMMAND_SIZE + 2], status[MAX_STATUS_SIZE + 2];
 	char *saveptr;
 	char *num_messages;
 	int num_tokens;
 
 	sprintf(buf, "%s %s %s %s\n", "RTV", UID, GID, mid);
 	exchange_messages_tcp(&buf, strlen(buf) * sizeof(char));
-	num_tokens = sscanf(buf, "%" STR(5) "s %" STR(5) "s ", command, status);
+	num_tokens = sscanf(buf, "%" STR(5) "s %" STR(4) "s ", command, status);
 
 	if (num_tokens < 2) {			
 		end_session(EXIT_FAILURE);
@@ -861,6 +870,7 @@ void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 	//	printf("Received: %s\n", *buf);
 	//}
 
+	freeaddrinfo(res_tcp);
 	close(tcp_socket);
 }
 

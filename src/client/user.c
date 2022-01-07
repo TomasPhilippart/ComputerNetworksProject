@@ -1,4 +1,5 @@
 #include "./api/user_api.h"
+#include "../constants.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -8,16 +9,13 @@
 #include <stdio.h>
 #include <ctype.h>
 
-#define TRUE 1
-#define FALSE 0
-
 static void parse_args(int argc, char **argv);
 void process_input();
 
 int check_pass(char *pass);
 int check_uid(char *uid);
 int check_gid(char *gid);
-int check_if_subcribed(char *gid);
+int check_if_subscribed(char *gid);
 int check_filename(char *filename);
 
 int get_text(char *buf, char *group);
@@ -28,8 +26,6 @@ int main(int argc, char **argv) {
 	process_input();
 	end_session(EXIT_SUCCESS);
 }
-
-// NOTE: make error messages uniform
 
 /*	Parse arguments from the command line according to 
 	format ./user [-n DSIP] [-p DSport] */
@@ -336,7 +332,7 @@ void process_input() {
 				continue;
 			} 
 			
-			if (check_if_subcribed(arg1) == FALSE) {
+			if (check_if_subscribed(arg1) == FALSE) {
 				printf("Error: User is not subscribed to the group with GID %s.\n", arg1);
 				continue;
 			}
@@ -376,18 +372,21 @@ void process_input() {
 				printf("Error: no group is currently selected.\n");
 				continue;
 			}
+
 			char **uids;
 			status = get_uids_group(&uids);
+			
 			if (!strcmp(uids[0], "")) {
 				printf("Group %s is not subscribed by any user.\n", get_gid());
 			} else if (!strcmp(get_gid(), "")) {
 				printf("User %s has not selected any group.\n", get_uid());
 			} else {		
-				for (int i = 0; strcmp(uids[i], ""); i++) {
+				for (int i = 0; uids[i] != NULL; i++) {
 					printf("%s\n", uids[i]);
 				}
 			}
-			free(uids);
+			
+			free_uids(uids);
 			continue;
 		}
 
@@ -408,7 +407,7 @@ void process_input() {
 				continue;
 			}
 			
-			if (get_text(buf, rest) == FAIL) {
+			if (get_text(buf, rest) == FALSE) {
 				printf("Invalid format. Usage: post \"text\" [Fname].\n");
 				continue;
 			}
@@ -507,7 +506,7 @@ int check_gid(char *gid) {
 	return strlen(gid) == 2 && atoi(gid) > 0;
 }
 
-int check_if_subcribed(char *gid) {
+int check_if_subscribed(char *gid) {
 	char ***subscribed_groups;
 	int status = get_subscribed_groups(&subscribed_groups);
 
@@ -529,16 +528,16 @@ int check_if_subcribed(char *gid) {
 
 // Check if password is alphanumeric and has 8 characters
 int check_pass(char *pass) {
-	if (strlen(pass) != 8) {
-		return 0;
+	if (strlen(pass) != PASSWORD_SIZE) {
+		return FALSE;
 	}
 
 	for (int i = 0; i < strlen(pass); i++) {
 		if (!isalnum(pass[i])) {
-			return 0;
+			return FALSE;
 		}
 	}
-	return 1;
+	return TRUE;
 }
 
 /*	Parse text between quotes from buf and put it on str
@@ -551,48 +550,48 @@ int get_text(char *buf, char *str) {
 	int i = 0;
 
 	if (str[i++] != '\"') {
-		return FAIL;
+		return FALSE;
 	}
 
 	while ((buf[i - 1] = str[i]) != '\"') {
 		if (str[i++] == '\n') {
-			return FAIL;
+			return FALSE;
 		}
 	}
 
 	buf[i - 1] ='\0';
 
-	return SUCCESS;
+	return TRUE;
 }
 
 int check_filename(char *filename) {
 
-	if (!((strlen(filename) < 24) && (strlen(filename) > 5))) {
-		return FAIL;
+	if (!((strlen(filename) < MAX_FNAME) && (strlen(filename) > EXTENSION_SIZE + 2))) {
+		return FALSE;
 	}
 
 	for (int i = 0; i < strlen(filename); i++) {
 		if (!(filename[i] == '_' || filename[i] == '.' || filename[i] == '-'|| isalnum(filename[i]))) {
-			return FAIL;
+			return FALSE;
 		}
 	}
 
 	// Check extension separating dot
-	if (!(filename[strlen(filename) - 4] == '.')) {
-		return FAIL;
+	if (!(filename[strlen(filename) - EXTENSION_SIZE - 1] == '.')) {
+		return FALSE;
 	}
 
 	// Check extension is 3 letters
-	for (int i = strlen(filename) - 3; i < strlen(filename); i++) {
+	for (int i = strlen(filename) - EXTENSION_SIZE; i < strlen(filename); i++) {
 		if (!(isalnum(filename[i]))) {
-			return FAIL;
+			return FALSE;
 		}
 	}
 	
 	// Check if file exists
 	if (access(filename, F_OK ) != 0 ) {
-		return FAIL;
+		return FALSE;
 	}
 
-	return SUCCESS;
+	return TRUE;
 }
