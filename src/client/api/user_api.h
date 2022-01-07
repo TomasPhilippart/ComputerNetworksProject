@@ -25,7 +25,6 @@ int get_subscribed_groups(char ****list);
 int subscribe_group(char *gid, char *gName);
 int unsubscribe_group(char *gid);
 int get_uids_group(char ***list);
-void free_uids (char **response);
 
 // Messaging
 int post(char *text, char *mid, char *filename);
@@ -35,6 +34,7 @@ int retrieve(char *mid, char ****list);
 int is_logged_in();
 
 // memory management
-void free_list(char ***list);
+void free_list(char ***list, int num_elements);
+void free_uids(char **list);
 
 #endif

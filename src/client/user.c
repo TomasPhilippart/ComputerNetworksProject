@@ -212,7 +212,7 @@ void process_input() {
 				}
 			}
 
-			free_list(groups);
+			free_list(groups, 2);
 			continue;
 		}
 
@@ -311,7 +311,7 @@ void process_input() {
 				}
 			}
 			
-			free_list(groups);
+			free_list(groups, 2);
 			
 			continue;
 		}
@@ -377,15 +377,23 @@ void process_input() {
 			}
 
 			status = get_uids_group(&uids);
-			
-			if (!strcmp(uids[0], "")) {
-				printf("Group %s is not subscribed by any user.\n", get_gid());
-			} else if (!strcmp(get_gid(), "")) {
-				printf("User %s has not selected any group.\n", get_uid());
-			} else {		
-				for (int i = 0; uids[i] != NULL; i++) {
-					printf("%s\n", uids[i]);
-				}
+
+			switch (status) {
+				case STATUS_OK: 
+					if (uids[0] == NULL) {
+						printf("Group %s is not subscribed by any user.\n", get_gid());
+					} else {		
+						for (int i = 0; uids[i] != NULL; i++) {
+							printf("%s\n", uids[i]);
+						}
+					}
+					continue;
+				case STATUS_NOK:
+					printf("Error: group %s does not exist.\n", get_gid());
+					continue;
+				case STATUS_ERR:
+					printf("Error during message reception by the server. Try again.\n");
+					continue;
 			}
 			
 			free_uids(uids);
@@ -454,6 +462,9 @@ void process_input() {
 				case STATUS_NOK:
 					printf("Error during post.\n");
 					continue;
+				case STATUS_ERR:
+					printf("Error during message reception by the server. Try again.\n");
+					continue;
 			}
 			
 			continue;
@@ -492,14 +503,18 @@ void process_input() {
 					}
 					continue;
 				case STATUS_NOK:
-					printf("Error with something man idk\n");
+					printf("Error while retrieving messages.\n");
 					continue;
 				case STATUS_EOF:
-					printf("There are no new messages to read\n");
+					printf("There are no new messages to read.\n");
 					continue;
+				case STATUS_ERR:
+					printf("Error during message reception by the server. Try again.\n");
+					continue;
+
 			}
 
-			free_list(list);
+			free_list(list, 3);
 			continue;
 		}
 
@@ -529,12 +544,12 @@ int check_if_subscribed(char *gid) {
 	// Check if the user is subscribed to the group with the given GID
 	for (int i = 0; subscribed_groups[i] != NULL; i++) {
 		if (!strcmp(subscribed_groups[i][0], gid)) {
-			free_list(subscribed_groups);
+			free_list(subscribed_groups, 2);
 			return TRUE;
 		}
 	}
 
-	free_list(subscribed_groups);
+	free_list(subscribed_groups, 2);
 	return FALSE;
 }
 

@@ -459,14 +459,18 @@ char* get_gid() {
 int get_uids_group(char ***list) {
 
 	char *buf = (char *) malloc(sizeof(char) * GIANT_SIZE);
-	char *command, *status, *group_name;
+	char command[COMMAND_SIZE + 1], status[MAX_STATUS_SIZE + 1], group_name[MAX_GNAME + 1];
+	char *aux;
+	int num_tokens;
 
 	sprintf(buf, "%s %s\n", "ULS", GID);
 	exchange_messages_tcp(&buf, strlen(buf) * sizeof(char));
-
-	command = strtok(buf, " ");
-	status = strtok(NULL, " ");
-	group_name = strtok(NULL, " ");
+	num_tokens = sscanf(buf, "%" STR(4) "s %" STR(4) "s %" STR(25) "s ", command, status, group_name);
+	
+	if (num_tokens < 3) {
+		free(buf);
+		end_session(EXIT_FAILURE);
+	}
 
 	if (strcmp(command, "RUL")) {
 		free(buf);
@@ -476,15 +480,22 @@ int get_uids_group(char ***list) {
 	if (!strcmp(status, "NOK")) {
 		free(buf);
 		return STATUS_NOK;
-	} 
-
-	if (group_name == NULL) {
+	} else if (!strcmp(status, "ERR")) {
+		free(buf);
+		return STATUS_ERR;
+	} else if (strcmp(status, "OK")) {
 		free(buf);
 		end_session(EXIT_FAILURE);
-	} 
+	}
 
-	*list = parse_uids(buf);
+	//NOTE: check group_name??
+
+	/* Advance pointer to UID section of server response */
+	aux = buf + (strlen(command) + strlen(status) + strlen(group_name) + 3) * sizeof(char);
+	*list = parse_uids(aux);
+
 	free(buf);
+	
 	return STATUS_OK;
 
 }
@@ -506,7 +517,7 @@ char **parse_uids(char *buf) {
 	/* Allocate and fill response entries with each UID */
 	response = (char **) malloc(sizeof(char*) * base_size);
 
-	while ((token = strtok(NULL, " ")) != NULL) {
+	while ((token = strtok_r(buf, " ", &buf)) != NULL) {
 		response[parsed_tokens] = (char *) malloc(sizeof(char*) * (UID_SIZE + 1));
 		strcpy(response[parsed_tokens ++], token);
 		
@@ -525,15 +536,25 @@ char **parse_uids(char *buf) {
 	return response;
 }
 
-void free_uids (char **response) {
-	int i;
-	for (i = 0; response[i] != NULL; i++) {
-		free(response[i]);
+/* Frees a list of UID's */
+void free_uids (char **uids) {
+	for (int i = 0; uids[i] != NULL; i++) {
+		free(uids[i]);
 	}
-	free(response);
+	free(uids);
 }
 
-
+/*	Post a message with text (and possibly a file with name filename),
+	saving its MID to mid 
+	Input: 
+	- text: the text to be posted
+	- mid: will save the message MID
+	- filename: name of the file to be posted
+	Output:
+	- STATUS_OK: if the retrieving was succesful
+	- STATUS_NOK: if there was an error
+	- STATUS_ERR: if the message did not arrive correctly at the server
+*/
 int post(char* text, char *mid, char *filename) {
 
 	char *buf, *data, *ptr;
@@ -588,6 +609,10 @@ int post(char* text, char *mid, char *filename) {
 
 	if (!strcmp(status, "NOK")) {
 		return STATUS_NOK;
+	} else if (!strcmp(status, "ERR")) {
+		return STATUS_ERR;
+	} else if (strcmp(status, "OK")) {
+		end_session(EXIT_FAILURE);
 	}
 
 	if (atoi(status) == 0 || strlen(status) != MID_SIZE) {
@@ -598,7 +623,6 @@ int post(char* text, char *mid, char *filename) {
 	free(buf);
 	return STATUS_OK;
 }
-
 
 /*	Retrieves up to 20 unread messages from the current
 	group and starting from the one with MID mid.
@@ -703,7 +727,7 @@ char ***parse_messages(char *buf, int num_messages) {
 			}
 			response[i][0][j] = *(ptr + j);
 		}
-		response[i][0][strlen(response[i][0])] = '\0';
+		response[i][0][atoi(text_size)] = '\0';
 
 		//printf("Parsing %s\n", response[i][0]);
 
@@ -727,7 +751,7 @@ char ***parse_messages(char *buf, int num_messages) {
 			end_session(EXIT_FAILURE);
 		}
 
-		response[i][1] = (char *) malloc(sizeof(char) * strlen(filename));
+		response[i][1] = (char *) malloc(sizeof(char) * (strlen(filename) + 1));
 		strcpy(response[i][1], filename);
 		//printf("Parsing %s\n", response[i][1]);
 
@@ -735,7 +759,7 @@ char ***parse_messages(char *buf, int num_messages) {
 			end_session(EXIT_FAILURE);
 		}
 
-		response[i][2] = (char *) malloc(sizeof(char) * strlen(file_size));
+		response[i][2] = (char *) malloc(sizeof(char) * (strlen(file_size) + 1));
 		strcpy(response[i][2], file_size);
 		//printf("Parsing %s\n", response[i][2]);
 									
@@ -767,23 +791,22 @@ char ***parse_messages(char *buf, int num_messages) {
 	return response;
 }
 
-/*	Frees a list containing two strings 
-	Input: the list
+/*	Frees a list of elements composed of num_elements strings
+	Input: 
+	- list: the list
+	- num_elements: number of strings in each list element
 	Output: None
 */
-void free_list(char ***list) {
+void free_list(char ***list, int num_elements) {
 	
 	for (int i = 0; list[i] != NULL; i++) {
-		if (list[i][0]) {
-			free(list[i][0]);
+		for (int j = 0; j < num_elements; j++) {
+			if (list[i][j]) {
+				free(list[i][j]);
+			}
 		}
-		if (list[i][1]) {
-			free(list[i][1]);
-		}
-
 		free(list[i]);
 	}
-
 	free(list);
 }
 
@@ -870,13 +893,14 @@ void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 		}
 	}
 
-	// Debug
-	//if (**buf != '\0') {
-	//	printf("Received: %s\n", *buf);
-	//}
-
 	freeaddrinfo(res_tcp);
 	close(tcp_socket);
+
+	// Debug
+	//if (**buf != '\0') {
+	//	printf("Received: %s", *buf);
+	//	printf("With length: %d\n", strlen(*buf));
+	//}
 }
 
 void end_session(int status) {
