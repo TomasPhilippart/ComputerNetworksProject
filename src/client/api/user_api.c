@@ -595,6 +595,7 @@ int post(char* text, char *mid, char *filename) {
 		
 		ptr[filesize] = '\n';
 		message_size = ptr - buf + filesize + 1;
+		free(data);
 
 	} else {	
 		end_session(EXIT_FAILURE);
@@ -611,11 +612,10 @@ int post(char* text, char *mid, char *filename) {
 		return STATUS_NOK;
 	} else if (!strcmp(status, "ERR")) {
 		return STATUS_ERR;
-	} else if (strcmp(status, "OK")) {
-		end_session(EXIT_FAILURE);
 	}
 
 	if (atoi(status) == 0 || strlen(status) != MID_SIZE) {
+		printf("Here\n");
 		exit(EXIT_SUCCESS);
 	}
 

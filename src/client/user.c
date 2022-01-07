@@ -55,6 +55,7 @@ static void parse_args(int argc, char **argv) {
 					fprintf(stderr, "Invalid format: -n must be followed by a valid IPv4 address or hostname.\n");
 					exit(EXIT_FAILURE);
 				}
+
 				opt_counter ++;
 				break;
 
@@ -84,33 +85,34 @@ void process_input() {
 		int status;
 		int num_tokens = sscanf(line, "%s %s %s %s", command, arg1, arg2, arg3);
 		
-		// ===== REGISTER =====
+		/* ===== REGISTER ===== */
 		if (!strcmp(command, "reg")) {
 			if (num_tokens != 3) {
 				fprintf(stderr, "Invalid. Format: reg UID pass\n");
 				continue;
 			}
+
 			// Check "UID" and "pass" arguments 
-			if (check_uid(arg1) && check_pass(arg2)) {
-				status = register_user(arg1, arg2);
-				switch(status) {
-					case STATUS_OK:
-						printf("User registration successful with UID %s.\n", arg1);
-						break;
-					case STATUS_DUP:
-						printf("Error. UID %s is duplicated.\n", arg1);
-						break;
-					case STATUS_NOK:
-						printf("Error registering user.\n");
-						break;
-				}
-			} else {
+			if (!(check_uid(arg1) && check_pass(arg2))) {
 				printf("Invalid. UID must be 5 digits and pass must be 8 alphanumeric digits.\n");
+				continue;
 			}
-			continue;
+
+			status = register_user(arg1, arg2);
+			switch(status) {
+				case STATUS_OK:
+					printf("User registration successful with UID %s.\n", arg1);
+					continue;
+				case STATUS_DUP:
+					printf("Error. UID %s is duplicated.\n", arg1);
+					continue;
+				case STATUS_NOK:
+					printf("Error registering user.\n");
+					continue;
+			}
 		}
 
-		// ===== UNREGISTER =====
+		/* ===== UNREGISTER ===== */
 		if (!strcmp(command, "unregister") || !strcmp(command, "unr")) {
 			if (num_tokens != 3) {
 				fprintf(stderr, "Invalid. Format: %s UID pass\n", command);
@@ -118,23 +120,23 @@ void process_input() {
 			}
 			
 			// Check "UID" and "pass" arguments 
-			if (check_uid(arg1) && check_pass(arg2)) {
-				status = unregister_user(arg1, arg2);
-				switch(status) {
-					case STATUS_OK:
-						printf("User %s unregistered successfully.\n", arg1);
-						break;
-					case STATUS_NOK:
-						printf("Error unregistering user.\n");
-						break;
-				}
-			} else {
+			if (!(check_uid(arg1) && check_pass(arg2))) {
 				printf("Invalid. UID must be 5 digits and pass must be 8 alphanumeric digits.\n");
+				continue;
 			}
-			continue;
+
+			status = unregister_user(arg1, arg2);
+			switch(status) {
+				case STATUS_OK:
+					printf("User %s unregistered successfully.\n", arg1);
+					continue;
+				case STATUS_NOK:
+					printf("Error unregistering user.\n");
+					continue;
+			}
 		}
 		
-		// ===== LOGIN =====
+		/* ===== LOGIN ===== */
 		if (!strcmp(command, "login")) {
 			if (num_tokens != 3) {
 				fprintf(stderr, "Invalid. Format: %s UID pass\n", command);
@@ -144,28 +146,27 @@ void process_input() {
 			// NOTE: check is user already logged in?
 			
 			// Check "UID" and "pass" arguments 
-			if (check_uid(arg1) && check_pass(arg2)) {
-				status = login(arg1, arg2);
-				switch(status) {
-					case STATUS_OK:
-						printf("User %s logged in successfully.\n", arg1);
-						break;
-					case STATUS_NOK:
-						printf("Error logging in.\n");
-						break;
-				}
-
-			} else {
+			if (!(check_uid(arg1) && check_pass(arg2))) {
 				printf("Invalid. UID must be 5 digits and pass must be 8 alphanumeric digits.\n");
+				continue;
 			}
-			continue;
+
+			status = login(arg1, arg2);
+			switch(status) {
+				case STATUS_OK:
+					printf("User %s logged in successfully.\n", arg1);
+					continue;
+				case STATUS_NOK:
+					printf("Error logging in.\n");
+					continue;
+			}
 		}
 
-		// ===== LOGOUT =====
+		/* ===== LOGOUT ===== */
 		if (!strcmp(command, "logout")) {
 			
 			if (!is_logged_in()) {
-				printf("Error: No user is logged in.\n");
+				printf("Error: User not logged in.\n");
 				continue;
 			}
 
@@ -173,43 +174,44 @@ void process_input() {
 			switch(status) {
 				case STATUS_OK:
 					printf("User %s logged out successfully.\n", get_uid());
-					break;
+					continue;
 				case STATUS_NOK:
 					printf("Error logging out.\n");
-					break;
+					continue;
 			}
-
-			continue;
 		}
 		
-		// ===== SHOW UID =====
+		/* ===== SHOW UID ===== */
 		if (!strcmp(command, "showuid") || !strcmp(command, "su")) {
 			char* UID = get_uid();
 			
 			if (!is_logged_in()) {
 				printf("Error: User not logged in.\n");
-			} else {
-				printf("UID: %s\n", get_uid());
+				continue;
 			}
+
+			printf("UID: %s\n", get_uid());
 			continue;
 		}
 
-		// ===== EXIT =====
+		/* ===== EXIT ===== */
 		if (!strcmp(command, "exit")) {
 			break;
 		}
 
-		// ===== GROUPS =====
+		/* ===== GROUPS ===== */
 		if (!strcmp(command, "groups") || !strcmp(command, "gl")) {
 			char ***groups;
 
 			get_all_groups(&groups);
 			if (groups[0] == NULL) {
 				printf("No groups are available.\n");
-			} else {				
-				for (int i = 0; groups[i] != NULL; i++) {
-					printf("%s %s\n", groups[i][0], groups[i][1]);
-				}
+				free_list(groups, 2);
+				continue;
+			}
+
+			for (int i = 0; groups[i] != NULL; i++) {
+				printf("%s %s\n", groups[i][0], groups[i][1]);
 			}
 
 			free_list(groups, 2);
@@ -218,7 +220,7 @@ void process_input() {
 
 		// NOTE The following group management commands can only be issued after a user has logged in
 		
-		// ===== SUBSCRIBE =====
+		/* ===== SUBSCRIBE ===== */
 		if (!strcmp(command, "subscribe") || !strcmp(command, "s")) {
 			if (num_tokens != 3) {
 				fprintf(stderr, "Invalid. Format: %s GID GName\n", command);
@@ -234,30 +236,29 @@ void process_input() {
 			switch(status) {
 				case STATUS_OK:
 					printf("User with UID %s subscribed successfully to group %s with GID %s\n", get_uid(), arg2, arg1);
-					break;
+					continue;
 				case STATUS_NEW_GROUP:
 					printf("Created new group %s\n", arg2);
-					break;
+					continue;
 				case STATUS_USR_INVALID: // TODO: see this
 					printf("UID : %s is not valid\n", get_uid());
-					break;
+					continue;
 				case STATUS_GID_INVALID: 
 					printf("GID : %s is not valid\n", arg1);
-					break;
+					continue;
 				case STATUS_GNAME_INVALID:
 					printf("Group name : %s is not valid\n", arg2);
-					break;
+					continue;
 				case STATUS_GROUPS_FULL:
 					printf("Error : \n");
-					break;
+					continue;
 				case STATUS_NOK:
 					printf("Error subscribing to group %s with GID %s\n", arg2, arg1);
-					break;
+					continue;
 			}
-			continue;
 		}
 
-		// ===== UNSUBSCRIBE =====
+		/* ===== UNSUBSCRIBE ===== */
 		if (!strcmp(command, "unsubscribe") || !strcmp(command, "u")) {
 			if (num_tokens != 2) {
 				fprintf(stderr, "Invalid. Format: %s GID\n", command);
@@ -273,21 +274,20 @@ void process_input() {
 			switch(status) {
 				case STATUS_OK:
 					printf("User with UID %s unsubscribed successfully from group with GID %s\n", get_uid(), arg1);
-					break;
+					continue;
 				case STATUS_USR_INVALID: // TODO: see this
 					printf("UID : %s is not valid\n", get_uid());
-					break;
+					continue;
 				case STATUS_GID_INVALID: 
 					printf("GID : %s is not valid\n", arg1);
-					break;
+					continue;
 				case STATUS_NOK:
 					printf("Error unsubscribing from group with GID %s\n", arg1);
-					break;
+					continue;
 			}
-			continue;
 		}
 
-		// ===== MY GROUPS =====
+		/* ===== MY GROUPS ===== */
 		if (!strcmp(command, "my_groups") || !strcmp(command, "mgl")) {
 
 			char ***groups;
@@ -303,20 +303,21 @@ void process_input() {
 			}
 
 			status = get_subscribed_groups(&groups);
-			if (status == STATUS_USR_INVALID) {
-				printf("Error: Invalid UID.\n");
-			} else {			
-				for (int i = 0; groups[i] != NULL; i++) {
-					printf("%s %s\n", groups[i][0], groups[i][1]);
-				}
+			switch(status) {
+				case STATUS_OK:
+					for (int i = 0; groups[i] != NULL; i++) {
+						printf("%s %s\n", groups[i][0], groups[i][1]);
+					}
+
+					free_list(groups, 2);
+					continue;
+				case STATUS_USR_INVALID:
+					printf("UID : %s is not valid\n", get_uid());
+					continue;
 			}
-			
-			free_list(groups, 2);
-			
-			continue;
 		}
 
-		// ===== SELECT =====
+		/* ===== SELECT ===== */
 		if (!strcmp(command, "select") || !strcmp(command, "sag")) {
 			if (num_tokens != 2) {
 				fprintf(stderr, "Invalid. Format: %s GID\n", command);
@@ -343,7 +344,7 @@ void process_input() {
 			continue;
 		}
 
-		// ===== SHOW GID =====
+		/* ===== SHOW GID ===== */
 		if (!strcmp(command, "showgid") || !strcmp(command, "sg")) {
 			if (num_tokens != 1) {
 				fprintf(stderr, "Invalid. Format: %s\n", command);
@@ -352,16 +353,19 @@ void process_input() {
 
 			if (!is_logged_in()) {
 				printf("Error: User not logged in.\n");
-			} else if (strcmp(get_gid(), "")) {
-				printf("Selected GID: %s\n", get_gid());
-			} else {
-				printf("Error: No GID selected.\n");
+				continue;
+			} 
+
+			if (!strcmp(get_gid(), "")) {
+				printf("Error: no group is currently selected.\n");
+				continue;
 			}
-			
+
+			printf("Selected GID: %s\n", get_gid());
 			continue;
 		}
 
-		// ===== LIST UIDS IN CURRENT GROUP =====
+		/* ===== LIST UIDS IN CURRENT GROUP ===== */
 		if (!strcmp(command, "ulist") || !strcmp(command, "ul")) {
 
 			char **uids;
@@ -377,16 +381,19 @@ void process_input() {
 			}
 
 			status = get_uids_group(&uids);
-
 			switch (status) {
 				case STATUS_OK: 
 					if (uids[0] == NULL) {
 						printf("Group %s is not subscribed by any user.\n", get_gid());
-					} else {		
-						for (int i = 0; uids[i] != NULL; i++) {
-							printf("%s\n", uids[i]);
-						}
+						free_uids(uids);
+						continue;
 					}
+
+					for (int i = 0; uids[i] != NULL; i++) {
+						printf("%s\n", uids[i]);
+					}
+
+					free_uids(uids);
 					continue;
 				case STATUS_NOK:
 					printf("Error: group %s does not exist.\n", get_gid());
@@ -395,12 +402,9 @@ void process_input() {
 					printf("Error during message reception by the server. Try again.\n");
 					continue;
 			}
-			
-			free_uids(uids);
-			continue;
 		}
 
-		// ===== POST A MESSAGE =====
+		/* ===== POST A MESSAGE ===== */
 		if (!strcmp(command, "post")) {
 			
 			char *rest;
@@ -413,7 +417,7 @@ void process_input() {
 			}
 
 			if (!strcmp(get_gid(), "")) {
-				printf("Error: No group is selected.\n");
+				printf("Error: no group is currently selected.\n");
 				continue;
 			}
 
@@ -470,7 +474,7 @@ void process_input() {
 			continue;
 		}
 
-		// ===== RETRIEVE UP TO 20 MESSAGES =====
+		/* ===== RETRIEVE UP TO 20 MESSAGES ===== */
 		if (!strcmp(command, "retrieve") || !strcmp(command, "r")) {
 
 			char *** list; 
@@ -486,12 +490,11 @@ void process_input() {
 			}
 
 			if (!strcmp(get_gid(), "")) {
-				printf("Error: No group is selected.\n");
+				printf("Error: no group is currently selected.\n");
 				continue;
 			}
 
 			status = retrieve(arg1, &list);
-
 			switch (status) {
 				case STATUS_OK:
 					for (int i = 0; list[i] != NULL; i++) {
@@ -501,6 +504,8 @@ void process_input() {
 						}
 						putchar('\n');
 					}
+
+					free_list(list, 3);
 					continue;
 				case STATUS_NOK:
 					printf("Error while retrieving messages.\n");
@@ -513,9 +518,6 @@ void process_input() {
 					continue;
 
 			}
-
-			free_list(list, 3);
-			continue;
 		}
 
 		printf("Invalid command.\n");
