@@ -187,7 +187,7 @@ void process_input() {
 			char* UID = get_uid();
 			
 			if (!is_logged_in()) {
-				printf("Error: User not be logged in.\n");
+				printf("Error: User not logged in.\n");
 			} else {
 				printf("UID: %s\n", get_uid());
 			}
@@ -226,7 +226,7 @@ void process_input() {
 			}
 
 			if (!is_logged_in()) {
-				printf("Error: User not be logged in.\n");
+				printf("Error: user not logged in.\n");
 				continue;
 			}
 
@@ -289,6 +289,9 @@ void process_input() {
 
 		// ===== MY GROUPS =====
 		if (!strcmp(command, "my_groups") || !strcmp(command, "mgl")) {
+
+			char ***groups;
+
 			if (num_tokens != 1) {
 				fprintf(stderr, "Invalid. Format: %s\n", command);
 				continue;
@@ -298,8 +301,6 @@ void process_input() {
 				printf("Error: User not logged in.\n");
 				continue;
 			}
-
-			char ***groups;
 
 			status = get_subscribed_groups(&groups);
 			if (status == STATUS_USR_INVALID) {
@@ -362,6 +363,8 @@ void process_input() {
 
 		// ===== LIST UIDS IN CURRENT GROUP =====
 		if (!strcmp(command, "ulist") || !strcmp(command, "ul")) {
+
+			char **uids;
 		
 			if (!is_logged_in()) {
 				printf("Error: User not logged in.\n");
@@ -373,7 +376,6 @@ void process_input() {
 				continue;
 			}
 
-			char **uids;
 			status = get_uids_group(&uids);
 			
 			if (!strcmp(uids[0], "")) {
@@ -393,8 +395,8 @@ void process_input() {
 		// ===== POST A MESSAGE =====
 		if (!strcmp(command, "post")) {
 			
-			char *rest = line + (strlen(command) * sizeof(char)) + 1;
-			char buf[250];
+			char *rest;
+			char buf[241];
 			char mid[5];	
 
 			if (!is_logged_in()) {
@@ -406,17 +408,27 @@ void process_input() {
 				printf("Error: No group is selected.\n");
 				continue;
 			}
+
+			if (num_tokens < 2) {
+				printf("Error. Usage: post \"text\" [Fname].\n");
+				continue;
+			}
+
+			/* rest points to message text */
+			rest = line + (strlen(command) * sizeof(char)) + 1;
 			
 			if (get_text(buf, rest) == FALSE) {
 				printf("Invalid format. Usage: post \"text\" [Fname].\n");
 				continue;
 			}
-	
 
-			if (*(rest + strlen(buf) + 2) == '\n') { // no Fname
+			/* Check next character after text to see if there is a file 
+			   Note that buf does not contain the 2 pairs of quotes */
+			if (*(rest + strlen(buf) + 2) == '\n') { 
 				status = post(buf, mid, NULL);
-			} else if (*(rest + strlen(buf) + 2) == ' ') {
-				num_tokens = sscanf(rest + strlen(buf) + 2, " %s %s", arg2, arg3);
+
+			} else if (*(rest + strlen(buf) + 2) == ' ') { 
+				num_tokens = sscanf(rest + strlen(buf) + 2, " %s %s", arg2, arg3); // NOTE: use lenght tokens in scanf
 				
 				if (num_tokens != 1) {
 					printf("Invalid format. Usage: post \"text\" [Fname].\n");
@@ -429,6 +441,7 @@ void process_input() {
 				}
 				
 				status = post(buf, mid, arg2);
+
 			} else {
 				printf("Invalid format. Usage: post \"text\" [Fname].\n");
 				continue;
@@ -439,10 +452,8 @@ void process_input() {
 					printf("Message successfully sent with MID %s.\n", mid);
 					continue;
 				case STATUS_NOK:
-					// TODO error message
-					printf("Error\n");
+					printf("Error during post.\n");
 					continue;
-
 			}
 			
 			continue;
@@ -486,13 +497,14 @@ void process_input() {
 				case STATUS_EOF:
 					printf("There are no new messages to read\n");
 					continue;
-	
 			}
 
 			free_list(list);
-
 			continue;
 		}
+
+		printf("Invalid command.\n");
+
 	}
 }
 
@@ -526,6 +538,7 @@ int check_if_subscribed(char *gid) {
 	return FALSE;
 }
 
+// NOTE: Make this function a wrapper of a regex validator 
 // Check if password is alphanumeric and has 8 characters
 int check_pass(char *pass) {
 	if (strlen(pass) != PASSWORD_SIZE) {
@@ -564,6 +577,7 @@ int get_text(char *buf, char *str) {
 	return TRUE;
 }
 
+// NOTE: Make this function a wrapper of a regex validator 
 int check_filename(char *filename) {
 
 	if (!((strlen(filename) < MAX_FNAME) && (strlen(filename) > EXTENSION_SIZE + 2))) {
@@ -582,8 +596,8 @@ int check_filename(char *filename) {
 	}
 
 	// Check extension is 3 letters
-	for (int i = strlen(filename) - EXTENSION_SIZE; i < strlen(filename); i++) {
-		if (!(isalnum(filename[i]))) {
+	for (int i = strlen(filename) - 3; i < strlen(filename); i++) {
+		if (!(isalpha(filename[i]))) {
 			return FALSE;
 		}
 	}

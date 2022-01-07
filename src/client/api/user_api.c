@@ -322,7 +322,6 @@ int subscribe_group(char *gid, char *gName) {
 
 	sprintf(buf, "%s %s %s %s\n", "GSR", UID, gid, gName);
 
-
 	exchange_messages_udp(buf, MAX_LINE_SIZE);
 
 	int num_tokens = sscanf(buf, "%s %s\n", command, status);
@@ -505,7 +504,7 @@ char **parse_uids(char *buf) {
 	int parsed_tokens = 0;
 	
 	/* Allocate and fill response entries with each UID */
-	response = (char**) malloc(sizeof(char*) * base_size);
+	response = (char **) malloc(sizeof(char*) * base_size);
 
 	while ((token = strtok(NULL, " ")) != NULL) {
 		response[parsed_tokens] = (char *) malloc(sizeof(char*) * (UID_SIZE + 1));
@@ -531,53 +530,58 @@ void free_uids (char **response) {
 	for (i = 0; response[i] != NULL; i++) {
 		free(response[i]);
 	}
-
 	free(response);
 }
 
 
 int post(char* text, char *mid, char *filename) {
-	char *buf = (char *) malloc(sizeof(char) * GIANT_SIZE);
-	unsigned char *content;
+
+	char *buf, *data, *ptr;
 	char command[MAX_ARG_SIZE], status[MAX_ARG_SIZE];
 	FILE *file;
-	ssize_t filesize = 0;
-	ssize_t initial_size;
-
+	ssize_t message_size, filesize;
+	
 	if (filename == NULL) { // no filename provided
-		sprintf(buf, "%s %s %s %ld %s\n", "PST", UID, GID, strlen(text), text);
-		initial_size = strlen(buf) * sizeof(char);
+		buf = (char *) malloc(sizeof(char) * GIANT_SIZE); 						// NOTE only the size up until text
+		sprintf(buf, "%s %s %s %ld %s\n", "PST", UID, GID, strlen(text), text); // NOTE size delimiters
+		message_size = strlen(buf) * sizeof(char);
 
 	} else if ((file = fopen(filename, "rb"))) { // filename provided
+
+		/* Get size of file data */
 		fseek(file, 0, SEEK_END);
 		filesize = ftell(file);
-		fseek (file, 0, SEEK_SET);
+		fseek(file, 0, SEEK_SET);
 
-		content = (unsigned char *) malloc (filesize * sizeof(unsigned char *));
-		if (content) {
-			fread(content, sizeof(unsigned char), filesize, file);
+		if ((data = (char *) malloc (filesize * sizeof(char)))) {
+			fread(data, sizeof(char), filesize, file);
+		} else {
+			end_session(EXIT_FAILURE);
 		}
+
 		fclose(file);
 
-		buf = (unsigned char *) realloc(buf, (GIANT_SIZE + filesize) * sizeof(char));
-		sprintf(buf, "%s %s %s %ld %s %s %ld ", "PST", UID, GID, strlen(text), text, filename, filesize);
-		initial_size = strlen(buf) * sizeof(char);
+		buf = (char *) malloc((GIANT_SIZE + filesize) * sizeof(char));									  // NOTE
+		sprintf(buf, "%s %s %s %ld %s %s %ld ", "PST", UID, GID, strlen(text), text, filename, filesize); // NOTE: size delimiters
 
-		char *ptr = buf + initial_size;
-		int i;
-		for (i = 0; i < filesize; i++) {
-			sprintf(ptr + i, "%c", content[i]);
+		/* point to beginning of file data */
+		ptr = buf + strlen(buf) * sizeof(char);
+
+		/* print data to buffer byte by byte */
+		for (int i = 0; i < filesize; i++) {
+			sprintf(ptr + i, "%c", data[i]);
 		}
 		
-		ptr[i] = '\n';
+		ptr[filesize] = '\n';
+		message_size = ptr - buf + filesize + 1;
 
 	} else {	
-		return FALSE;
+		end_session(EXIT_FAILURE);
 	}
 
-	exchange_messages_tcp(&buf, initial_size + filesize);
+	exchange_messages_tcp(&buf, message_size);
 
-	int num_tokens = sscanf(buf, "%s %s\n", command, status);
+	int num_tokens = sscanf(buf, "%s %s\n", command, status);	// NOTE: token size
 	if (num_tokens != 2 || strcmp(command, "RPT") != 0) {
 		end_session(EXIT_FAILURE);
 	}
@@ -591,6 +595,7 @@ int post(char* text, char *mid, char *filename) {
 	}
 
 	strcpy(mid, status);
+	free(buf);
 	return STATUS_OK;
 }
 
