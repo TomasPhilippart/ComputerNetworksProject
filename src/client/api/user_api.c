@@ -20,9 +20,10 @@
 // NOTE check filesize
 // NOTE pass error string to end session
 // NOTE regex instead of atoi
+// NOTE freeing server_ip and server_port when they are not altered can be a source of trouble
 
 /* Default server ip and port */
-char *server_ip = "127.0.0.1";
+char *server_ip = NULL;
 char *server_port = "58043";
 
 /* User ID, password, group ID and flag for when a user is logged in */
@@ -121,20 +122,6 @@ int validate_ip(char *ip_addr) {
 	struct sockaddr_in addr;
 	if (inet_pton(AF_INET, ip_addr, &addr.sin_addr) > 0) {
 		server_ip = strdup(ip_addr);
-		return TRUE;
-	}
-	return FALSE;
-}
-
-/*	Checks if port points to a string with a valid port number.
-	Input:
-	- port: string to be checked 
-    Output: 1 if port is a valid port, 0 otherwise.
-*/
-int validate_port(char *port) {
-	int port_number = atoi(port);
-	if (port_number > 0 && port_number <= 65535) {
-		server_port = strdup(port);
 		return TRUE;
 	}
 	return FALSE;
@@ -961,4 +948,18 @@ void end_session(int status) {
 
 int is_logged_in () {
 	return logged_in;
+}
+
+/*	Checks if port points to a string with a valid port number.
+	Input:
+	- port: string to be checked 
+    Output: 1 if port is a valid port, 0 otherwise.
+*/
+int validate_port(char *port) {
+	int port_number = atoi(port);
+	if (port_number > 0 && port_number <= 65535) {
+		server_port = strdup(port);
+		return TRUE;
+	}
+	return FALSE;
 }

@@ -1,5 +1,6 @@
 #include "./api/user_api.h"
 #include "../constants.h"
+#include "../aux_functions.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -14,12 +15,7 @@
 static void parse_args(int argc, char **argv);
 void process_input();
 
-int check_pass(char *pass);
-int check_uid(char *uid);
-int check_gid(char *gid);
-int check_mid(char *gid);
 int check_if_subscribed(char *gid);
-int check_filename(char *filename);
 int get_text(char *buf, char *group);
 
 int main(int argc, char **argv) {
@@ -58,7 +54,7 @@ static void parse_args(int argc, char **argv) {
 					exit(EXIT_FAILURE);
 				}
 
-				opt_counter ++;
+				opt_counter++;
 				break;
 
 			case 'p':
@@ -66,7 +62,7 @@ static void parse_args(int argc, char **argv) {
 					fprintf(stderr, "Invalid format: -p must be followed by a valid port number.\n");
 					exit(EXIT_FAILURE);
 				}
-				opt_counter ++;
+				opt_counter++;
 				break;
 
 			default:
@@ -576,20 +572,6 @@ void process_input() {
 	}
 }
 
-// Check if UID is 5 digits and not 0000
-int check_uid(char *uid) {
-	return strlen(uid) == 5 && atoi(uid) > 0;
-}
-
-// Check if GID is 2 digits and the user is subscribed to it
-int check_gid(char *gid) {
-	return strlen(gid) == 2 && atoi(gid) > 0;
-}
-
-int check_mid(char *mid) {
-	return strlen(mid) == 4 && atoi(mid) > 0;
-}
-
 int check_if_subscribed(char *gid) {
 	char ***subscribed_groups;
 	int status = get_subscribed_groups(&subscribed_groups);
@@ -608,21 +590,6 @@ int check_if_subscribed(char *gid) {
 
 	free_list(subscribed_groups, 2);
 	return FALSE;
-}
-
-// NOTE: Make this function a wrapper of a regex validator 
-// Check if password is alphanumeric and has 8 characters
-int check_pass(char *pass) {
-	if (strlen(pass) != PASSWORD_SIZE) {
-		return FALSE;
-	}
-
-	for (int i = 0; i < strlen(pass); i++) {
-		if (!isalnum(pass[i])) {
-			return FALSE;
-		}
-	}
-	return TRUE;
 }
 
 /*	Parse text between quotes from buf and put it on str
@@ -649,38 +616,6 @@ int get_text(char *buf, char *str) {
 	}
 
 	buf[i - 1] ='\0';
-
-	return TRUE;
-}
-
-int check_filename(char *filename) {
-
-	if (!((strlen(filename) < MAX_FNAME) && (strlen(filename) > EXTENSION_SIZE + 2))) {
-		return FALSE;
-	}
-
-	for (int i = 0; i < strlen(filename); i++) {
-		if (!(filename[i] == '_' || filename[i] == '.' || filename[i] == '-'|| isalnum(filename[i]))) {
-			return FALSE;
-		}
-	}
-
-	// Check extension separating dot
-	if (!(filename[strlen(filename) - EXTENSION_SIZE - 1] == '.')) {
-		return FALSE;
-	}
-
-	// Check extension is 3 letters
-	for (int i = strlen(filename) - 3; i < strlen(filename); i++) {
-		if (!(isalpha(filename[i]))) {
-			return FALSE;
-		}
-	}
-	
-	// Check if file exists
-	if (access(filename, F_OK ) != 0 ) {
-		return FALSE;
-	}
 
 	return TRUE;
 }
