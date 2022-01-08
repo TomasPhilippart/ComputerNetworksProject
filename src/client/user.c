@@ -17,7 +17,6 @@ int check_uid(char *uid);
 int check_gid(char *gid);
 int check_if_subscribed(char *gid);
 int check_filename(char *filename);
-
 int get_text(char *buf, char *group);
 
 int main(int argc, char **argv) {
@@ -26,8 +25,6 @@ int main(int argc, char **argv) {
 	process_input();
 	end_session(EXIT_SUCCESS);
 }
-
-// NOTE: check break/continue tokens in switches
 
 /*	Parse arguments from the command line according to 
 	format ./user [-n DSIP] [-p DSport] */
@@ -49,7 +46,7 @@ static void parse_args(int argc, char **argv) {
 			exit(EXIT_FAILURE);
 		}
 
-		/* parse option-argument tuples */
+		/* parse option/argument tuples */
 		opt = getopt(argc, argv, "n:p:");
         switch (opt) {
 			case 'n':
@@ -72,8 +69,7 @@ static void parse_args(int argc, char **argv) {
 			default:
 				fprintf(stderr, "Invalid format. Usage: ./user [-n DSIP] [-p DSport]\n");
 				exit(EXIT_FAILURE);
-			}
-			
+		}	
     }
 
 }
@@ -82,21 +78,30 @@ void process_input() {
 	char line[MAX_LINE_SIZE];
 
 	while (1) {
+
 		fgets(line, sizeof(line)/sizeof(char), stdin);
-		char command[MAX_ARG_SIZE], arg1[MAX_ARG_SIZE], arg2[MAX_ARG_SIZE], arg3[MAX_ARG_SIZE];
+
+		/* arg3 ensures that the user does not insert more than 3 tokens */
+		char command[MAX_ARG_SIZE], arg1[MAX_ARG_SIZE], arg2[MAX_ARG_SIZE], arg3[MAX_ARG_SIZE]; 
 		int status;
-		int num_tokens = sscanf(line, "%s %s %s %s", command, arg1, arg2, arg3);
+		int num_tokens = sscanf(line, "%" STR(MAX_ARG_SIZE) "s %" STR(MAX_ARG_SIZE) "s %" 
+										  STR(MAX_ARG_SIZE) "s %" STR(MAX_ARG_SIZE) "s " , command, arg1, arg2, arg3);
+
+		/* If the user presses Enter */
+		if (num_tokens < 1) {
+			continue;
+		}
 		
 		/* ===== REGISTER ===== */
 		if (!strcmp(command, "reg")) {
+
 			if (num_tokens != 3) {
-				fprintf(stderr, "Invalid. Format: reg UID pass\n");
+				fprintf(stderr, "Invalid command. Usage: reg UID pass\n");
 				continue;
 			}
 
-			// Check "UID" and "pass" arguments 
 			if (!(check_uid(arg1) && check_pass(arg2))) {
-				printf("Invalid. UID must be 5 digits and pass must be 8 alphanumeric digits.\n");
+				printf("Error: UID must have 5 digits and pass must have 8 alphanumeric characters.\n");
 				continue;
 			}
 
@@ -116,6 +121,7 @@ void process_input() {
 
 		/* ===== UNREGISTER ===== */
 		if (!strcmp(command, "unregister") || !strcmp(command, "unr")) {
+
 			if (num_tokens != 3) {
 				fprintf(stderr, "Invalid. Format: %s UID pass\n", command);
 				continue;
@@ -140,16 +146,19 @@ void process_input() {
 		
 		/* ===== LOGIN ===== */
 		if (!strcmp(command, "login")) {
+
 			if (num_tokens != 3) {
-				fprintf(stderr, "Invalid. Format: %s UID pass\n", command);
+				fprintf(stderr, "Error: Format: %s UID pass\n", command);
 				continue;
 			}
 
-			// NOTE: check is user already logged in?
+			if (is_logged_in()) {
+				printf("Error: User is already logged in. Please logout in order to change User.\n");
+				continue;
+			}			
 			
-			// Check "UID" and "pass" arguments 
 			if (!(check_uid(arg1) && check_pass(arg2))) {
-				printf("Invalid. UID must be 5 digits and pass must be 8 alphanumeric digits.\n");
+				printf("Error: UID must have 5 digits and pass must have 8 alphanumeric characters.\n");
 				continue;
 			}
 
@@ -336,8 +345,6 @@ void process_input() {
 				printf("Error: GID %s is invalid.\n", arg1);
 				continue;
 			} 	
-
-			printf("Arrived here\n");
 			
 			if (check_if_subscribed(arg1) == FALSE) {
 				printf("Error: User is not subscribed to the group with GID %s.\n", arg1);
@@ -431,7 +438,7 @@ void process_input() {
 			}
 
 			/* rest points to message text */
-			rest = line + (strlen(command) * sizeof(char)) + 1;
+			rest = line + (strlen(command) + 1) * sizeof(char);
 			
 			if (get_text(buf, rest) == FALSE) {
 				printf("Invalid format. Usage: post \"text\" [Fname].\n");
@@ -508,7 +515,6 @@ void process_input() {
 						}
 						putchar('\n');
 					}
-
 					free_list(list, 3);
 					continue;
 				case STATUS_NOK:
@@ -520,7 +526,6 @@ void process_input() {
 				case STATUS_ERR:
 					printf("Error during message reception by the server. Try again.\n");
 					continue;
-
 			}
 		}
 

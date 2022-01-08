@@ -5,6 +5,8 @@
 #define FALSE 0
 
 /* sizes */
+/* All constants pertraining to tokens
+   given by input are all incremented by 1 */
 #define GIANT_SIZE 4000
 #define UID_SIZE 5
 #define PASSWORD_SIZE 8
@@ -33,5 +35,9 @@
 
 #define MAX_LINE_SIZE 300
 #define MAX_ARG_SIZE 250
+
+/* for setting input size while scanning buffers */
+#define STR2(x) #x			
+#define STR(X) STR2(X)
 
 #endif

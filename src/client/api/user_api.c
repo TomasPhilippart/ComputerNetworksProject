@@ -14,23 +14,17 @@
 // NOTE remove just for debug
 #include <errno.h>
 
-// NOTE need to free malloc stuff
 // NOTE check malloc syscall return code
-
-#define STR2(x) #x			// for variable sized buffers
-#define STR(X) STR2(X)
-#define SUM(A, B) A + B
-#define CALL(macro, ...)  macro(__VA_ARGS__)
 
 /* Default server ip and port */
 char *server_ip = "127.0.0.1";
 char *server_port = "58043";
 
 /* User ID, password, group ID and flag for when a user is logged in */
-char UID[UID_SIZE + 1] = "99997"; // 5 digit numeric
-char password[PASSWORD_SIZE + 1] = "12345678"; // 8 alphanumeric characters
-char GID[GID_SIZE + 1] = "15"; // 2 digit numeric (01-99)
-int logged_in = TRUE;
+char UID[UID_SIZE + 1] = ""; // 5 digit numeric
+char password[PASSWORD_SIZE + 1] = ""; // 8 alphanumeric characters
+char GID[GID_SIZE + 1] = ""; // 2 digit numeric (01-99)
+int logged_in = FALSE;
 
 /* variables needed for UDP connection */
 int udp_socket; 
@@ -297,7 +291,7 @@ void get_all_groups(char ****list) {
 		end_session(EXIT_FAILURE);
 	} 
 	
-	printf("Command:%s Lenght:%d Num_groups:%s Length:%d\n", command, strlen(command), num_groups, strlen(num_groups));
+	/* advance pointer to group section of server response for parsing */
 	aux = buf + (strlen(command) + strlen(num_groups) + 1) * sizeof(char);
 	*list = parse_groups(aux, atoi(num_groups));
 
@@ -424,7 +418,7 @@ int get_subscribed_groups(char ****list) {
 		end_session(EXIT_FAILURE);
 	} 
 	
-	/* pass pointer to group section of server response for parsing */
+	/* advance pointer to group section of server response for parsing */
 	aux = buf + strlen(command) + strlen(num_groups) + 1;
 	*list = parse_groups(aux, atoi(num_groups));
 
@@ -447,7 +441,6 @@ char ***parse_groups(char *buf, int num_groups) {
 	char ***response = (char***) malloc(sizeof(char**) * (num_groups + 1));
 	char mid[MID_SIZE + 1];
 	int num_tokens;
-	printf("%s\n", buf);
 
 	for (int i = 0; i < num_groups; i++) {
 		response[i] = (char **) malloc(sizeof(char*) * (GID_SIZE + 1));
@@ -460,10 +453,11 @@ char ***parse_groups(char *buf, int num_groups) {
 		if (num_tokens != 3) {
 			end_session(EXIT_FAILURE);
 		}
+		/* advance buf pointer 3 tokens */
 		buf += (strlen(response[i][0]) + strlen(response[i][1]) + strlen(mid) + 3) * sizeof(char);
 	}
 	
-	/* Ensure that num messages is coherent */
+	/* Ensure that there are exactly num_messages messages  */
 	if (*(buf) != '\n') {
 		end_session(EXIT_FAILURE);
 	}
@@ -861,8 +855,9 @@ void exchange_messages_udp(char *buf, ssize_t max_rcv_size) {
 	}
 	
 	buf[num_bytes] = '\0';
+
 	// DEBUG :
-	printf("Received: %s\n", buf);
+	//printf("Received: %s\n", buf);
 	//NOTE : must the client close the socket? or the server?
 	
 }
@@ -930,10 +925,10 @@ void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 	close(tcp_socket);
 
 	// Debug
-	if (**buf != '\0') {
-		printf("Received: %s", *buf);
-		printf("With length: %d\n", strlen(*buf));
-	}
+	//if (**buf != '\0') {
+	//	printf("Received: %s", *buf);
+	//	printf("With length: %d\n", strlen(*buf));
+	//}
 }
 
 // NOTE: leave at least some kind of message??
