@@ -15,6 +15,8 @@
 #include <errno.h>
 
 // NOTE check malloc syscall return code
+// NOTE check if every response ends with /n
+// NOTE check extra token on response
 
 /* Default server ip and port */
 char *server_ip = "127.0.0.1";
@@ -140,9 +142,10 @@ int validate_port(char *port) {
 	- UID: a 5 char numerical string
 	- pass: a 8 char alphanumerical string
 	Output: 
-	- OK, if the registration was successful
-	- DUP, if the registration UID is duplicated
-	- NOK, if UID is invalid or pass is wrong
+	- STATUS_OK, if the registration was successful
+	- STATUS_DUP, if the registration UID is duplicated
+	- STATUS_NOK, if UID is invalid or pass is wrong
+	- STATUS_ERR: if the message did not arrive correctly at the server
 */
 int register_user(char *user, char *pass) {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
@@ -161,6 +164,8 @@ int register_user(char *user, char *pass) {
 		return STATUS_DUP;
 	} else if (!strcmp(status, "NOK")) {
 		return STATUS_NOK;
+	} else if (!strcmp(status, "ERR")) {
+		return STATUS_ERR;
 	} else {
 		end_session(EXIT_FAILURE);	
 	}
@@ -172,8 +177,9 @@ int register_user(char *user, char *pass) {
 	- UID: a valid UID (a 5 char numerical string)
 	- pass: a valid pass (8 char alphanumerical string)
 	Output: 
-	- OK, if the unregistration was succesful
-	- NOK, if UID is invalid or pass is wrong 
+	- STATUS_OK, if the unregistration was succesful
+	- STATUS_NOK, if UID is invalid or pass is wrong 
+	- STATUS_ERR: if the message did not arrive correctly at the server
 */
 int unregister_user(char *user, char *pass) {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
@@ -190,6 +196,8 @@ int unregister_user(char *user, char *pass) {
 		return STATUS_OK;
 	} else if (!strcmp(status, "NOK")) {
 		return STATUS_NOK;
+	} else if (!strcmp(status, "ERR")) {
+		return STATUS_ERR;
 	} else {
 		end_session(EXIT_FAILURE);
 	}
@@ -200,8 +208,9 @@ int unregister_user(char *user, char *pass) {
 	- UID: a valid UID 
 	- pass: a valid pass 
 	Output: A integer s.t.:
-	- OK: if the login was successful
-	- NOK: invalid user or wrong pass
+	- STATUS_OK: if the login was successful
+	- STATUS_NOK: invalid user or wrong pass
+	- STATUS_ERR: if the message did not arrive correctly at the server
 */
 int login(char *user, char *pass) {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
@@ -221,6 +230,8 @@ int login(char *user, char *pass) {
 		return STATUS_OK;
 	} else if (!strcmp(status, "NOK")) {
 		return STATUS_NOK;
+	} else if (!strcmp(status, "ERR")) {
+		return STATUS_ERR;
 	} else {
 		end_session(EXIT_FAILURE);	
 	}
@@ -231,10 +242,9 @@ int login(char *user, char *pass) {
 	- UID: a valid UID 
 	- pass: a valid pass 
 	Output: A integer s.t.:
-	- OK: if the login was successful
-	- NOK: otherwise (NOTE: this is a little bit
-	redundant, since we guarantee that both are correct, unless another
-	session unregisters the account or something)
+	- STATUS_OK: if the logout was successful
+	- STATUS_NOK: if the logout was unsuccessful
+	- STATUS_ERR: if the message did not arrive correctly at the server
 */
 int logout() {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
@@ -273,13 +283,13 @@ char *get_uid () {
 	[GID, Gname], one for each available group
 */
 void get_all_groups(char ****list) {
-	char buf[GIANT_SIZE];
+	char buf[MAX_BUF_SIZE];
 	char command[COMMAND_SIZE + 2], num_groups[GID_SIZE + 2];
 	int num_tokens;
 	char *aux;
 
 	sprintf(buf, "%s %s\n", "GLS", UID);
-	exchange_messages_udp(buf, GIANT_SIZE);
+	exchange_messages_udp(buf, MAX_BUF_SIZE);
 
 	num_tokens = sscanf(buf, "%" STR(5) "s %" STR(4) "s ", command, num_groups);
 
@@ -300,12 +310,13 @@ void get_all_groups(char ****list) {
 /*	Subscribes current user to the specified group
 	Input: A valid GID and a group name
 	Returns: one of the following integer status codes:
-	- OK: if the subscription was successful
-	- NEW: if a group was created
-	- E_SR: if the provided user is invalid
-	- E_GNAME: if the provided group name is invalid
-	- E_FULL: if a new group could not be created
-	- NOK: if another error occurs
+	- STATUS_OK: if the subscription was successful
+	- STATUS_NEW_GROUP: if a group was created
+	- STATUS_USR_INVALID: if the provided user is invalid
+	- STATUS_GNAME_INVALID: if the provided group name is invalid
+	- STATUS_GROUPS_FULL: if there are already 99 groups
+	- STATUS_NOK: if another error occurs
+	- STATUS_ERR: if the message did not arrive correctly at the server
 */
 int subscribe_group(char *gid, char *gName) {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
@@ -367,6 +378,9 @@ int unsubscribe_group(char *gid) {
 	}
 
 	if (!strcmp(status, "OK")) {
+		if (!strcmp(gid, GID)) {
+			memset(GID, 0, sizeof(GID));
+		}
 		return STATUS_OK;
 	} else if (!strcmp(status, "E_USR")) {
 		return STATUS_USR_INVALID;
@@ -390,12 +404,12 @@ int unsubscribe_group(char *gid) {
 	- STATUS_ERROR: if there was in the message reception by the server
 */
 int get_subscribed_groups(char ****list) {
-	char buf[GIANT_SIZE], command[COMMAND_SIZE + 2], num_groups[GID_SIZE + 2];
+	char buf[MAX_BUF_SIZE], command[COMMAND_SIZE + 2], num_groups[GID_SIZE + 2];
 	int num_tokens;
 	char *aux;
 
-	sprintf(buf, "%s %s\n", "GLM", UID);	// NOTE: see sizes
-	exchange_messages_udp(buf, GIANT_SIZE);
+	sprintf(buf, "%s %s\n", "GLM", UID);	
+	exchange_messages_udp(buf, MAX_BUF_SIZE);
 
 	num_tokens = sscanf(buf, "%" STR(4) "s %" STR(3) "s ", command, num_groups);
 
@@ -483,7 +497,7 @@ char* get_gid() {
 */
 int get_uids_group(char ***list) {
 
-	char *buf = (char *) malloc(sizeof(char) * GIANT_SIZE);
+	char *buf = (char *) malloc(sizeof(char) * MAX_BUF_SIZE);
 	char command[COMMAND_SIZE + 1], status[MAX_STATUS_SIZE + 1], group_name[MAX_GNAME + 1];
 	char *aux;
 	int num_tokens;
@@ -586,7 +600,7 @@ int post(char* text, char *mid, char *filename) {
 	ssize_t message_size, filesize;
 	
 	if (filename == NULL) { // no filename provided
-		buf = (char *) malloc(sizeof(char) * GIANT_SIZE); 						// NOTE only the size up until text
+		buf = (char *) malloc(sizeof(char) * MAX_BUF_SIZE); 						// NOTE only the size up until text
 		sprintf(buf, "%s %s %s %ld %s\n", "PST", UID, GID, strlen(text), text); // NOTE size delimiters
 		message_size = strlen(buf) * sizeof(char);
 
@@ -605,7 +619,7 @@ int post(char* text, char *mid, char *filename) {
 
 		fclose(file);
 
-		buf = (char *) malloc((GIANT_SIZE + filesize) * sizeof(char));									  // NOTE
+		buf = (char *) malloc((MAX_BUF_SIZE + filesize) * sizeof(char));									  // NOTE
 		sprintf(buf, "%s %s %s %ld %s %s %ld ", "PST", UID, GID, strlen(text), text, filename, filesize); // NOTE: size delimiters
 
 		/* point to beginning of file data */
@@ -638,7 +652,6 @@ int post(char* text, char *mid, char *filename) {
 	}
 
 	if (atoi(status) == 0 || strlen(status) != MID_SIZE) {
-		printf("Here\n");
 		exit(EXIT_SUCCESS);
 	}
 
@@ -661,7 +674,7 @@ int post(char* text, char *mid, char *filename) {
 */
 int retrieve(char *mid, char ****list) {
 
-	char *buf = (char *) malloc(sizeof(char) * GIANT_SIZE);
+	char *buf = (char *) malloc(sizeof(char) * MAX_BUF_SIZE);
 	char command[COMMAND_SIZE + 2], status[MAX_STATUS_SIZE + 2];
 	char *saveptr;
 	char *num_messages;
@@ -711,7 +724,7 @@ int retrieve(char *mid, char ****list) {
 	Input:
 	- buf: the buffer with messages received from the server
 	- num_messages: number of messages in the server
-*/
+*/ //NOTE: make this function more concise
 char ***parse_messages(char *buf, int num_messages) {
 
 	char ***response = NULL;

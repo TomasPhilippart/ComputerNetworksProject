@@ -7,7 +7,7 @@
 /* sizes */
 /* All constants pertraining to tokens
    given by input are all incremented by 1 */
-#define GIANT_SIZE 4000
+#define MAX_BUF_SIZE 4000
 #define UID_SIZE 5
 #define PASSWORD_SIZE 8
 #define GID_SIZE 2
@@ -33,8 +33,8 @@
 #define STATUS_EOF 11
 #define STATUS_ERR 12
 
-#define MAX_LINE_SIZE 300
-#define MAX_ARG_SIZE 250
+#define MAX_LINE_SIZE 300        /* Maximum input size accepted from the user */
+#define MAX_ARG_SIZE 25          /* Maximum non-text token size */
 
 /* for setting input size while scanning buffers */
 #define STR2(x) #x			

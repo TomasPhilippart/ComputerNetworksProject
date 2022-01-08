@@ -15,6 +15,7 @@ void process_input();
 int check_pass(char *pass);
 int check_uid(char *uid);
 int check_gid(char *gid);
+int check_mid(char *gid);
 int check_if_subscribed(char *gid);
 int check_filename(char *filename);
 int get_text(char *buf, char *group);
@@ -71,7 +72,6 @@ static void parse_args(int argc, char **argv) {
 				exit(EXIT_FAILURE);
 		}	
     }
-
 }
 
 void process_input() {
@@ -79,6 +79,8 @@ void process_input() {
 
 	while (1) {
 
+		fflush(stdin);
+		printf(">> ");
 		fgets(line, sizeof(line)/sizeof(char), stdin);
 
 		/* arg3 ensures that the user does not insert more than 3 tokens */
@@ -96,7 +98,7 @@ void process_input() {
 		if (!strcmp(command, "reg")) {
 
 			if (num_tokens != 3) {
-				fprintf(stderr, "Invalid command. Usage: reg UID pass\n");
+				fprintf(stderr, "Invalid format. Usage: reg UID pass\n");
 				continue;
 			}
 
@@ -108,13 +110,16 @@ void process_input() {
 			status = register_user(arg1, arg2);
 			switch(status) {
 				case STATUS_OK:
-					printf("User registration successful with UID %s.\n", arg1);
+					printf("User registred successfully with UID %s.\n", arg1);
 					continue;
 				case STATUS_DUP:
-					printf("Error. UID %s is duplicated.\n", arg1);
+					printf("Error: UID %s is duplicated.\n", arg1);
 					continue;
 				case STATUS_NOK:
 					printf("Error registering user.\n");
+					continue;
+				case STATUS_ERR:
+					printf("Error during message reception by the server. Try again.\n");
 					continue;
 			}
 		}
@@ -123,13 +128,12 @@ void process_input() {
 		if (!strcmp(command, "unregister") || !strcmp(command, "unr")) {
 
 			if (num_tokens != 3) {
-				fprintf(stderr, "Invalid. Format: %s UID pass\n", command);
+				fprintf(stderr, "Invalid format. Format: %s UID pass\n", command);
 				continue;
 			}
 			
-			// Check "UID" and "pass" arguments 
 			if (!(check_uid(arg1) && check_pass(arg2))) {
-				printf("Invalid. UID must be 5 digits and pass must be 8 alphanumeric digits.\n");
+				printf("Error: UID must have 5 digits and pass must have 8 alphanumeric digits.\n");
 				continue;
 			}
 
@@ -141,6 +145,9 @@ void process_input() {
 				case STATUS_NOK:
 					printf("Error unregistering user.\n");
 					continue;
+				case STATUS_ERR:
+					printf("Error during message reception by the server. Try again.\n");
+					continue;
 			}
 		}
 		
@@ -148,7 +155,7 @@ void process_input() {
 		if (!strcmp(command, "login")) {
 
 			if (num_tokens != 3) {
-				fprintf(stderr, "Error: Format: %s UID pass\n", command);
+				fprintf(stderr, "Invalid format. Usage: %s UID pass\n", command);
 				continue;
 			}
 
@@ -170,6 +177,9 @@ void process_input() {
 				case STATUS_NOK:
 					printf("Error logging in.\n");
 					continue;
+				case STATUS_ERR:
+					printf("Error during message reception by the server. Try again.\n");
+					continue;
 			}
 		}
 
@@ -184,10 +194,13 @@ void process_input() {
 			status = logout();
 			switch(status) {
 				case STATUS_OK:
-					printf("User %s logged out successfully.\n", get_uid());
+					printf("User logged out successfully.\n");
 					continue;
 				case STATUS_NOK:
 					printf("Error logging out.\n");
+					continue;
+				case STATUS_ERR:
+					printf("Error during message reception by the server. Try again.\n");
 					continue;
 			}
 		}
@@ -232,7 +245,7 @@ void process_input() {
 		// ===== SUBSCRIBE =====
 		if (!strcmp(command, "subscribe") || !strcmp(command, "s")) {
 			if (num_tokens != 3) {
-				fprintf(stderr, "Invalid. Format: %s GID GName\n", command);
+				fprintf(stderr, "Invalid format. Usage: subscribe %s GID GName\n", command);
 				continue;
 			}
 
@@ -240,6 +253,11 @@ void process_input() {
 				printf("Error: user not logged in.\n");
 				continue;
 			}
+
+			if (!check_gid(arg1)) {
+				printf("Error: GID %s is invalid.\n", arg1);
+				continue;
+			} 
 
 			status = subscribe_group(arg1, arg2);
 			switch(status) {
@@ -249,20 +267,23 @@ void process_input() {
 				case STATUS_NEW_GROUP:
 					printf("Created new group %s\n", arg2);
 					continue;
-				case STATUS_USR_INVALID: // TODO: see this
-					printf("UID : %s is not valid\n", get_uid());
+				case STATUS_USR_INVALID: 
+					printf("Error: UID %s is not valid\n", get_uid());
 					continue;
 				case STATUS_GID_INVALID: 
-					printf("GID : %s is not valid\n", arg1);
+					printf("Error: GID %s is not valid\n", arg1);
 					continue;
 				case STATUS_GNAME_INVALID:
-					printf("Group name : %s is not valid\n", arg2);
+					printf("Error: Group name %s is not valid\n", arg2);
 					continue;
 				case STATUS_GROUPS_FULL:
-					printf("Error : \n");
+					printf("Error: maximum number of groups reached (99)\n");
 					continue;
 				case STATUS_NOK:
 					printf("Error subscribing to group %s with GID %s\n", arg2, arg1);
+					continue;
+				case STATUS_ERR:
+					printf("Error during message reception by the server. Try again.\n");
 					continue;
 			}
 		}
@@ -279,19 +300,32 @@ void process_input() {
 				continue;
 			}
 
+			if (!check_gid(arg1)) {
+				printf("Error: GID %s is invalid.\n", arg1);
+				continue;
+			} 
+
+			if (!check_if_subscribed(arg1)) {
+				printf("Error: User is not subscribed to the group with GID %s.\n", arg1);
+				continue;
+			}
+
 			status = unsubscribe_group(arg1);
 			switch(status) {
 				case STATUS_OK:
 					printf("User with UID %s unsubscribed successfully from group with GID %s\n", get_uid(), arg1);
 					continue;
 				case STATUS_USR_INVALID: // TODO: see this
-					printf("UID : %s is not valid\n", get_uid());
+					printf("Error: UID %s is not valid\n", get_uid());
 					continue;
 				case STATUS_GID_INVALID: 
-					printf("GID : %s is not valid\n", arg1);
+					printf("Error: Group name %s is not valid\n", arg1);
 					continue;
 				case STATUS_NOK:
 					printf("Error unsubscribing from group with GID %s\n", arg1);
+					continue;
+				case STATUS_ERR:
+					printf("Error during message reception by the server. Try again.\n");
 					continue;
 			}
 		}
@@ -346,7 +380,7 @@ void process_input() {
 				continue;
 			} 	
 			
-			if (check_if_subscribed(arg1) == FALSE) {
+			if (!check_if_subscribed(arg1)) {
 				printf("Error: User is not subscribed to the group with GID %s.\n", arg1);
 				continue;
 			}
@@ -400,7 +434,6 @@ void process_input() {
 						free_uids(uids);
 						continue;
 					}
-
 					for (int i = 0; uids[i] != NULL; i++) {
 						printf("%s\n", uids[i]);
 					}
@@ -419,8 +452,8 @@ void process_input() {
 		if (!strcmp(command, "post")) {
 			
 			char *rest;
-			char buf[241];
-			char mid[5];	
+			char buf[MAX_TSIZE + 1];
+			char mid[MID_SIZE + 1];	
 
 			if (!is_logged_in()) {
 				printf("Error: User not logged in.\n");
@@ -441,7 +474,7 @@ void process_input() {
 			rest = line + (strlen(command) + 1) * sizeof(char);
 			
 			if (get_text(buf, rest) == FALSE) {
-				printf("Invalid format. Usage: post \"text\" [Fname].\n");
+				printf("Invalid format. Usage: post \"text\" [Fname], where text has no more than 240 characters.\n");
 				continue;
 			}
 
@@ -451,7 +484,8 @@ void process_input() {
 				status = post(buf, mid, NULL);
 
 			} else if (*(rest + strlen(buf) + 2) == ' ') { 
-				num_tokens = sscanf(rest + strlen(buf) + 2, " %s %s", arg2, arg3); // NOTE: use lenght tokens in scanf
+				num_tokens = sscanf(rest + strlen(buf) + 2, " %" STR(MAX_ARG_SIZE) "s %" 
+																 STR(MAX_ARG_SIZE) "s", arg2, arg3); 
 				
 				if (num_tokens != 1) {
 					printf("Invalid format. Usage: post \"text\" [Fname].\n");
@@ -505,6 +539,11 @@ void process_input() {
 				continue;
 			}
 
+			if (!check_mid(arg1)) {
+				printf("Error: invalid MID.\n");
+				continue;
+			}
+
 			status = retrieve(arg1, &list);
 			switch (status) {
 				case STATUS_OK:
@@ -529,8 +568,8 @@ void process_input() {
 			}
 		}
 
+		/* If another command token is received */
 		printf("Invalid command.\n");
-		// NOTE: do a memset of the buffer
 
 	}
 }
@@ -543,6 +582,10 @@ int check_uid(char *uid) {
 // Check if GID is 2 digits and the user is subscribed to it
 int check_gid(char *gid) {
 	return strlen(gid) == 2 && atoi(gid) > 0;
+}
+
+int check_mid(char *mid) {
+	return strlen(mid) == 4 && atoi(mid) > 0;
 }
 
 int check_if_subscribed(char *gid) {
@@ -584,6 +627,7 @@ int check_pass(char *pass) {
 	Input:
 	- buf: the buffer with text
 	- str: the string that will hold the unquoted text 
+	Output
 */
 int get_text(char *buf, char *str) {
 
@@ -595,6 +639,9 @@ int get_text(char *buf, char *str) {
 
 	while ((buf[i - 1] = str[i]) != '\"') {
 		if (str[i++] == '\n') {
+			return FALSE;
+		}
+		if (i == MAX_TSIZE) {	
 			return FALSE;
 		}
 	}
