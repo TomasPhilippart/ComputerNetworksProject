@@ -27,6 +27,8 @@ int main(int argc, char **argv) {
 	end_session(EXIT_SUCCESS);
 }
 
+// NOTE: check break/continue tokens in switches
+
 /*	Parse arguments from the command line according to 
 	format ./user [-n DSIP] [-p DSport] */
 static void parse_args(int argc, char **argv) {
@@ -218,9 +220,7 @@ void process_input() {
 			continue;
 		}
 
-		// NOTE The following group management commands can only be issued after a user has logged in
-		
-		/* ===== SUBSCRIBE ===== */
+		// ===== SUBSCRIBE =====
 		if (!strcmp(command, "subscribe") || !strcmp(command, "s")) {
 			if (num_tokens != 3) {
 				fprintf(stderr, "Invalid. Format: %s GID GName\n", command);
@@ -303,18 +303,21 @@ void process_input() {
 			}
 
 			status = get_subscribed_groups(&groups);
-			switch(status) {
+			switch (status) {
 				case STATUS_OK:
 					for (int i = 0; groups[i] != NULL; i++) {
 						printf("%s %s\n", groups[i][0], groups[i][1]);
 					}
-
 					free_list(groups, 2);
 					continue;
 				case STATUS_USR_INVALID:
-					printf("UID : %s is not valid\n", get_uid());
+					printf("Error: Invalid UID.\n");
+					continue;
+				case STATUS_ERR:
+					printf("Error during message reception by the server. Try again.\n");
 					continue;
 			}
+			continue;
 		}
 
 		/* ===== SELECT ===== */
@@ -332,13 +335,15 @@ void process_input() {
 			if (!check_gid(arg1)) {
 				printf("Error: GID %s is invalid.\n", arg1);
 				continue;
-			} 
+			} 	
+
+			printf("Arrived here\n");
 			
 			if (check_if_subscribed(arg1) == FALSE) {
 				printf("Error: User is not subscribed to the group with GID %s.\n", arg1);
 				continue;
 			}
-			
+
 			set_gid(arg1);
 			printf("GID %s selected.\n", arg1);
 			continue;
@@ -392,7 +397,6 @@ void process_input() {
 					for (int i = 0; uids[i] != NULL; i++) {
 						printf("%s\n", uids[i]);
 					}
-
 					free_uids(uids);
 					continue;
 				case STATUS_NOK:
@@ -521,6 +525,7 @@ void process_input() {
 		}
 
 		printf("Invalid command.\n");
+		// NOTE: do a memset of the buffer
 
 	}
 }
@@ -538,7 +543,7 @@ int check_gid(char *gid) {
 int check_if_subscribed(char *gid) {
 	char ***subscribed_groups;
 	int status = get_subscribed_groups(&subscribed_groups);
-
+	
 	if (status != STATUS_OK) {
 		return FALSE;
 	}

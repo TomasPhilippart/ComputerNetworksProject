@@ -19,17 +19,18 @@
 
 #define STR2(x) #x			// for variable sized buffers
 #define STR(X) STR2(X)
-#define SUM(X, Y) (X) + (Y)
+#define SUM(A, B) A + B
+#define CALL(macro, ...)  macro(__VA_ARGS__)
 
 /* Default server ip and port */
 char *server_ip = "127.0.0.1";
 char *server_port = "58043";
 
 /* User ID, password, group ID and flag for when a user is logged in */
-char UID[UID_SIZE + 1] = ""; // 5 digit numeric
-char password[PASSWORD_SIZE + 1] = ""; // 8 alphanumeric characters
-char GID[GID_SIZE + 1] = ""; // 2 digit numeric (01-99)
-int logged_in = FALSE;
+char UID[UID_SIZE + 1] = "99997"; // 5 digit numeric
+char password[PASSWORD_SIZE + 1] = "12345678"; // 8 alphanumeric characters
+char GID[GID_SIZE + 1] = "15"; // 2 digit numeric (01-99)
+int logged_in = TRUE;
 
 /* variables needed for UDP connection */
 int udp_socket; 
@@ -281,6 +282,7 @@ void get_all_groups(char ****list) {
 	char buf[GIANT_SIZE];
 	char command[COMMAND_SIZE + 2], num_groups[GID_SIZE + 2];
 	int num_tokens;
+	char *aux;
 
 	sprintf(buf, "%s %s\n", "GLS", UID);
 	exchange_messages_udp(buf, GIANT_SIZE);
@@ -295,7 +297,9 @@ void get_all_groups(char ****list) {
 		end_session(EXIT_FAILURE);
 	} 
 	
-	*list = parse_groups(buf + strlen(command) + strlen(num_groups) + 2, atoi(num_groups));
+	printf("Command:%s Lenght:%d Num_groups:%s Length:%d\n", command, strlen(command), num_groups, strlen(num_groups));
+	aux = buf + (strlen(command) + strlen(num_groups) + 1) * sizeof(char);
+	*list = parse_groups(aux, atoi(num_groups));
 
 }
 
@@ -363,7 +367,7 @@ int unsubscribe_group(char *gid) {
 
 	exchange_messages_udp(buf, MAX_LINE_SIZE);
 
-	int num_tokens = sscanf(buf, "%s %s\n", command, status);
+	int num_tokens = sscanf(buf, "%s %s\n", command, status); //NOTE: Check this
 	if (num_tokens != 2 || strcmp(command, "RGU") != 0) {
 		end_session(EXIT_FAILURE);
 	}
@@ -376,52 +380,74 @@ int unsubscribe_group(char *gid) {
 		return STATUS_GID_INVALID;
 	} else if (!strcmp(status, "NOK")) {
 		return STATUS_NOK;
+	} else if (!strcmp(status, "ERR")) {
+		return STATUS_ERR;
 	} else {
 		end_session(EXIT_FAILURE);
 	}
 }
 
+/*	Fills list with a list of the user subscribed groups
+	Input:
+	- list: the list to be filled 
+	Output:
+	- STATUS_OK: if the groups were successfully fetched
+	- STATUS_USR_INVALID: if the current user is invalid
+	- STATUS_ERROR: if there was in the message reception by the server
+*/
 int get_subscribed_groups(char ****list) {
-	char buf[GIANT_SIZE];
-	char command[COMMAND_SIZE + 2], num_groups[GID_SIZE + 2];
+	char buf[GIANT_SIZE], command[COMMAND_SIZE + 2], num_groups[GID_SIZE + 2];
 	int num_tokens;
+	char *aux;
 
-	sprintf(buf, "%s %s\n", "GLM", UID);
+	sprintf(buf, "%s %s\n", "GLM", UID);	// NOTE: see sizes
 	exchange_messages_udp(buf, GIANT_SIZE);
 
-	num_tokens = sscanf(buf, "%" STR(5) "s %" STR(3) "s ", command, num_groups);
+	num_tokens = sscanf(buf, "%" STR(4) "s %" STR(3) "s ", command, num_groups);
 
 	if (num_tokens < 2) {
 		end_session(EXIT_FAILURE);
 	}
 
-	if (!strcmp(num_groups, "E_USR")) {
-		return STATUS_USR_INVALID;
+	if (strcmp(command, "RGM")) { 
+		end_session(EXIT_FAILURE);
 	}
 
-	if (strcmp(command, "RGM") || (atoi(num_groups) == 0 && strcmp(num_groups, "0"))) {
+	if (!strcmp(num_groups, "E_USR")) {
+		return STATUS_USR_INVALID;
+	} else if (!strcmp(num_groups, "ERR")) {
+		return STATUS_ERR;
+	}
+
+	/* NOTE: use a regex for this, somethings like 123aaa will pass through */
+	if ((atoi(num_groups) == 0) && strcmp(num_groups, "0")) {
 		end_session(EXIT_FAILURE);
 	} 
-
-	*list = parse_groups(buf + strlen(command) + strlen(num_groups) + 2, atoi(num_groups));
+	
+	/* pass pointer to group section of server response for parsing */
+	aux = buf + strlen(command) + strlen(num_groups) + 1;
+	*list = parse_groups(aux, atoi(num_groups));
 
 	return STATUS_OK;
 
 }
 
 /*	Parses a response from the server regarding group listing
-	to an array of arrays of 2 string of the format
-	{GID, Gname}, one for each available group. The last entry
-	has GID = ""
+	to an array of arrays of 2 string of the format {GID, Gname}, 
+	one for each available group, with the last entry being NULL.
 	Input: 
-	- buf: the buffer with the response
+	- buf: the buffer with the response of the type [ GID GName MID]*
+	- num_groups: the number of entries of the list
 	Output: 
-	- the array of {GID, Gname} elements
+	- the array of {GID, Gname} elements.
 */
 char ***parse_groups(char *buf, int num_groups) {
 	
 	/* Allocate and fill response entries with each GID and GNAME */
 	char ***response = (char***) malloc(sizeof(char**) * (num_groups + 1));
+	char mid[MID_SIZE + 1];
+	int num_tokens;
+	printf("%s\n", buf);
 
 	for (int i = 0; i < num_groups; i++) {
 		response[i] = (char **) malloc(sizeof(char*) * (GID_SIZE + 1));
@@ -429,12 +455,17 @@ char ***parse_groups(char *buf, int num_groups) {
 			response[i][j] = (char *) malloc(sizeof(char) * (MAX_FNAME + 1));
 		}
 	}
-
 	for (int i = 0; i < num_groups; i++) {
-
-		strcpy(response[i][0],  strtok_r(buf, " ", &buf));
-		strcpy(response[i][1],  strtok_r(buf, " ", &buf));
-		strtok_r(buf, " ", &buf);
+		num_tokens = sscanf(buf, " %s %s %s", response[i][0], response[i][1], mid);
+		if (num_tokens != 3) {
+			end_session(EXIT_FAILURE);
+		}
+		buf += (strlen(response[i][0]) + strlen(response[i][1]) + strlen(mid) + 3) * sizeof(char);
+	}
+	
+	/* Ensure that num messages is coherent */
+	if (*(buf) != '\n') {
+		end_session(EXIT_FAILURE);
 	}
 
 	response[num_groups] = NULL;
@@ -450,8 +481,8 @@ char* get_gid() {
 	return GID;
 }
 
-/*	Parses a response from the server regarding listing
-	users from a group.
+/*	Fetches a list with the UIDS of users subscribed
+	to the current group.
 	Input: 
 	- list: the list to be filled with the UID's
 	Output: None
@@ -497,29 +528,27 @@ int get_uids_group(char ***list) {
 	free(buf);
 	
 	return STATUS_OK;
-
 }
 
 /*	Parses a response from the server regarding listing
 	users from a group.
 	Input: 
-	- buf: the buffer with the response
+	- buf: the buffer with the response of the form [GName [UID ]*]
 	Output:
-	- the array of {UID} elements. The last element is an 
-	empty string.
+	- the array of {UID} elements whose last element is NULL.
 */
 char **parse_uids(char *buf) {
 	char **response = NULL;
 	ssize_t base_size = 100;
-	char *token;
 	int parsed_tokens = 0;
+	char *token, *ptr = buf;
 	
 	/* Allocate and fill response entries with each UID */
 	response = (char **) malloc(sizeof(char*) * base_size);
 
-	while ((token = strtok_r(buf, " ", &buf)) != NULL) {
+	while ((token = strtok_r(ptr, " ", &ptr)) != NULL) {
 		response[parsed_tokens] = (char *) malloc(sizeof(char*) * (UID_SIZE + 1));
-		strcpy(response[parsed_tokens ++], token);
+		strcpy(response[parsed_tokens++], token);
 		
 		if (parsed_tokens % base_size == 0) {
 			response = (char **) realloc(response, (sizeof(response) + base_size) * sizeof(char *));
@@ -818,6 +847,8 @@ void free_list(char ***list, int num_elements) {
 	- max_rcv_size: maximum size of the response
 */
 void exchange_messages_udp(char *buf, ssize_t max_rcv_size) {
+
+	int num_bytes;
 	
 	if (sendto(udp_socket, buf, strlen(buf), 0, res_udp->ai_addr, res_udp->ai_addrlen) != strlen(buf) * sizeof(char)) {
 		exit(EXIT_FAILURE);
@@ -825,13 +856,14 @@ void exchange_messages_udp(char *buf, ssize_t max_rcv_size) {
 
 	memset(buf, 0, strlen(buf) * sizeof(char));
 	
-	if (recvfrom(udp_socket, buf, max_rcv_size, 0, (struct sockaddr*) &addr, &addrlen) <= 0) {
+	if ((num_bytes = recvfrom(udp_socket, buf, max_rcv_size, 0, (struct sockaddr*) &addr, &addrlen)) <= 0){
 		exit(EXIT_FAILURE);
 	}
 	
+	buf[num_bytes] = '\0';
 	// DEBUG :
-	//printf("Received: %s\n", buf);
-	 // NOTE : must the client close the socket? or the server?
+	printf("Received: %s\n", buf);
+	//NOTE : must the client close the socket? or the server?
 	
 }
 
@@ -882,6 +914,7 @@ void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 			*aux = '\0';
 			break;
 		}
+		
 		aux += num_bytes_read;
 		num_bytes_left -= num_bytes_read;
 		if (num_bytes_left == 0) {
@@ -897,12 +930,13 @@ void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 	close(tcp_socket);
 
 	// Debug
-	//if (**buf != '\0') {
-	//	printf("Received: %s", *buf);
-	//	printf("With length: %d\n", strlen(*buf));
-	//}
+	if (**buf != '\0') {
+		printf("Received: %s", *buf);
+		printf("With length: %d\n", strlen(*buf));
+	}
 }
 
+// NOTE: leave at least some kind of message??
 void end_session(int status) {
 	close(udp_socket);
 	close(tcp_socket);
