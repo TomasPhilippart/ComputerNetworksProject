@@ -20,6 +20,7 @@ struct addrinfo hints;
 socklen_t addrlen;
 struct sockaddr_in addr;
 
+char host[NI_MAXHOST], service[NI_MAXSERV];
 int verbose;
 
 /* Setup the UDP server */
@@ -40,8 +41,8 @@ void setup() {
 		exit(EXIT_FAILURE);
 	}
 	
-    if(bind(fd, res->ai_addr, res->ai_addrlen) == -1) {
-		printf("Error binding\n");
+    if (bind(fd, res->ai_addr, res->ai_addrlen) == -1) {
+		printf("Error binding.\n");
 		exit(EXIT_FAILURE);
 	}
 }
@@ -54,11 +55,20 @@ void process_requests() {
 
     while (1) {
 
-        if ((num_bytes = recvfrom(fd, buf, MAX_LINE_SIZE, 0, (struct sockaddr*) &addr, &addrlen)) <= 0) {
+        if ((num_bytes = recvfrom(fd, buf, MAX_LINE_SIZE - 1, 0, (struct sockaddr*) &addr, &addrlen)) <= 0) {
             exit(EXIT_FAILURE);
         }
 
-        printf("Received: %s\n", buf);
+        buf[MAX_LINE_SIZE - 1] = '\0';
+        
+        if (verbose) {
+            if ((getnameinfo((struct sockaddr *)&addr, addrlen, host, sizeof(host), service, sizeof (service), 0)) != 0) {
+                printf("Error getting user address information.\n");
+                // REVIEW should this end session?
+            } else {
+                printf("(UDP) %s@%s: %s", host, service, buf); /* /n missing because buf already contains it */ 
+            }
+        }
     
 
         // NOTE: make this match exactly one space
@@ -118,8 +128,11 @@ void process_requests() {
             sprintf(buf, "ERR\n");
         }
 
-        printf("Sent: %s\n", buf);
-        if (sendto(fd, buf, strlen(buf), 0, res->ai_addr, res->ai_addrlen) != strlen(buf) * sizeof(char)) {
+
+        /* DEBUG */
+        // printf("Reply: %s\n", buf);
+
+        if (sendto(fd, buf, strlen(buf) * sizeof(char), 0, (struct sockaddr*) &addr, addrlen) < strlen(buf)) {
 		    exit(EXIT_FAILURE);
         }
 

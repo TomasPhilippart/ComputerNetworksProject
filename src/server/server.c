@@ -9,6 +9,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include<sys/wait.h>
 
 /* Default port */
 char port[6] = "58043";
@@ -29,7 +30,7 @@ int main(int argc, char **argv) {
 	parse_args(argc, argv);
 	init_forum();
 
-	printf("Parsed %s and %s\n", port, verbose ? "Verbose" : "Non-Verbose");
+	printf("Running server on port %s and %s\n", port, verbose ? "Verbose" : "Non-Verbose");
 
     if ((pid_udp = fork()) == 0) {
 		execl("./server_udp", "./server_udp", port, verbose ? "1" : "0", NULL);

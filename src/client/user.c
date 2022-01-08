@@ -108,7 +108,7 @@ void process_input() {
 			status = register_user(arg1, arg2);
 			switch(status) {
 				case STATUS_OK:
-					printf("User registred successfully with UID %s.\n", arg1);
+					printf("User registered successfully with UID %s.\n", arg1);
 					continue;
 				case STATUS_DUP:
 					printf("Error: UID %s is duplicated.\n", arg1);

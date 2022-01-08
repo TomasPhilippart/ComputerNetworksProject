@@ -41,8 +41,12 @@ int register_user(char *uid, char *pass) {
     if (!(file = fopen(password_file, "w"))) {
         exit(EXIT_FAILURE);
     }
-    int x;
+
     if (fwrite(pass, sizeof(char), strlen(pass), file) != strlen(pass)) {
+        exit(EXIT_FAILURE);
+    }
+
+    if (fclose(file) != 0) {
         exit(EXIT_FAILURE);
     }
 

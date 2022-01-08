@@ -848,10 +848,10 @@ void exchange_messages_udp(char *buf, ssize_t max_rcv_size) {
 
 	int num_bytes;
 	
-	if (sendto(udp_socket, buf, strlen(buf), 0, res_udp->ai_addr, res_udp->ai_addrlen) != strlen(buf) * sizeof(char)) {
+	if (sendto(udp_socket, buf, strlen(buf) + 1, 0, res_udp->ai_addr, res_udp->ai_addrlen) != (strlen(buf) + 1) * sizeof(char)) {
 		exit(EXIT_FAILURE);
 	}
-
+	
 	memset(buf, 0, strlen(buf) * sizeof(char));
 	
 	if ((num_bytes = recvfrom(udp_socket, buf, max_rcv_size, 0, (struct sockaddr*) &addr, &addrlen)) <= 0){
@@ -861,7 +861,7 @@ void exchange_messages_udp(char *buf, ssize_t max_rcv_size) {
 	buf[num_bytes] = '\0';
 
 	// DEBUG :
-	//printf("Received: %s\n", buf);
+	// printf("Received: %s\n", buf);
 	//NOTE : must the client close the socket? or the server?
 	
 }
