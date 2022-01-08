@@ -17,6 +17,9 @@
 // NOTE check malloc syscall return code
 // NOTE check if every response ends with /n
 // NOTE check extra token on response
+// NOTE check filesize
+// NOTE pass error string to end session
+// NOTE regex instead of atoi
 
 /* Default server ip and port */
 char *server_ip = "127.0.0.1";
@@ -169,7 +172,6 @@ int register_user(char *user, char *pass) {
 	} else {
 		end_session(EXIT_FAILURE);	
 	}
-
 }
 
 /*	Unregisters a user
@@ -296,7 +298,7 @@ void get_all_groups(char ****list) {
 	if (num_tokens < 2) {
 		end_session(EXIT_FAILURE);
 	}
-
+								 // NOTE: use isnumber()
 	if (strcmp(command, "RGL") || (atoi(num_groups) == 0 && strcmp(num_groups, "0"))) {
 		end_session(EXIT_FAILURE);
 	} 
@@ -619,8 +621,10 @@ int post(char* text, char *mid, char *filename) {
 
 		fclose(file);
 
-		buf = (char *) malloc((MAX_BUF_SIZE + filesize) * sizeof(char));									  // NOTE
-		sprintf(buf, "%s %s %s %ld %s %s %ld ", "PST", UID, GID, strlen(text), text, filename, filesize); // NOTE: size delimiters
+		// NOTE: check filesize??
+
+		buf = (char *) malloc((MAX_BUF_SIZE + filesize) * sizeof(char));									  
+		sprintf(buf, "%s %s %s %ld %s %s %ld ", "PST", UID, GID, strlen(text), text, filename, filesize); 
 
 		/* point to beginning of file data */
 		ptr = buf + strlen(buf) * sizeof(char);

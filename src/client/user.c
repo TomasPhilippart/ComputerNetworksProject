@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <ctype.h>
 
+// NOTE: Make this function a wrapper of a regex validator 
+
 static void parse_args(int argc, char **argv);
 void process_input();
 
@@ -651,7 +653,6 @@ int get_text(char *buf, char *str) {
 	return TRUE;
 }
 
-// NOTE: Make this function a wrapper of a regex validator 
 int check_filename(char *filename) {
 
 	if (!((strlen(filename) < MAX_FNAME) && (strlen(filename) > EXTENSION_SIZE + 2))) {
