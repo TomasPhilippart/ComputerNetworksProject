@@ -963,3 +963,8 @@ int validate_port(char *port) {
 	}
 	return FALSE;
 }
+
+void debug(char *buf) {
+	exchange_messages_udp(buf, MAX_LINE_SIZE);
+	printf("I received %s\n", buf);
+}

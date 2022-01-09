@@ -18,9 +18,8 @@
 int register_user(char *uid, char *pass) {
 
     DIR* dir;
-    char userdir[15], password_file[30];
+    char userdir[10 + UID_SIZE], password_file[10 + UID_SIZE + UID_SIZE + 11];
     FILE *file;
-
 
     if (!(check_uid(uid) && check_pass(pass))) {
         return STATUS_NOK;
@@ -29,11 +28,12 @@ int register_user(char *uid, char *pass) {
     sprintf(userdir, "../USERS/%s", uid);
     dir = opendir(userdir);
 
+    /* Check if user is already registred */
     if (dir) {
         return STATUS_DUP;
     }
 
-    if (mkdir(userdir, 0777) == -1) {
+    if (mkdir(userdir, 0700) == -1) {
         exit(EXIT_FAILURE);
     }
     sprintf(password_file, "%s/%s_pass.txt", userdir, uid);

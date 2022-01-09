@@ -37,4 +37,6 @@ int is_logged_in();
 void free_list(char ***list, int num_elements);
 void free_uids(char **list);
 
+void debug(char *buf);
+
 #endif

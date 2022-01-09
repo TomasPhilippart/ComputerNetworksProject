@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include <regex.h>
 
 /* variables needed for UDP connection */
 char *port;
@@ -22,6 +23,8 @@ struct sockaddr_in addr;
 
 char host[NI_MAXHOST], service[NI_MAXSERV];
 int verbose;
+
+int parse_regex(char *str, char *regex);
 
 /* Setup the UDP server */
 void setup() {
@@ -52,6 +55,7 @@ void process_requests() {
     char buf[MAX_LINE_SIZE];
     char command[MAX_ARG_SIZE], arg1[MAX_ARG_SIZE], arg2[MAX_ARG_SIZE], arg3[MAX_ARG_SIZE]; 
     int num_bytes, num_tokens, status;
+    regex_t regex;
 
     while (1) {
 
@@ -64,23 +68,27 @@ void process_requests() {
         if (verbose) {
             if ((getnameinfo((struct sockaddr *)&addr, addrlen, host, sizeof(host), service, sizeof (service), 0)) != 0) {
                 printf("Error getting user address information.\n");
-                // REVIEW should this end session?
+                // REVIEW should this end session? Yes!
+                exit(EXIT_FAILURE);
             } else {
                 printf("(UDP) %s@%s: %s", host, service, buf); /* /n missing because buf already contains it */ 
             }
         }
     
-
-        // NOTE: make this match exactly one space
         num_tokens = sscanf(buf, "%" STR(MAX_ARG_SIZE) "s %" STR(MAX_ARG_SIZE) "s %" 
 									 STR(MAX_ARG_SIZE) "s %" STR(MAX_ARG_SIZE) "s " , command, arg1, arg2, arg3);
 
-        // NOTE: use a regex to check spaces??
         /* ====== REGISTER ====== */
         if (!strcmp(command, "REG")) {
-            if (num_tokens != 3) {
-                //
+            //buf[strlen(buf) - 1] = '\0';
+            if (!parse_regex(buf, "^REG [0-9]{5} [a-zA-Z0-9]{8}\\\n$")) {
+                exit(EXIT_FAILURE);
             }
+           
+            if (num_tokens != 3) {
+                exit(EXIT_FAILURE);
+            }
+          
             status = register_user(arg1, arg2);
             memset(buf, '\0', strlen(buf) * sizeof(char));
             switch (status) {
@@ -139,7 +147,25 @@ void process_requests() {
 	} 
 }
 
+int parse_regex(char *str, char *regex) {
+    regex_t aux;
+    int res;
+   
+    if (regcomp(&aux, regex, REG_EXTENDED)) {
+        exit(EXIT_FAILURE);
+    }
 
+    res = regexec(&aux, str, 0, NULL, 0);
+    printf("This is the string: %s  and this is the regex %s\n", str, regex);
+    printf("Result %d\n", res);
+    if (!res) {
+        return TRUE;
+    } else if (res == REG_NOMATCH) {
+        return FALSE;
+    } else {
+        exit(EXIT_FAILURE);
+    }
+}
 
 int main(int argc, char **argv) {
 
