@@ -15,6 +15,8 @@
 
 /* variables needed for UDP connection */
 char *port;
+int verbose;
+
 int fd; 
 struct addrinfo *res;
 struct addrinfo hints;
@@ -22,8 +24,8 @@ socklen_t addrlen;
 struct sockaddr_in addr;
 
 char host[NI_MAXHOST], service[NI_MAXSERV];
-int verbose;
 
+/* functions */
 int parse_regex(char *str, char *regex);
 
 /* Setup the UDP server */
@@ -82,6 +84,7 @@ void process_requests() {
         if (!strcmp(command, "REG")) {
             //buf[strlen(buf) - 1] = '\0';
             if (!parse_regex(buf, "^REG [0-9]{5} [a-zA-Z0-9]{8}\\\n$")) {
+                printf("(UDP) Bad message format in command %s", command);
                 exit(EXIT_FAILURE);
             }
            
@@ -105,7 +108,26 @@ void process_requests() {
         
         /* ====== UNREGISTER ====== */
         } else if (!strcmp(command, "UNR")) {
-            // TODO
+            
+            if (!parse_regex(buf, "^UNR [0-9]{5} [a-zA-Z0-9]{8}\\\n$")) {
+                printf("(UDP) Bad message format in command %s", command);
+                exit(EXIT_FAILURE);
+            }
+
+            if (num_tokens != 3) {
+                exit(EXIT_FAILURE);
+            }
+
+            status = unregister_user(arg1, arg2);
+            memset(buf, '\0', strlen(buf) * sizeof(char));
+            switch (status) {
+                case STATUS_OK:
+                    sprintf(buf, "RUN OK\n");
+                    break;
+                case STATUS_NOK:
+                    sprintf(buf, "RUN NOK\n");
+                    break;
+            }
 
         /* ====== LOGIN ====== */
         } else if (!strcmp(command, "LOG")) {
