@@ -1,7 +1,11 @@
 *.o
 .vscode
+DS
+server_udp
+server_tcp
 user
 .DS_Store
 *.png
 *.wav
 *.mp3
+*.txt
