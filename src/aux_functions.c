@@ -10,62 +10,80 @@
 
 // Check if UID is 5 digits and not 0000
 int check_uid(char *uid) {
-	return strlen(uid) == 5 && atoi(uid) > 0;
+	if (!parse_regex(group_name, "^[0-9]{5}$") || atoi(mid) <= 0) {
+		return FALSE;
+	}
+
+	return TRUE;
 }
 
 // Check if GID is 2 digits and the user is subscribed to it
 int check_gid(char *gid) {
-	return strlen(gid) == 2 && atoi(gid) > 0;
+	if (!parse_regex(group_name, "^[0-9]{2}$") || atoi(mid) <= 0) {
+		return FALSE;
+	}
+
+	return TRUE;
 }
 
 int check_mid(char *mid) {
-	return strlen(mid) == 4 && atoi(mid) > 0;
+	if (!parse_regex(group_name, "^[0-9]{4}$") || atoi(mid) <= 0) {
+		return FALSE;
+	}
+
+	return TRUE;
 }
 
 
 // NOTE: Make this function a wrapper of a regex validator 
 // Check if password is alphanumeric and has 8 characters
 int check_pass(char *pass) {
-	if (strlen(pass) != PASSWORD_SIZE) {
+	
+	if (!parse_regex(group_name, "^[a-zA-Z0-9]{8}$")) {
 		return FALSE;
 	}
 
-	for (int i = 0; i < strlen(pass); i++) {
-		if (!isalnum(pass[i])) {
-			return FALSE;
-		}
-	}
 	return TRUE;
 }
 
 int check_filename(char *filename) {
-
-	if (!((strlen(filename) < MAX_FNAME) && (strlen(filename) > EXTENSION_SIZE + 2))) {
+	// NOTE need to check for ("-", "_")
+	// filename[i] == '_' || filename[i] == '.' || filename[i] == '-'
+	if (!parse_regex(filename, "^[a-zA-Z0-9]{1,20}.[a-z0-9]{3}$")) {
 		return FALSE;
-	}
-
-	for (int i = 0; i < strlen(filename); i++) {
-		if (!(filename[i] == '_' || filename[i] == '.' || filename[i] == '-'|| isalnum(filename[i]))) {
-			return FALSE;
-		}
-	}
-
-	// Check extension separating dot
-	if (!(filename[strlen(filename) - EXTENSION_SIZE - 1] == '.')) {
-		return FALSE;
-	}
-
-	// Check extension is 3 letters
-	for (int i = strlen(filename) - 3; i < strlen(filename); i++) {
-		if (!(isalpha(filename[i]))) {
-			return FALSE;
-		}
 	}
 	
 	// Check if file exists
-	if (access(filename, F_OK ) != 0 ) {
+	if ( access(filename, F_OK) != 0 ) {
 		return FALSE;
 	}
 
 	return TRUE;
+}
+
+int check_group_name(char *group_name) {
+	// NOTE need to check for ("-", "_")
+	if (!parse_regex(group_name, "^[a-zA-Z0-9]{1,24}$")) {
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+int parse_regex(char *str, char *regex) {
+    regex_t aux;
+    int res;
+   
+    if (regcomp(&aux, regex, REG_EXTENDED)) {
+        exit(EXIT_FAILURE);
+    }
+
+    res = regexec(&aux, str, 0, NULL, 0);
+    if (!res) {
+        return TRUE;
+    } else if (res == REG_NOMATCH) {
+        return FALSE;
+    } else {
+        exit(EXIT_FAILURE);
+    }
 }
