@@ -185,7 +185,7 @@ void process_requests() {
             
             char gid[GID_SIZE + 1];
             // NOTE GName, limited to a total of 24 alphanumerical characters (plus ‘-‘, and ‘_’).
-            if (!parse_regex(buf, "^GLS [0-9]{5} [0-9]{2} [a-zA-Z0-9]{24}\\\n$")) {
+            if (!parse_regex(buf, "^GLS .{5} .{2} .{24}\\\n$")) {
                 printf("(UDP) Bad message format in command %s", command);
                 exit(EXIT_FAILURE);
             }

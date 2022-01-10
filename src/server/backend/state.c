@@ -18,6 +18,7 @@
 
 int check_user_registered(char *uid, char *userdir);
 int check_correct_password(char* uid, char *pass, char* userdir, char *password_file);
+int check_user_logged (char *uid, char *login_file);
 
 int register_user(char *uid, char *pass) {
 
@@ -138,7 +139,6 @@ int logout_user(char *uid, char *pass) {
     /* Remove login file */
     sprintf(login_file, "%s/%s_login.txt", userdir, uid);
 
-    // NOTE check if UID_login.txt (user is logged in) before removing it?
     if (check_user_logged(uid, login_file) == FALSE) {
         return STATUS_NOK;
     }
@@ -227,6 +227,12 @@ int check_correct_password(char* uid, char *pass, char* userdir, char *password_
 }
 
 int check_user_logged (char *uid, char *login_file) {
-    // TODO
+    
+    FILE *file;
+
+    if( access(login_file, F_OK) != 0 ) {
+        return FALSE;
+    }
+
     return TRUE;
 }
