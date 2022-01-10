@@ -1,5 +1,6 @@
 #include "../constants.h"
 #include "backend/state.h"
+#include "../aux_functions.h"
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -11,7 +12,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <sys/stat.h>
-#include <regex.h>
 
 /* variables needed for UDP connection */
 char *port;
@@ -24,9 +24,6 @@ socklen_t addrlen;
 struct sockaddr_in addr;
 
 char host[NI_MAXHOST], service[NI_MAXSERV];
-
-/* functions */
-int parse_regex(char *str, char *regex);
 
 /* Setup the UDP server */
 void setup() {
@@ -50,6 +47,9 @@ void setup() {
 		printf("Error binding.\n");
 		exit(EXIT_FAILURE);
 	}
+
+    /* Setup the file system */
+    setup_state();
 }
 
 void process_requests() {
@@ -57,7 +57,6 @@ void process_requests() {
     char buf[MAX_LINE_SIZE];
     char command[MAX_ARG_SIZE], arg1[MAX_ARG_SIZE], arg2[MAX_ARG_SIZE], arg3[MAX_ARG_SIZE], arg4[MAX_ARG_SIZE]; 
     int num_bytes, num_tokens, status;
-    regex_t regex;
 
     while (1) {
 
@@ -185,7 +184,7 @@ void process_requests() {
             
             char gid[GID_SIZE + 1];
             // NOTE GName, limited to a total of 24 alphanumerical characters (plus ‘-‘, and ‘_’).
-            if (!parse_regex(buf, "^GLS .{5} .{2} .{24}\\\n$")) {
+            if (!parse_regex(buf, "^GLS .{5} .{2} .{1,24}\\\n$")) {
                 printf("(UDP) Bad message format in command %s", command);
                 exit(EXIT_FAILURE);
             }
@@ -245,33 +244,13 @@ void process_requests() {
 	} 
 }
 
-int parse_regex(char *str, char *regex) {
-    regex_t aux;
-    int res;
-   
-    if (regcomp(&aux, regex, REG_EXTENDED)) {
-        exit(EXIT_FAILURE);
-    }
-
-    res = regexec(&aux, str, 0, NULL, 0);
-    printf("This is the string: %s  and this is the regex %s\n", str, regex);
-    printf("Result %d\n", res);
-    if (!res) {
-        return TRUE;
-    } else if (res == REG_NOMATCH) {
-        return FALSE;
-    } else {
-        exit(EXIT_FAILURE);
-    }
-}
-
 int main(int argc, char **argv) {
 
 	/* No need to validate port since it was already validated*/
     port = strdup(argv[1]);
     verbose = atoi(argv[2]);
 
-    setup();
+    setup_state();
     process_requests();
 
     return TRUE;

@@ -7,10 +7,11 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <unistd.h>
+#include <regex.h>
 
 // Check if UID is 5 digits and not 0000
 int check_uid(char *uid) {
-	if (!parse_regex(group_name, "^[0-9]{5}$") || atoi(mid) <= 0) {
+	if (!parse_regex(uid, "^[0-9]{5}$") || atoi(uid) <= 0) {
 		return FALSE;
 	}
 
@@ -19,7 +20,7 @@ int check_uid(char *uid) {
 
 // Check if GID is 2 digits and the user is subscribed to it
 int check_gid(char *gid) {
-	if (!parse_regex(group_name, "^[0-9]{2}$") || atoi(mid) <= 0) {
+	if (!parse_regex(gid, "^[0-9]{2}$") || atoi(gid) <= 0) {
 		return FALSE;
 	}
 
@@ -27,7 +28,7 @@ int check_gid(char *gid) {
 }
 
 int check_mid(char *mid) {
-	if (!parse_regex(group_name, "^[0-9]{4}$") || atoi(mid) <= 0) {
+	if (!parse_regex(mid, "^[0-9]{4}$") || atoi(mid) <= 0) {
 		return FALSE;
 	}
 
@@ -39,7 +40,7 @@ int check_mid(char *mid) {
 // Check if password is alphanumeric and has 8 characters
 int check_pass(char *pass) {
 	
-	if (!parse_regex(group_name, "^[a-zA-Z0-9]{8}$")) {
+	if (!parse_regex(pass, "^[a-zA-Z0-9]{8}$")) {
 		return FALSE;
 	}
 
