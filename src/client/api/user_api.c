@@ -1,3 +1,4 @@
+
 #include "user_api.h"
 #include "../../constants.h"
 
@@ -141,7 +142,7 @@ int register_user(char *user, char *pass) {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
 	sprintf(buf, "%s %s %s\n", "REG", user, pass);
 
-	exchange_messages_udp(buf, MAX_LINE_SIZE);
+	exchange_messages_udp(buf, strlen(buf));
 	
 	int num_tokens = sscanf(buf, "%s %s\n", command, status);
 	if (num_tokens != 2 || strcmp(command, "RRG") != 0) {
@@ -174,7 +175,7 @@ int unregister_user(char *user, char *pass) {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
 	snprintf(buf, sizeof(buf), "%s %s %s\n", "UNR", user, pass);
 
-	exchange_messages_udp(buf, MAX_LINE_SIZE);
+	exchange_messages_udp(buf, strlen(buf));
 
 	int num_tokens = sscanf(buf, "%s %s", command, status);
 	if (num_tokens != 2 || strcmp(command, "RUN") != 0) {
@@ -205,7 +206,7 @@ int login(char *user, char *pass) {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
 	sprintf(buf, "%s %s %s\n", "LOG", user, pass);
 
-	exchange_messages_udp(buf, MAX_LINE_SIZE);
+	exchange_messages_udp(buf, strlen(buf));
 	
 	int num_tokens = sscanf(buf, "%s %s\n", command, status);
 	if (num_tokens != 2 || strcmp(command, "RLO") != 0) {
@@ -239,7 +240,7 @@ int logout() {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
 	sprintf(buf, "%s %s %s\n", "OUT", UID, password);
 
-	exchange_messages_udp(buf, MAX_LINE_SIZE);
+	exchange_messages_udp(buf, strlen(buf));
 	
 	int num_tokens = sscanf(buf, "%s %s\n", command, status);
 	if (num_tokens != 2 || strcmp(command, "ROU") != 0) {
@@ -278,7 +279,7 @@ void get_all_groups(char ****list) {
 	char *aux;
 
 	sprintf(buf, "%s %s\n", "GLS", UID);
-	exchange_messages_udp(buf, MAX_BUF_SIZE);
+	exchange_messages_udp(buf, strlen(buf));
 
 	num_tokens = sscanf(buf, "%" STR(5) "s %" STR(4) "s ", command, num_groups);
 
@@ -320,7 +321,7 @@ int subscribe_group(char *gid, char *gName) {
 
 	sprintf(buf, "%s %s %s %s\n", "GSR", UID, gid, gName);
 
-	exchange_messages_udp(buf, MAX_LINE_SIZE);
+	exchange_messages_udp(buf, strlen(buf));
 
 	int num_tokens = sscanf(buf, "%s %s\n", command, status);
 	if (num_tokens != 2 || strcmp(command, "RGS") != 0) {
@@ -359,7 +360,7 @@ int unsubscribe_group(char *gid) {
 	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
 	sprintf(buf, "%s %s %s\n", "GUR", UID, gid);
 
-	exchange_messages_udp(buf, MAX_LINE_SIZE);
+	exchange_messages_udp(buf, strlen(buf));
 
 	int num_tokens = sscanf(buf, "%s %s\n", command, status); //NOTE: Check this
 	if (num_tokens != 2 || strcmp(command, "RGU") != 0) {
@@ -398,7 +399,7 @@ int get_subscribed_groups(char ****list) {
 	char *aux;
 
 	sprintf(buf, "%s %s\n", "GLM", UID);	
-	exchange_messages_udp(buf, MAX_BUF_SIZE);
+	exchange_messages_udp(buf, strlen(buf));
 
 	num_tokens = sscanf(buf, "%" STR(4) "s %" STR(3) "s ", command, num_groups);
 
@@ -848,7 +849,7 @@ void exchange_messages_udp(char *buf, ssize_t max_rcv_size) {
 
 	int num_bytes;
 	
-	if (sendto(udp_socket, buf, strlen(buf) + 1, 0, res_udp->ai_addr, res_udp->ai_addrlen) != (strlen(buf) + 1) * sizeof(char)) {
+	if (sendto(udp_socket, buf, strlen(buf), 0, res_udp->ai_addr, res_udp->ai_addrlen) != strlen(buf) * sizeof(char)) {
 		exit(EXIT_FAILURE);
 	}
 	
@@ -965,6 +966,6 @@ int validate_port(char *port) {
 }
 
 void debug(char *buf) {
-	exchange_messages_udp(buf, MAX_LINE_SIZE);
+	exchange_messages_udp(buf, strlen(buf));
 	printf("I received %s\n", buf);
 }

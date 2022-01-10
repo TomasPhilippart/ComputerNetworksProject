@@ -239,7 +239,6 @@ void process_input() {
 			free_list(groups, 2);
 			continue;
 		}
-
 		// ===== SUBSCRIBE =====
 		if (!strcmp(command, "subscribe") || !strcmp(command, "s")) {
 			if (num_tokens != 3) {

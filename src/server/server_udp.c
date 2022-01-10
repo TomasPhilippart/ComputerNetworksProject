@@ -64,7 +64,7 @@ void process_requests() {
             exit(EXIT_FAILURE);
         }
 
-        buf[MAX_LINE_SIZE - 1] = '\0';
+        buf[num_bytes] = '\0';
         
         if (verbose) {
             if ((getnameinfo((struct sockaddr *)&addr, addrlen, host, sizeof(host), service, sizeof (service), 0)) != 0) {
@@ -82,8 +82,8 @@ void process_requests() {
 
         /* ====== REGISTER ====== */
         if (!strcmp(command, "REG")) {
-            //buf[strlen(buf) - 1] = '\0';
-            if (!parse_regex(buf, "^REG [0-9]{5} [a-zA-Z0-9]{8}\\\n$")) {
+            
+            if (parse_regex(buf, "^REG [0-9]{5} [a-zA-Z0-9]{8}\\\n$") == FALSE) {
                 printf("(UDP) Bad message format in command %s", command);
                 exit(EXIT_FAILURE);
             }
@@ -109,7 +109,7 @@ void process_requests() {
         /* ====== UNREGISTER ====== */
         } else if (!strcmp(command, "UNR")) {
             
-            if (!parse_regex(buf, "^UNR [0-9]{5} [a-zA-Z0-9]{8}\\\n$")) {
+            if (parse_regex(buf, "^UNR [0-9]{5} [a-zA-Z0-9]{8}\\\n$") == FALSE) {
                 printf("(UDP) Bad message format in command %s", command);
                 exit(EXIT_FAILURE);
             }
@@ -132,8 +132,8 @@ void process_requests() {
         /* ====== LOGIN ====== */
         } else if (!strcmp(command, "LOG")) {
 
-            if (!parse_regex(buf, "^LOG [0-9]{5} [a-zA-Z0-9]{8}\\\n$")) {
-                printf("(UDP) Bad message format in command %s", command);
+            if (parse_regex(buf, "^LOG [0-9]{5} [a-zA-Z0-9]{8}\\\n$") == FALSE) {
+                printf("(UDP) Bad message format in command %s\n", command);
                 exit(EXIT_FAILURE);
             }
 
@@ -155,8 +155,8 @@ void process_requests() {
         /* ====== LOGOUT ====== */
         } else if (!strcmp(command, "OUT")) {
 
-            if (!parse_regex(buf, "^OUT [0-9]{5} [a-zA-Z0-9]{8}\\\n$")) {
-                printf("(UDP) Bad message format in command %s", command);
+            if (parse_regex(buf, "^OUT [0-9]{5} [a-zA-Z0-9]{8}\\\n$") == FALSE) {
+                printf("(UDP) Bad message format in command %s\n", command);
                 exit(EXIT_FAILURE);
             }
 
@@ -184,8 +184,8 @@ void process_requests() {
             
             char gid[GID_SIZE + 1];
             // NOTE GName, limited to a total of 24 alphanumerical characters (plus ‘-‘, and ‘_’).
-            if (!parse_regex(buf, "^GLS .{5} .{2} .{1,24}\\\n$")) {
-                printf("(UDP) Bad message format in command %s", command);
+            if (parse_regex(buf, "^GSR .{5} .{2} .{1,24}\\\n$") == FALSE) {
+                printf("(UDP) Bad message format in command %s\n", command);
                 exit(EXIT_FAILURE);
             }
 
@@ -233,10 +233,6 @@ void process_requests() {
             sprintf(buf, "ERR\n");
         }
 
-
-        /* DEBUG */
-        // printf("Reply: %s\n", buf);
-
         if (sendto(fd, buf, strlen(buf) * sizeof(char), 0, (struct sockaddr*) &addr, addrlen) < strlen(buf)) {
 		    exit(EXIT_FAILURE);
         }
@@ -250,7 +246,7 @@ int main(int argc, char **argv) {
     port = strdup(argv[1]);
     verbose = atoi(argv[2]);
 
-    setup_state();
+    setup();
     process_requests();
 
     return TRUE;

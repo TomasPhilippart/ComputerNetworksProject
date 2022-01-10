@@ -121,7 +121,6 @@ void init_forum() {
 			exit(EXIT_FAILURE);
 		}
 	}
-
 }
 
 int validate_port(char *port_to_validate) {
