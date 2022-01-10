@@ -55,7 +55,7 @@ void setup() {
 void process_requests() {
 
     char buf[MAX_LINE_SIZE];
-    char command[MAX_ARG_SIZE], arg1[MAX_ARG_SIZE], arg2[MAX_ARG_SIZE], arg3[MAX_ARG_SIZE]; 
+    char command[MAX_ARG_SIZE], arg1[MAX_ARG_SIZE], arg2[MAX_ARG_SIZE], arg3[MAX_ARG_SIZE], arg4[MAX_ARG_SIZE]; 
     int num_bytes, num_tokens, status;
     regex_t regex;
 
@@ -78,7 +78,8 @@ void process_requests() {
         }
     
         num_tokens = sscanf(buf, "%" STR(MAX_ARG_SIZE) "s %" STR(MAX_ARG_SIZE) "s %" 
-									 STR(MAX_ARG_SIZE) "s %" STR(MAX_ARG_SIZE) "s " , command, arg1, arg2, arg3);
+									 STR(MAX_ARG_SIZE) "s %" STR(MAX_ARG_SIZE) "s %"
+                                     STR(MAX_ARG_SIZE) "s ", command, arg1, arg2, arg3, arg4);
 
         /* ====== REGISTER ====== */
         if (!strcmp(command, "REG")) {
@@ -131,11 +132,49 @@ void process_requests() {
 
         /* ====== LOGIN ====== */
         } else if (!strcmp(command, "LOG")) {
-            // TODO
+
+            if (!parse_regex(buf, "^LOG [0-9]{5} [a-zA-Z0-9]{8}\\\n$")) {
+                printf("(UDP) Bad message format in command %s", command);
+                exit(EXIT_FAILURE);
+            }
+
+            if (num_tokens != 3) {
+                exit(EXIT_FAILURE);
+            }
+
+            status = login_user(arg1, arg2);
+            memset(buf, '\0', strlen(buf) * sizeof(char));
+            switch (status) {
+                case STATUS_OK:
+                    sprintf(buf, "RLO OK\n");
+                    break;
+                case STATUS_NOK:
+                    sprintf(buf, "RLO NOK\n");
+                    break;
+            }
 
         /* ====== LOGOUT ====== */
         } else if (!strcmp(command, "OUT")) {
-            // TODO
+
+            if (!parse_regex(buf, "^OUT [0-9]{5} [a-zA-Z0-9]{8}\\\n$")) {
+                printf("(UDP) Bad message format in command %s", command);
+                exit(EXIT_FAILURE);
+            }
+
+            if (num_tokens != 3) {
+                exit(EXIT_FAILURE);
+            }
+
+            status = logout_user(arg1, arg2);
+            memset(buf, '\0', strlen(buf) * sizeof(char));
+            switch (status) {
+                case STATUS_OK:
+                    sprintf(buf, "ROU OK\n");
+                    break;
+                case STATUS_NOK:
+                    sprintf(buf, "ROU NOK\n");
+                    break;
+            }
 
         /* ====== GROUPS ====== */
         } else if (!strcmp(command, "GLS")) {
@@ -143,7 +182,44 @@ void process_requests() {
 
         /* ====== SUBSCRIBE ====== */
         } else if (!strcmp(command, "GSR")) {
-            // TODO
+            
+            char gid[GID_SIZE + 1];
+            // NOTE GName, limited to a total of 24 alphanumerical characters (plus ‘-‘, and ‘_’).
+            if (!parse_regex(buf, "^GLS [0-9]{5} [0-9]{2} [a-zA-Z0-9]{24}\\\n$")) {
+                printf("(UDP) Bad message format in command %s", command);
+                exit(EXIT_FAILURE);
+            }
+
+            if (num_tokens != 4) {
+                exit(EXIT_FAILURE);
+            }
+
+            status = subscribe_group(arg1, arg2, arg3, gid);
+            memset(buf, '\0', strlen(buf) * sizeof(char));
+            switch (status) {
+                case STATUS_OK:
+                    sprintf(buf, "RGS OK\n");
+                    break;
+                case STATUS_NEW_GROUP:
+                    sprintf(buf, "RGS NEW %s\n", gid);
+                    break;
+                case STATUS_USR_INVALID:
+                    sprintf(buf, "RGS E_USR\n");
+                    break;
+                case STATUS_GID_INVALID:
+                    sprintf(buf, "RGS E_GRP\n");
+                    break;
+                case STATUS_GNAME_INVALID:
+                    sprintf(buf, "RGS E_GNAME\n");
+                    break;
+                case STATUS_GROUPS_FULL:
+                    sprintf(buf, "RGS E_FULL\n");
+                    break;
+                case STATUS_NOK:
+                    sprintf(buf, "RGS NOK\n");
+                    break;
+            }
+
 
         /* ====== UNSUBSCRIBE ====== */
         } else if (!strcmp(command, "GUR")) {
@@ -200,4 +276,3 @@ int main(int argc, char **argv) {
 
     return TRUE;
 }
-
