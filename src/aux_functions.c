@@ -77,6 +77,7 @@ int parse_regex(char *str, char *regex) {
     int res;
    
     if (regcomp(&aux, regex, REG_EXTENDED)) {
+		printf("Error : compiling the following regex expression %s\n", regex);
         exit(EXIT_FAILURE);
     }
 
@@ -86,6 +87,7 @@ int parse_regex(char *str, char *regex) {
     } else if (res == REG_NOMATCH) {
         return FALSE;
     } else {
+		printf("Error : executing the following regex expression %s\n", regex);
         exit(EXIT_FAILURE);
     }
 }

@@ -4,6 +4,10 @@
 #define TRUE 1
 #define FALSE 0
 
+// NOTE giving warning
+#define STATUS_FAIL -1
+#define SUCCESS 0
+
 /* sizes */
 /* All constants pertraining to tokens
    given by input are all incremented by 1 */

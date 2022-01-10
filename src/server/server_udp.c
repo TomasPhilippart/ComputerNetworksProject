@@ -104,6 +104,8 @@ void process_requests() {
                 case STATUS_NOK:
                     sprintf(buf, "RRG NOK\n");
                     break;
+                case STATUS_FAIL:
+                    exit(STATUS_FAIL);
             }
         
         /* ====== UNREGISTER ====== */
@@ -127,6 +129,8 @@ void process_requests() {
                 case STATUS_NOK:
                     sprintf(buf, "RUN NOK\n");
                     break;
+                case STATUS_FAIL:
+                    exit(STATUS_FAIL);
             }
 
         /* ====== LOGIN ====== */
@@ -150,6 +154,8 @@ void process_requests() {
                 case STATUS_NOK:
                     sprintf(buf, "RLO NOK\n");
                     break;
+                case STATUS_FAIL:
+                    exit(STATUS_FAIL);
             }
 
         /* ====== LOGOUT ====== */
@@ -173,6 +179,8 @@ void process_requests() {
                 case STATUS_NOK:
                     sprintf(buf, "ROU NOK\n");
                     break;
+                case STATUS_FAIL:
+                    exit(STATUS_FAIL);
             }
 
         /* ====== GROUPS ====== */
@@ -183,7 +191,6 @@ void process_requests() {
         } else if (!strcmp(command, "GSR")) {
             
             char gid[GID_SIZE + 1];
-            // NOTE GName, limited to a total of 24 alphanumerical characters (plus ‘-‘, and ‘_’).
             if (parse_regex(buf, "^GSR .{5} .{2} .{1,24}\\\n$") == FALSE) {
                 printf("(UDP) Bad message format in command %s\n", command);
                 exit(EXIT_FAILURE);
@@ -217,16 +224,67 @@ void process_requests() {
                 case STATUS_NOK:
                     sprintf(buf, "RGS NOK\n");
                     break;
+                case STATUS_FAIL:
+                    exit(STATUS_FAIL);
             }
 
 
         /* ====== UNSUBSCRIBE ====== */
         } else if (!strcmp(command, "GUR")) {
-            // TODO
+
+            if (parse_regex(buf, "^GUR .{5} .{2}\\\n$") == FALSE) {
+                printf("(UDP) Bad message format in command %s\n", command);
+                exit(EXIT_FAILURE);
+            }
+
+            if (num_tokens != 3) {
+                exit(EXIT_FAILURE);
+            }
+
+            status = unsubscribe_user(arg1, arg2);
+            switch (status) {
+                case STATUS_OK:
+                    sprintf(buf, "RGU OK\n");
+                    break;
+                case STATUS_USR_INVALID:
+                    sprintf(buf, "RGU E_USR\n");
+                    break;
+                case STATUS_GID_INVALID:
+                    sprintf(buf, "RGU E_GRP\n");
+                    break;
+                case STATUS_NOK:
+                    sprintf(buf, "RGU NOK\n");
+                    break;
+                case STATUS_FAIL:
+                    exit(STATUS_FAIL);
+            }
 
         /* ====== MY GROUPS ====== */
         } else if (!strcmp(command, "GLM")) {
-            // TODO
+            
+            int num_groups = 0;
+            if (parse_regex(buf, "^GLM .{5}\\\n$") == FALSE) {
+                printf("(UDP) Bad message format in command %s\n", command);
+                exit(EXIT_FAILURE);
+            }
+
+            if (num_tokens != 2) {
+                exit(EXIT_FAILURE);
+            }
+
+            status = user_subscribed_groups(arg1, &num_groups);
+            switch (status) {
+                case STATUS_OK:
+                    // NOTE just for testing
+                    printf("Enviar : %d\n", num_groups);
+                    sprintf(buf, "RGM 0\n");
+                    break;
+                case STATUS_USR_INVALID:
+                    sprintf(buf, "RGM E_USR\n");
+                    break;
+                case STATUS_FAIL:
+                    exit(STATUS_FAIL);
+            }
 
         /* ====== UNEXPECTED MESSAGE ====== */
         } else {
@@ -236,6 +294,8 @@ void process_requests() {
         if (sendto(fd, buf, strlen(buf) * sizeof(char), 0, (struct sockaddr*) &addr, addrlen) < strlen(buf)) {
 		    exit(EXIT_FAILURE);
         }
+
+
 
 	} 
 }
