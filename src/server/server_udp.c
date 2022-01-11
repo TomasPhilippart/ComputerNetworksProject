@@ -54,17 +54,18 @@ void setup() {
 
 void process_requests() {
 
-    char buf[MAX_LINE_SIZE];
+    char receiving_buf[MAX_LINE_SIZE];
+    char *sending_buf;
     char command[MAX_ARG_SIZE], arg1[MAX_ARG_SIZE], arg2[MAX_ARG_SIZE], arg3[MAX_ARG_SIZE], arg4[MAX_ARG_SIZE]; 
     int num_bytes, num_tokens, status;
 
     while (1) {
 
-        if ((num_bytes = recvfrom(fd, buf, MAX_LINE_SIZE - 1, 0, (struct sockaddr*) &addr, &addrlen)) <= 0) {
+        if ((num_bytes = recvfrom(fd, receiving_buf, MAX_LINE_SIZE - 1, 0, (struct sockaddr*) &addr, &addrlen)) <= 0) {
             exit(EXIT_FAILURE);
         }
 
-        buf[num_bytes] = '\0';
+        receiving_buf[num_bytes] = '\0';
         
         if (verbose) {
             if ((getnameinfo((struct sockaddr *)&addr, addrlen, host, sizeof(host), service, sizeof (service), 0)) != 0) {
@@ -72,18 +73,18 @@ void process_requests() {
                 // REVIEW should this end session? Yes!
                 exit(EXIT_FAILURE);
             } else {
-                printf("(UDP) %s@%s: %s", host, service, buf); /* /n missing because buf already contains it */ 
+                printf("(UDP) %s@%s: %s", host, service, receiving_buf); /* /n missing because buf already contains it */ 
             }
         }
     
-        num_tokens = sscanf(buf, "%" STR(MAX_ARG_SIZE) "s %" STR(MAX_ARG_SIZE) "s %" 
+        num_tokens = sscanf(receiving_buf, "%" STR(MAX_ARG_SIZE) "s %" STR(MAX_ARG_SIZE) "s %" 
 									 STR(MAX_ARG_SIZE) "s %" STR(MAX_ARG_SIZE) "s %"
                                      STR(MAX_ARG_SIZE) "s ", command, arg1, arg2, arg3, arg4);
 
         /* ====== REGISTER ====== */
         if (!strcmp(command, "REG")) {
             
-            if (parse_regex(buf, "^REG [0-9]{5} [a-zA-Z0-9]{8}\\\n$") == FALSE) {
+            if (parse_regex(receiving_buf, "^REG [0-9]{5} [a-zA-Z0-9]{8}\\\n$") == FALSE) {
                 printf("(UDP) Bad message format in command %s", command);
                 exit(EXIT_FAILURE);
             }
@@ -93,16 +94,18 @@ void process_requests() {
             }
           
             status = register_user(arg1, arg2);
-            memset(buf, '\0', strlen(buf) * sizeof(char));
+
+            sending_buf = (char *) malloc(sizeof(char) * 9);
+            memset(sending_buf, '\0', strlen(sending_buf) * sizeof(char));
             switch (status) {
                 case STATUS_OK:
-                    sprintf(buf, "RRG OK\n");
+                    sprintf(sending_buf, "RRG OK\n");
                     break;
                 case STATUS_DUP:
-                    sprintf(buf, "RRG DUP\n");
+                    sprintf(sending_buf, "RRG DUP\n");
                     break;
                 case STATUS_NOK:
-                    sprintf(buf, "RRG NOK\n");
+                    sprintf(sending_buf, "RRG NOK\n");
                     break;
                 case STATUS_FAIL:
                     exit(STATUS_FAIL);
@@ -111,7 +114,7 @@ void process_requests() {
         /* ====== UNREGISTER ====== */
         } else if (!strcmp(command, "UNR")) {
             
-            if (parse_regex(buf, "^UNR [0-9]{5} [a-zA-Z0-9]{8}\\\n$") == FALSE) {
+            if (parse_regex(receiving_buf, "^UNR [0-9]{5} [a-zA-Z0-9]{8}\\\n$") == FALSE) {
                 printf("(UDP) Bad message format in command %s", command);
                 exit(EXIT_FAILURE);
             }
@@ -121,13 +124,15 @@ void process_requests() {
             }
 
             status = unregister_user(arg1, arg2);
-            memset(buf, '\0', strlen(buf) * sizeof(char));
+
+            sending_buf = (char *) malloc(sizeof(char *) * 9);
+            memset(sending_buf, '\0', strlen(sending_buf) * sizeof(char));
             switch (status) {
                 case STATUS_OK:
-                    sprintf(buf, "RUN OK\n");
+                    sprintf(sending_buf, "RUN OK\n");
                     break;
                 case STATUS_NOK:
-                    sprintf(buf, "RUN NOK\n");
+                    sprintf(sending_buf, "RUN NOK\n");
                     break;
                 case STATUS_FAIL:
                     exit(STATUS_FAIL);
@@ -136,7 +141,7 @@ void process_requests() {
         /* ====== LOGIN ====== */
         } else if (!strcmp(command, "LOG")) {
 
-            if (parse_regex(buf, "^LOG [0-9]{5} [a-zA-Z0-9]{8}\\\n$") == FALSE) {
+            if (parse_regex(receiving_buf, "^LOG [0-9]{5} [a-zA-Z0-9]{8}\\\n$") == FALSE) {
                 printf("(UDP) Bad message format in command %s\n", command);
                 exit(EXIT_FAILURE);
             }
@@ -146,13 +151,15 @@ void process_requests() {
             }
 
             status = login_user(arg1, arg2);
-            memset(buf, '\0', strlen(buf) * sizeof(char));
+
+            sending_buf = (char *) malloc(sizeof(char) * 9);
+            memset(sending_buf, '\0', strlen(sending_buf) * sizeof(char));
             switch (status) {
                 case STATUS_OK:
-                    sprintf(buf, "RLO OK\n");
+                    sprintf(sending_buf, "RLO OK\n");
                     break;
                 case STATUS_NOK:
-                    sprintf(buf, "RLO NOK\n");
+                    sprintf(sending_buf, "RLO NOK\n");
                     break;
                 case STATUS_FAIL:
                     exit(STATUS_FAIL);
@@ -161,7 +168,7 @@ void process_requests() {
         /* ====== LOGOUT ====== */
         } else if (!strcmp(command, "OUT")) {
 
-            if (parse_regex(buf, "^OUT [0-9]{5} [a-zA-Z0-9]{8}\\\n$") == FALSE) {
+            if (parse_regex(receiving_buf, "^OUT [0-9]{5} [a-zA-Z0-9]{8}\\\n$") == FALSE) {
                 printf("(UDP) Bad message format in command %s\n", command);
                 exit(EXIT_FAILURE);
             }
@@ -171,13 +178,15 @@ void process_requests() {
             }
 
             status = logout_user(arg1, arg2);
-            memset(buf, '\0', strlen(buf) * sizeof(char));
+
+            sending_buf = (char*) malloc(sizeof(char) * 9);
+            memset(sending_buf, '\0', strlen(sending_buf) * sizeof(char));
             switch (status) {
                 case STATUS_OK:
-                    sprintf(buf, "ROU OK\n");
+                    sprintf(sending_buf, "ROU OK\n");
                     break;
                 case STATUS_NOK:
-                    sprintf(buf, "ROU NOK\n");
+                    sprintf(sending_buf, "ROU NOK\n");
                     break;
                 case STATUS_FAIL:
                     exit(STATUS_FAIL);
@@ -191,7 +200,7 @@ void process_requests() {
         } else if (!strcmp(command, "GSR")) {
             
             char gid[GID_SIZE + 1];
-            if (parse_regex(buf, "^GSR .{5} .{2} .{1,24}\\\n$") == FALSE) {
+            if (parse_regex(receiving_buf, "^GSR .{5} .{2} .{1,24}\\\n$") == FALSE) {
                 printf("(UDP) Bad message format in command %s\n", command);
                 exit(EXIT_FAILURE);
             }
@@ -201,28 +210,30 @@ void process_requests() {
             }
 
             status = subscribe_group(arg1, arg2, arg3, gid);
-            memset(buf, '\0', strlen(buf) * sizeof(char));
+
+            sending_buf = (char *) malloc(sizeof(char) * 13);
+            memset(sending_buf, '\0', strlen(sending_buf) * sizeof(char));
             switch (status) {
                 case STATUS_OK:
-                    sprintf(buf, "RGS OK\n");
+                    sprintf(sending_buf, "RGS OK\n");
                     break;
                 case STATUS_NEW_GROUP:
-                    sprintf(buf, "RGS NEW %s\n", gid);
+                    sprintf(sending_buf, "RGS NEW %s\n", gid);
                     break;
                 case STATUS_USR_INVALID:
-                    sprintf(buf, "RGS E_USR\n");
+                    sprintf(sending_buf, "RGS E_USR\n");
                     break;
                 case STATUS_GID_INVALID:
-                    sprintf(buf, "RGS E_GRP\n");
+                    sprintf(sending_buf, "RGS E_GRP\n");
                     break;
                 case STATUS_GNAME_INVALID:
-                    sprintf(buf, "RGS E_GNAME\n");
+                    sprintf(sending_buf, "RGS E_GNAME\n");
                     break;
                 case STATUS_GROUPS_FULL:
-                    sprintf(buf, "RGS E_FULL\n");
+                    sprintf(sending_buf, "RGS E_FULL\n");
                     break;
                 case STATUS_NOK:
-                    sprintf(buf, "RGS NOK\n");
+                    sprintf(sending_buf, "RGS NOK\n");
                     break;
                 case STATUS_FAIL:
                     exit(STATUS_FAIL);
@@ -232,7 +243,8 @@ void process_requests() {
         /* ====== UNSUBSCRIBE ====== */
         } else if (!strcmp(command, "GUR")) {
 
-            if (parse_regex(buf, "^GUR .{5} .{2}\\\n$") == FALSE) {
+            // TODO
+            if (parse_regex(receiving_buf, "^GUR .{5} .{2}\\\n$") == FALSE) {
                 printf("(UDP) Bad message format in command %s\n", command);
                 exit(EXIT_FAILURE);
             }
@@ -242,18 +254,21 @@ void process_requests() {
             }
 
             status = unsubscribe_user(arg1, arg2);
+
+            sending_buf = (char *) malloc(sizeof(char) * 11);   
+            memset(sending_buf, '\0', strlen(sending_buf) * sizeof(char));
             switch (status) {
                 case STATUS_OK:
-                    sprintf(buf, "RGU OK\n");
+                    sprintf(sending_buf, "RGU OK\n");
                     break;
                 case STATUS_USR_INVALID:
-                    sprintf(buf, "RGU E_USR\n");
+                    sprintf(sending_buf, "RGU E_USR\n");
                     break;
                 case STATUS_GID_INVALID:
-                    sprintf(buf, "RGU E_GRP\n");
+                    sprintf(sending_buf, "RGU E_GRP\n");
                     break;
                 case STATUS_NOK:
-                    sprintf(buf, "RGU NOK\n");
+                    sprintf(sending_buf, "RGU NOK\n");
                     break;
                 case STATUS_FAIL:
                     exit(STATUS_FAIL);
@@ -262,8 +277,12 @@ void process_requests() {
         /* ====== MY GROUPS ====== */
         } else if (!strcmp(command, "GLM")) {
             
+            char ***groups;
+            char *aux;
+            size_t sending_buf_size;
+
             int num_groups = 0;
-            if (parse_regex(buf, "^GLM .{5}\\\n$") == FALSE) {
+            if (parse_regex(receiving_buf, "^GLM .{5}\\\n$") == FALSE) {
                 printf("(UDP) Bad message format in command %s\n", command);
                 exit(EXIT_FAILURE);
             }
@@ -272,15 +291,33 @@ void process_requests() {
                 exit(EXIT_FAILURE);
             }
 
-            status = user_subscribed_groups(arg1, &num_groups);
+            status = user_subscribed_groups(arg1, &num_groups, &groups);
+
+            sending_buf_size =  num_groups * (GID_SIZE + MAX_GNAME + MID_SIZE + 3) + 12;
+            sending_buf = (char *) malloc(sizeof(char) * sending_buf_size);
+            memset(sending_buf, '\0', sending_buf_size);
+
             switch (status) {
                 case STATUS_OK:
-                    // NOTE just for testing
-                    printf("Enviar : %d\n", num_groups);
-                    sprintf(buf, "RGM 0\n");
+                    // REVIEW 
+
+                    aux = sending_buf;
+
+                    sprintf(aux, "RGM %d", num_groups);
+                    aux += (strlen(aux) * sizeof(char));
+
+                    for (int i = 0; i < num_groups; i++) {
+                        sprintf(aux, " %s %s %s", groups[i][0], groups[i][1], groups[i][2]);
+                        aux += (strlen(aux) * sizeof(char));
+                    }
+
+                    // NOTE need to free groups (make function to do that) 
+                    // and sending_buf (only when it is malloced)
+
+                    sprintf(aux, "\n");
                     break;
                 case STATUS_USR_INVALID:
-                    sprintf(buf, "RGM E_USR\n");
+                    sprintf(sending_buf, "RGM E_USR\n");
                     break;
                 case STATUS_FAIL:
                     exit(STATUS_FAIL);
@@ -288,15 +325,14 @@ void process_requests() {
 
         /* ====== UNEXPECTED MESSAGE ====== */
         } else {
-            sprintf(buf, "ERR\n");
+            sprintf(receiving_buf, "ERR\n");
         }
 
-        if (sendto(fd, buf, strlen(buf) * sizeof(char), 0, (struct sockaddr*) &addr, addrlen) < strlen(buf)) {
+        if (sendto(fd, sending_buf, strlen(sending_buf) * sizeof(char), 0, (struct sockaddr*) &addr, addrlen) < strlen(sending_buf)) {
 		    exit(EXIT_FAILURE);
         }
 
-
-
+        free(sending_buf);
 	} 
 }
 

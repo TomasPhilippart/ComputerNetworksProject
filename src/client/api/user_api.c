@@ -468,7 +468,7 @@ char ***parse_groups(char *buf, int num_groups) {
 	int num_tokens;
 
 	for (int i = 0; i < num_groups; i++) {
-		response[i] = (char **) malloc(sizeof(char*) * (GID_SIZE + 1));
+		response[i] = (char **) malloc(sizeof(char*) * (21));
 		for (int j = 0; j < 2; j++) {
 			response[i][j] = (char *) malloc(sizeof(char) * (MAX_FNAME + 1));
 		}

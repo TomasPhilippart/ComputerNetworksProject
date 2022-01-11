@@ -5,7 +5,8 @@
 #define FALSE 0
 
 // NOTE giving warning
-#define STATUS_FAIL -1
+// REVIEW changed to 100 just to not show warnings
+#define STATUS_FAIL 5
 #define SUCCESS 0
 
 /* sizes */

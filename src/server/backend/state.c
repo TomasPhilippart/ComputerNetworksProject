@@ -11,8 +11,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <sys/stat.h>
-// NOTE remove just for debug
-#include <errno.h>
 #include <dirent.h>
 
 
@@ -266,11 +264,20 @@ int unsubscribe_user(char *uid, char *gid) {
     return STATUS_OK;
 }
 
-int user_subscribed_groups(char *uid, int *num_groups) {
+int user_subscribed_groups(char *uid, int *num_groups, char ****groups) {
 
     char user_dir[10 + UID_SIZE], login_file[10 + UID_SIZE + UID_SIZE + 12];
     char gid[GID_SIZE + 1];
-    char last_mid[MID_SIZE + 1], group_name[MAX_GNAME + 1]; 
+    char last_mid[MID_SIZE + 1], group_name[MAX_GNAME + 1];
+
+    // REVIEW 
+    int max_groups = 1;
+    (*groups) = (char ***) malloc(sizeof(char **) * max_groups);
+    (*groups)[0] = (char **) malloc(sizeof(char *) * 3);
+    // REVIEW esta nojento
+    (*groups)[0][0] = (char *) malloc(sizeof(char) * (GID_SIZE + 1));
+    (*groups)[0][1] = (char *) malloc(sizeof(char) * (MAX_GNAME + 1));
+    (*groups)[0][2] = (char *) malloc(sizeof(char) * (MID_SIZE + 1));
 
     /* Check UID */
     if (!check_uid(uid) || check_user_registered(uid, user_dir) == FALSE) {
@@ -286,7 +293,6 @@ int user_subscribed_groups(char *uid, int *num_groups) {
        UID is subscribed in that group 
     */
 
-   (*num_groups) = 0;
     for (int i = 1; i < next_available_gid; i++) {
         sprintf(gid, "%02d", i);
         if (check_user_subscribed(uid, gid)) {
@@ -305,7 +311,22 @@ int user_subscribed_groups(char *uid, int *num_groups) {
                 return STATUS_FAIL;
             }
 
-            printf("name : %s, mid : %s\t", group_name, last_mid);
+            if ((*num_groups) >= max_groups) {
+                max_groups++;
+                (*groups) = (char ***) realloc((*groups), sizeof(char **) * (max_groups));
+
+                // REVIEW esta nojento
+                (*groups)[max_groups - 1] = (char **) malloc(sizeof(char *) * 3);
+                (*groups)[max_groups - 1][0] = (char *) malloc(sizeof(char) * (GID_SIZE + 1));
+                (*groups)[max_groups - 1][1] = (char *) malloc(sizeof(char) * (MAX_GNAME + 1));
+                (*groups)[max_groups - 1][2] = (char *) malloc(sizeof(char) * (MID_SIZE + 1));
+            }
+
+            strcpy((*groups)[max_groups - 1][0], gid);
+            strcpy((*groups)[max_groups - 1][1], group_name);
+            strcpy((*groups)[max_groups - 1][2], last_mid);
+
+
             (*num_groups)++;
         }
     }
@@ -488,7 +509,7 @@ int get_last_mid(char *gid, char *last_mid) {
 
     for (int i = 1; i <= 9999; i++) {
         sprintf(mid, "%04d", i);
-        // NOTE tirar print do exchange do upd
+
         if (check_message_exists(gid, mid, message_dir) == FALSE) {
             sprintf(last_mid, "%04d", i - 1);
             return SUCCESS;
