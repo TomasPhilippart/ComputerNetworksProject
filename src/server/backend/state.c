@@ -15,6 +15,7 @@
 
 
 int next_available_gid;
+//NOTE check if function variables are needed
 
 int check_user_registered(char *uid, char *user_dir);
 int check_user_subscribed(char *uid, char *gid);
@@ -242,7 +243,7 @@ int unsubscribe_user(char *uid, char *gid) {
     
     // TODO just can be tested before mgl implementation
     char user_dir[10 + UID_SIZE], group_dir[11 + GID_SIZE];
-    char password_file[10 + UID_SIZE + UID_SIZE + 11], login_file[10 + UID_SIZE + UID_SIZE + 12];
+    char login_file[10 + UID_SIZE + UID_SIZE + 12];
     char group_uid_file[11 + GID_SIZE + UID_SIZE + 6];
     FILE *file;  
 
@@ -257,9 +258,16 @@ int unsubscribe_user(char *uid, char *gid) {
     }
     
     /* Check GID */
-    if (!strcmp(gid, "00") || check_gid(gid) == FALSE || check_group_exists(gid, group_dir) == FALSE) {
+    if (check_group_exists(gid, group_dir) == FALSE || !strcmp(gid, "00") || check_gid(gid) == FALSE) {
         return STATUS_GID_INVALID;
     } 
+
+    /* Remove UID.txt file from GROUPS/GID */
+    sprintf(group_uid_file, "%s/%s.txt", group_dir, uid);    
+    if (unlink(group_uid_file) != 0) {
+        printf("Error : user uid file from GROUPS/%s.\n", gid);
+        return STATUS_FAIL;
+    }
 
     return STATUS_OK;
 }
@@ -492,7 +500,13 @@ int get_group_name(char *gid, char *group_name) {
         return STATUS_FAIL;
     }
 
+    //printf("group name : <%s>\n", group_name);
+    // NOTE com memset aqui funciona, mas sem ele não PORQUE???
+    // NOTE sendo que o groups é dado memset anteriormente
+    memset(group_name, '\0', MAX_GNAME);
     fread(group_name, sizeof(char), MAX_GNAME, file);
+    // NAO funciona assim : group_name[strlen(group_name)] = '\0';
+    //printf("group name : %s\n", group_name);
 
     if (fclose(file) != 0) {
         printf("Error closing group name file.\n");

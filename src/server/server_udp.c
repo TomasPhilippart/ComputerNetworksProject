@@ -243,7 +243,6 @@ void process_requests() {
         /* ====== UNSUBSCRIBE ====== */
         } else if (!strcmp(command, "GUR")) {
 
-            // TODO
             if (parse_regex(receiving_buf, "^GUR .{5} .{2}\\\n$") == FALSE) {
                 printf("(UDP) Bad message format in command %s\n", command);
                 exit(EXIT_FAILURE);
@@ -300,7 +299,6 @@ void process_requests() {
             switch (status) {
                 case STATUS_OK:
                     // REVIEW 
-
                     aux = sending_buf;
 
                     sprintf(aux, "RGM %d", num_groups);
