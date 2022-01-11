@@ -15,5 +15,7 @@ int subscribe_group(char *uid, char *gid, char *group_name, char *new_gid);
 int unsubscribe_user(char *uid, char *gid);
 int user_subscribed_groups(char *uid, int *num_groups, char ****groups);
 
+/* Auxiliary */
+void free_groups(char ***groups, int num_groups);
 
 #endif

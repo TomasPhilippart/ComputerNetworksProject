@@ -36,8 +36,6 @@ int check_mid(char *mid) {
 }
 
 
-// NOTE: Make this function a wrapper of a regex validator 
-// Check if password is alphanumeric and has 8 characters
 int check_pass(char *pass) {
 	
 	if (!parse_regex(pass, "^[a-zA-Z0-9]{8}$")) {
@@ -48,9 +46,8 @@ int check_pass(char *pass) {
 }
 
 int check_filename(char *filename) {
-	// NOTE need to check for ("-", "_")
 	// filename[i] == '_' || filename[i] == '.' || filename[i] == '-'
-	if (parse_regex(filename, "^[a-zA-Z0-9]{1,20}.[a-z0-9]{3}$") == FALSE) {
+	if (parse_regex(filename, "^[a-zA-Z0-9_.-]{1,20}.[a-z0-9]{3}$") == FALSE) {
 		return FALSE;
 	}
 	
@@ -63,9 +60,7 @@ int check_filename(char *filename) {
 }
 
 int check_group_name(char *group_name) {
-	// NOTE need to check for ("-", "_")
-	if (parse_regex(group_name, "^[a-zA-Z0-9]{1,24}$") == FALSE) {
-		printf("erro\n");
+	if (parse_regex(group_name, "^[a-zA-Z0-9_-]{1,24}$") == FALSE) {
 		return FALSE;
 	}
 
@@ -77,7 +72,7 @@ int parse_regex(char *str, char *regex) {
     int res;
    
     if (regcomp(&aux, regex, REG_EXTENDED)) {
-		printf("Error : compiling the following regex expression %s\n", regex);
+		printf("Error: Compiling the following regex expression %s.\n", regex);
         exit(EXIT_FAILURE);
     }
 
@@ -87,7 +82,7 @@ int parse_regex(char *str, char *regex) {
     } else if (res == REG_NOMATCH) {
         return FALSE;
     } else {
-		printf("Error : executing the following regex expression %s\n", regex);
+		printf("Error : Executing the following regex expression %s.\n", regex);
         exit(EXIT_FAILURE);
     }
 }

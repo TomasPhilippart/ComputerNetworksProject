@@ -30,21 +30,24 @@ void setup() {
 
     fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (fd == -1) {
+        printf("Error: Failed to create UDP socket.\n");
 		exit(EXIT_FAILURE);
 	}
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_INET; 	        /* IPv4 */
 	hints.ai_socktype = SOCK_DGRAM;     /* UDP socket */
+    hints.ai_flags = AI_PASSIVE;
 
 	addrlen = sizeof(addr);             /* for receiving messages */
 
 	if (getaddrinfo(NULL, port, &hints, &res) != 0) {
+        printf("Error: DNS couldn't resolve server's IP address for UDP connection.\n");
 		exit(EXIT_FAILURE);
 	}
 	
     if (bind(fd, res->ai_addr, res->ai_addrlen) == -1) {
-		printf("Error binding.\n");
+		printf("Error: Binding socket.\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -62,6 +65,7 @@ void process_requests() {
     while (1) {
 
         if ((num_bytes = recvfrom(fd, receiving_buf, MAX_LINE_SIZE - 1, 0, (struct sockaddr*) &addr, &addrlen)) <= 0) {
+            printf("Error: ");
             exit(EXIT_FAILURE);
         }
 
@@ -70,7 +74,6 @@ void process_requests() {
         if (verbose) {
             if ((getnameinfo((struct sockaddr *)&addr, addrlen, host, sizeof(host), service, sizeof (service), 0)) != 0) {
                 printf("Error getting user address information.\n");
-                // REVIEW should this end session? Yes!
                 exit(EXIT_FAILURE);
             } else {
                 printf("(UDP) %s@%s: %s", host, service, receiving_buf); /* /n missing because buf already contains it */ 
@@ -234,7 +237,7 @@ void process_requests() {
                         aux += (strlen(aux) * sizeof(char));
                     }
 
-                    // NOTE need to free groups (make function to do that) 
+                    free_groups(groups, num_groups);
                     sprintf(aux, "\n");
                     break;
                 case STATUS_FAIL:
@@ -355,8 +358,7 @@ void process_requests() {
                         aux += (strlen(aux) * sizeof(char));
                     }
 
-                    // NOTE need to free groups (make function to do that) 
-
+                    free_groups(groups, num_groups);
                     sprintf(aux, "\n");
                     break;
                 case STATUS_USR_INVALID:

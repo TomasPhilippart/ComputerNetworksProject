@@ -41,7 +41,7 @@ static void parse_args(int argc, char **argv) {
 		/* Check for wrong non-argument words in the middle of argv[] or
 		   existence of more than 2 options */
 		if (argv[optind][0] != '-' || opt_counter >= 2) {
-			fprintf(stderr, "Invalid format. Usage: ./user [-n DSIP] [-p DSport]\n");
+			fprintf(stderr, "Invalid format. Usage: ./user [-n DSIP] [-p DSport].\n");
 			exit(EXIT_FAILURE);
 		}
 
@@ -66,7 +66,7 @@ static void parse_args(int argc, char **argv) {
 				break;
 
 			default:
-				fprintf(stderr, "Invalid format. Usage: ./user [-n DSIP] [-p DSport]\n");
+				fprintf(stderr, "Invalid format. Usage: ./user [-n DSIP] [-p DSport].\n");
 				exit(EXIT_FAILURE);
 		}	
     }

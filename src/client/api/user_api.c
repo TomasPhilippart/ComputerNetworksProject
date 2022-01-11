@@ -1,4 +1,3 @@
-
 #include "user_api.h"
 #include "../../constants.h"
 
@@ -63,7 +62,7 @@ void setup_udp() {
 	/* Create UDP socket */
 	udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
 	if (udp_socket == -1) {
-		printf("Error : creating udp socket\n");
+		printf("Error: Failed to create UDP socket.\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -74,7 +73,7 @@ void setup_udp() {
 	addrlen = sizeof(addr); /* for receiving messages */
 
 	if (getaddrinfo(server_ip, server_port, &hints_udp, &res_udp) != 0) {
-		printf("Error : DNS couldnt get the server IP address for udp connection\n");
+		printf("Error: DNS couldn't resolve server's IP address for UDP connection.\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -85,7 +84,7 @@ void setup_tcp() {
 	/* Create TCP socket */
 	tcp_socket = socket(AF_INET, SOCK_STREAM, 0);
 	if (tcp_socket == -1) {
-		printf("Error : creating tcp socket\n");
+		printf("Error: Failed to create TCP socket.\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -96,7 +95,7 @@ void setup_tcp() {
 	addrlen = sizeof(addr); /* for receiving messages */
 
 	if (getaddrinfo(server_ip, server_port, &hints_tcp, &res_tcp) != 0) {
-		printf("Error : DNS couldnt get the server IP address for tcp connection\n");
+		printf("Error: DNS couldn't resolve server's IP address for TCP connection.\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -150,7 +149,7 @@ int register_user(char *user, char *pass) {
 	
 	int num_tokens = sscanf(buf, "%s %s\n", command, status);
 	if (num_tokens != 2 || strcmp(command, "RRG") != 0) {
-		printf("Error : bad message received, %s\n", buf);
+		printf("Error: Bad message received, %s.\n", buf);
 		end_session(EXIT_FAILURE);
 	}
 
@@ -163,7 +162,7 @@ int register_user(char *user, char *pass) {
 	} else if (!strcmp(status, "ERR")) {
 		return STATUS_ERR;
 	} else {
-		printf("Error : unexpected status received, status = %s\n", status);
+		printf("Error: Unexpected status received, status = %s\n.", status);
 		end_session(EXIT_FAILURE);	
 	}
 }
@@ -185,7 +184,7 @@ int unregister_user(char *user, char *pass) {
 
 	int num_tokens = sscanf(buf, "%s %s", command, status);
 	if (num_tokens != 2 || strcmp(command, "RUN") != 0) {
-		printf("Error : bad formated message, %s\n", buf);
+		printf("Error: Invalid message format, %s.\n", buf);
 		end_session(EXIT_FAILURE);
 	}
 
@@ -196,7 +195,7 @@ int unregister_user(char *user, char *pass) {
 	} else if (!strcmp(status, "ERR")) {
 		return STATUS_ERR;
 	} else {
-		printf("Error : unexpected status received, status = %s\n", status);
+		printf("Error: Unexpected status received, %s.\n", status);
 		end_session(EXIT_FAILURE);
 	}
 }
@@ -218,7 +217,7 @@ int login(char *user, char *pass) {
 	
 	int num_tokens = sscanf(buf, "%s %s\n", command, status);
 	if (num_tokens != 2 || strcmp(command, "RLO") != 0) {
-		printf("Error : login, bad message received, %s\n", buf);
+		printf("Error: Invalid message format, %s.\n", buf);
 		end_session(EXIT_FAILURE);
 	}
 
@@ -232,7 +231,7 @@ int login(char *user, char *pass) {
 	} else if (!strcmp(status, "ERR")) {
 		return STATUS_ERR;
 	} else {
-		printf("Error : unexpected status received, status = %s\n", status);
+		printf("Error: Unexpected status received, %s.\n", status);
 		end_session(EXIT_FAILURE);	
 	}
 }
@@ -254,7 +253,7 @@ int logout() {
 	
 	int num_tokens = sscanf(buf, "%s %s\n", command, status);
 	if (num_tokens != 2 || strcmp(command, "ROU") != 0) {
-		printf("Error : logout, bad message received, %s\n", buf);
+		printf("Error: Invalid message format, %s\n", buf);
 		end_session(EXIT_FAILURE);
 	}
 
@@ -265,7 +264,7 @@ int logout() {
 	} else if (!strcmp(status, "NOK")) {
 		return STATUS_NOK;
 	} else {
-		printf("Error : unexpected status received, status = %s\n", status);
+		printf("Error: Unexpected status received, %s.\n", status);
 		end_session(EXIT_FAILURE);	
 	}
 }
@@ -296,12 +295,12 @@ void get_all_groups(char ****list) {
 	num_tokens = sscanf(buf, "%" STR(5) "s %" STR(4) "s ", command, num_groups);
 
 	if (num_tokens < 2) {
-		printf("Error : get groups, bad number of tokens\n");
+		printf("Error: Invalid message format, %s.\n", buf);
 		end_session(EXIT_FAILURE);
 	}
 								 // NOTE: use isnumber()
 	if (strcmp(command, "RGL") || (atoi(num_groups) == 0 && strcmp(num_groups, "0"))) {
-		printf("Error : get groups, bad message received, %s\n", buf);
+		printf("Error: Invalid message format, %s.\n", buf);
 		end_session(EXIT_FAILURE);
 	} 
 	
@@ -339,7 +338,7 @@ int subscribe_group(char *gid, char *gName) {
 
 	int num_tokens = sscanf(buf, "%s %s\n", command, status);
 	if (num_tokens != 2 || strcmp(command, "RGS") != 0) {
-		printf("Error : subscribe group, bad message received, %s\n", buf);
+		printf("Error: Invalid message format, %s.\n", buf);
 		end_session(EXIT_FAILURE);
 	}
 
@@ -358,7 +357,7 @@ int subscribe_group(char *gid, char *gName) {
 	} else if (!strcmp(status, "NOK")) { /* NOTE: This is activated, for example, when a negative UID is given */
 		return STATUS_NOK;
 	} else {
-		printf("Error : unexpected status received, status = %s\n", status);
+		printf("Error: Unexpected status received, %s\n", status);
 		end_session(EXIT_FAILURE);
 	}
 
@@ -380,7 +379,7 @@ int unsubscribe_group(char *gid) {
 
 	int num_tokens = sscanf(buf, "%s %s\n", command, status); //NOTE: Check this
 	if (num_tokens != 2 || strcmp(command, "RGU") != 0) {
-		printf("Error : unsubscribe group, bad message received, %s\n", buf);
+		printf("Error : unsubscribe group, bad message received, %s.\n", buf);
 		end_session(EXIT_FAILURE);
 	}
 
@@ -422,12 +421,12 @@ int get_subscribed_groups(char ****list) {
 	num_tokens = sscanf(buf, "%" STR(4) "s %" STR(3) "s ", command, num_groups);
 
 	if (num_tokens < 2) {
-		printf("Error : get my groups group, bad message received, %s\n", buf);
+		printf("Error: Invalid message format, %s.\n", buf);
 		end_session(EXIT_FAILURE);
 	}
 
 	if (strcmp(command, "RGM")) { 
-		printf("Error : get my groups group, bad message received, %s\n", buf);
+		printf("Error: Invalid message format, %s.\n", buf);
 		end_session(EXIT_FAILURE);
 	}
 
@@ -439,7 +438,7 @@ int get_subscribed_groups(char ****list) {
 
 	/* NOTE: use a regex for this, somethings like 123aaa will pass through */
 	if ((atoi(num_groups) == 0) && strcmp(num_groups, "0")) {
-		printf("Error : received a invalid num_groups = %s\n", num_groups);
+		printf("Error: Invalid number of groups, %s.\n", num_groups);
 		end_session(EXIT_FAILURE);
 	} 
 	
@@ -476,7 +475,7 @@ char ***parse_groups(char *buf, int num_groups) {
 	for (int i = 0; i < num_groups; i++) {
 		num_tokens = sscanf(buf, " %s %s %s", response[i][0], response[i][1], mid);
 		if (num_tokens != 3) {
-			printf("Error : invalid message format, buf = <%s>\n", buf);
+			printf("Error: Invalid message format, %s.\n", buf);
 			end_session(EXIT_FAILURE);
 		}
 		/* advance buf pointer 3 tokens */
@@ -485,7 +484,7 @@ char ***parse_groups(char *buf, int num_groups) {
 	
 	/* Ensure that there are exactly num_messages messages  */
 	if (*(buf) != '\n') {
-		printf("Error : buffer doesnt end in a \\n\n");
+		printf("Error: Buffer doesn't end in a \\n\n");
 		end_session(EXIT_FAILURE);
 	}
 
@@ -537,7 +536,7 @@ int get_uids_group(char ***list) {
 		return STATUS_ERR;
 	} else if (strcmp(status, "OK")) {
 		free(buf);
-		printf("Error : unexpected status received, status = %s\n", status);
+		printf("Error: Unexpected status received, %s.\n", status);
 		end_session(EXIT_FAILURE);
 	}
 
@@ -668,7 +667,7 @@ int post(char* text, char *mid, char *filename) {
 	}
 
 	if (atoi(status) == 0 || strlen(status) != MID_SIZE) {
-		printf("Error : invalid status received, status = %s\n", status);
+		printf("Error: Unexpected status received, %s.\n", status);
 		exit(EXIT_FAILURE);
 	}
 
@@ -716,7 +715,7 @@ int retrieve(char *mid, char ****list) {
 	} else if (!strcmp(status, "ERR")) {
 		return STATUS_ERR;
 	} else if (strcmp(status, "OK")) {
-		printf("Error : unexpected status received, status = %s\n", status);
+		printf("Error: Unexpected status received, %s.\n", status);
 		end_session(EXIT_FAILURE);
 	}
 	
@@ -769,7 +768,7 @@ char ***parse_messages(char *buf, int num_messages) {
 		char* text_size = strtok_r(NULL, " ", &saveptr);	
 		//printf("Parsing %d\n", atoi(text_size));
 		if (atoi(text_size) <= 0) {
-			printf("Error : invalid text_size, text_size = %s\n", text_size);
+			printf("Error: Invalid text size, %s\n", text_size);
 			exit(EXIT_FAILURE);
 		}
 
@@ -819,14 +818,14 @@ char ***parse_messages(char *buf, int num_messages) {
 		//printf("Parsing %s\n", response[i][2]);
 									
 		if (atoi(file_size) <= 0) {
-			printf("Error : invalid file_size, file_size = %s\n", file_size);
+			printf("Error: Invalid file size, %s.\n", file_size);
 			exit(EXIT_FAILURE);
 		}
 
 		file = fopen(response[i][1], "wb");
 
 		if (file == NULL){
-			printf("Error : couldnt open file = %s\n", response[i][1]);
+			printf("Error: Couldn't open file %s.\n", response[i][1]);
 			exit(EXIT_FAILURE);
 		}
 
@@ -879,14 +878,14 @@ void exchange_messages_udp(char *buf, ssize_t max_rcv_size) {
 	int num_bytes;
 	
 	if (sendto(udp_socket, buf, strlen(buf), 0, res_udp->ai_addr, res_udp->ai_addrlen) != strlen(buf) * sizeof(char)) {
-		printf("Error : send to error\n");
+		printf("Error: Failed to send message.\n");
 		exit(EXIT_FAILURE);
 	}
 	
 	memset(buf, 0, strlen(buf) * sizeof(char));
 	
 	if ((num_bytes = recvfrom(udp_socket, buf, MAX_BUF_SIZE, 0, (struct sockaddr*) &addr, &addrlen)) <= 0){
-		printf("Error : receive from error\n");
+		printf("Error: Failed to receive message.\n");
 		exit(EXIT_FAILURE);
 	}
 	
@@ -917,7 +916,7 @@ void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 	while (num_bytes_left > 0) {
 		num_bytes_written = write(tcp_socket, aux, num_bytes_left);
 		if (num_bytes_written < 0) {
-			printf("Error : error writting message to tcp socket\n");
+			printf("Error: Failed to write message to TCP socket.\n");
 			exit(EXIT_FAILURE);
 		}
 		num_bytes_left -= num_bytes_written;
@@ -938,7 +937,7 @@ void exchange_messages_tcp(char **buf, ssize_t num_bytes) {
 		num_bytes_read = read(tcp_socket, aux, num_bytes_left);
 		
 		if (num_bytes_read == -1) {
-			printf("Error : error reading message from tcp socket\n");
+			printf("Error: Failed to read message from TCP socket.\n");
 			exit(EXIT_FAILURE);
 		}
 		

@@ -15,7 +15,6 @@
 
 
 int next_available_gid;
-//NOTE check if function variables are needed
 
 int check_user_registered(char *uid, char *user_dir);
 int check_user_subscribed(char *uid, char *gid);
@@ -230,7 +229,7 @@ int subscribe_group(char *uid, char *gid, char *group_name, char *new_gid) {
 
     // REVIEW which cases should return STATUS_NOK
     char user_dir[10 + UID_SIZE], group_dir[11 + GID_SIZE];
-    char password_file[10 + UID_SIZE + UID_SIZE + 11], login_file[10 + UID_SIZE + UID_SIZE + 12];
+    char login_file[10 + UID_SIZE + UID_SIZE + 12];
     char group_uid_file[11 + GID_SIZE + UID_SIZE + 6];
     FILE *file;    
 
@@ -281,7 +280,6 @@ int subscribe_group(char *uid, char *gid, char *group_name, char *new_gid) {
         return STATUS_FAIL;
     }
     
-    /* REVIEW If a new group was created - this is meh */
     if (!strcmp(gid, "00")) {
         return STATUS_NEW_GROUP;
     }
@@ -290,7 +288,6 @@ int subscribe_group(char *uid, char *gid, char *group_name, char *new_gid) {
 
 int unsubscribe_user(char *uid, char *gid) {
     
-    // TODO just can be tested before mgl implementation
     char user_dir[10 + UID_SIZE], group_dir[11 + GID_SIZE];
     char login_file[10 + UID_SIZE + UID_SIZE + 12];
     char group_uid_file[11 + GID_SIZE + UID_SIZE + 6];
@@ -407,7 +404,6 @@ int check_user_registered(char *uid, char *user_dir) {
         return FALSE;
     }
 
-    // NOTE should do closedir(dir); ?
     closedir(dir);
 
     return TRUE;
@@ -462,25 +458,42 @@ int check_user_logged (char *uid, char *login_file) {
 }
 
 int check_group_exists(char *gid, char *group_dir) {
-    // NOTE for the group to exist it needs to have a _name.txt file and a MSG folder
     DIR* dir;
+    char path[MAX_BUF_SIZE];
 
     sprintf(group_dir, "../GROUPS/%s", gid);
     dir = opendir(group_dir);
 
     if (!(dir)) {
+        closedir(dir);
         return FALSE;
     }
+    closedir(dir);
 
-    // NOTE should do closedir(dir); ?
+    /* Check GID_name.txt file exists */
+    memset(path, '\0', MAX_BUF_SIZE);
+    sprintf(path, "%s/%s_name.txt", group_dir, gid);
+    if(access(path, F_OK) != 0 ) {
+        return FALSE;
+    }
+    
+    /* Check MSG folder exists */
+    memset(path, '\0', MAX_BUF_SIZE);
+    sprintf(path, "%s/MSG", group_dir);
+    dir = opendir(path);
+
+    if (!(dir)) {
+        closedir(dir);
+        return FALSE;
+    }
     closedir(dir);
 
     return TRUE; 
 }
 
 int check_message_exists(char *gid, char *mid, char *message_dir) {
-    // NOTE for the message to exist it need to have a "T E X T.txt" e "A U T H O R.txt"
     DIR *dir;
+    char path[MAX_BUF_SIZE];
 
     sprintf(message_dir, "../GROUPS/%s/MSG/%s/", gid, mid);
     dir = opendir(message_dir);
@@ -488,9 +501,21 @@ int check_message_exists(char *gid, char *mid, char *message_dir) {
     if (!(dir)) {
         return FALSE;
     }
-
-    // NOTE should do closedir(dir); ?
     closedir(dir);
+
+    /* Check T E X T.txt file exists */
+    memset(path, '\0', MAX_BUF_SIZE);
+    sprintf(path, "%s/T E X T.txt", message_dir);
+    if (access(path, F_OK) != 0) {
+        return FALSE;
+    }
+
+    /* Check A U T H O R.txt file exists */
+    memset(path, '\0', MAX_BUF_SIZE);
+    sprintf(path, "%s/A U T H O R.txt", message_dir);
+    if (access(path, F_OK) != 0) {
+        return FALSE;
+    }
 
     return TRUE;
 }
@@ -582,4 +607,14 @@ int get_last_mid(char *gid, char *last_mid) {
     }
 
     return STATUS_FAIL;
+}
+
+void free_groups(char ***groups, int num_groups) {
+    for (int i = 0; i < num_groups; i++) {
+        free(groups[i][0]);
+        free(groups[i][1]);
+        free(groups[i][2]);
+        free(groups[i]);    
+    }
+    free(groups);
 }
