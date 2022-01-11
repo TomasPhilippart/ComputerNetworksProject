@@ -23,7 +23,7 @@ int check_correct_password(char* uid, char *pass, char* user_dir, char *password
 int check_user_logged (char *uid, char *login_file);
 int check_group_exists(char *gid, char *group_dir);
 int check_message_exists(char *gid, char *mid, char *message_dir);
-void create_group(char *group_name, char *group_dir, char *new_gid);
+int create_group(char *group_name, char *group_dir, char *new_gid);
 
 int get_group_name(char *gid, char *group_name);
 int get_last_mid(char *gid, char *last_mid);
@@ -180,6 +180,52 @@ int logout_user(char *uid, char *pass) {
     return STATUS_OK;
 }
 
+int all_groups(int *num_groups, char ****groups) {
+    
+    char gid[GID_SIZE + 1];
+    char last_mid[MID_SIZE + 1], group_name[MAX_GNAME + 1];
+
+    (*groups) = (char ***) malloc(sizeof(char **) * (next_available_gid - 1));
+
+    /* Loop through all created groups and verify is 
+       UID is subscribed in that group 
+    */
+
+    for (int i = 1; i < next_available_gid; i++) {
+        sprintf(gid, "%02d", i);
+
+        memset(group_name, '\0', strlen(group_name) * sizeof(char));
+        memset(last_mid, '\0', strlen(last_mid) * sizeof(char));
+    
+        /* Get group name */
+        if (get_group_name(gid, group_name) == STATUS_FAIL) {
+            printf("Error : couldnt get gid = %s group_name", gid);
+            return STATUS_FAIL;
+        }
+
+        if (get_last_mid(gid, last_mid) == STATUS_FAIL) {
+            printf("Error : couldnt get last mid, from gid = %s", gid);
+            return STATUS_FAIL;
+        }
+
+        // REVIEW 
+        (*groups)[i - 1] = (char **) malloc(sizeof(char *) * 3);
+        (*groups)[i - 1][0] = (char *) malloc(sizeof(char) * (GID_SIZE + 1));
+        (*groups)[i - 1][1] = (char *) malloc(sizeof(char) * (MAX_GNAME + 1));
+        (*groups)[i - 1][2] = (char *) malloc(sizeof(char) * (MID_SIZE + 1));
+
+        strcpy((*groups)[i - 1][0], gid);
+
+        memset((*groups)[i - 1][1], '\0', MAX_GNAME + 1);
+        strcpy((*groups)[i - 1][1], group_name);
+        strcpy((*groups)[i - 1][2], last_mid);
+
+        (*num_groups)++;
+    }
+
+    return STATUS_OK;
+}
+
 int subscribe_group(char *uid, char *gid, char *group_name, char *new_gid) {
 
     // REVIEW which cases should return STATUS_NOK
@@ -216,7 +262,10 @@ int subscribe_group(char *uid, char *gid, char *group_name, char *new_gid) {
     
     /* If GID = 00, create a new group with the next available GID */ 
     if (!strcmp(gid, "00")) {
-        create_group(group_name, group_dir, new_gid);
+        if (create_group(group_name, group_dir, new_gid) == STATUS_FAIL) {
+            printf("Error creating group.\n");
+            return STATUS_FAIL;
+        }
     } 
 
     /* Subscribe existing group and create GROUPS/GID/uid.txt */
@@ -331,6 +380,8 @@ int user_subscribed_groups(char *uid, int *num_groups, char ****groups) {
             }
 
             strcpy((*groups)[max_groups - 1][0], gid);
+
+            memset((*groups)[max_groups - 1][1], '\0', MAX_GNAME + 1);
             strcpy((*groups)[max_groups - 1][1], group_name);
             strcpy((*groups)[max_groups - 1][2], last_mid);
 
@@ -338,7 +389,6 @@ int user_subscribed_groups(char *uid, int *num_groups, char ****groups) {
             (*num_groups)++;
         }
     }
-    putchar('\n');
 
     return STATUS_OK;
 }
@@ -445,7 +495,7 @@ int check_message_exists(char *gid, char *mid, char *message_dir) {
     return TRUE;
 }
 
-void create_group(char *group_name, char *group_dir, char *new_gid) {
+int create_group(char *group_name, char *group_dir, char *new_gid) {
     
     char group_name_file[10 + GID_SIZE + 1 + MAX_GNAME + 10];
     FILE *file;
@@ -486,6 +536,7 @@ void create_group(char *group_name, char *group_dir, char *new_gid) {
     /* Increment next_available gid */
     sprintf(new_gid, "%02d", next_available_gid);
     next_available_gid++;
+    return SUCCESS;
 }
 
 int get_group_name(char *gid, char *group_name) {
@@ -501,8 +552,8 @@ int get_group_name(char *gid, char *group_name) {
     }
 
     //printf("group name : <%s>\n", group_name);
-    // NOTE com memset aqui funciona, mas sem ele não PORQUE???
-    // NOTE sendo que o groups é dado memset anteriormente
+    // REVIEW com memset aqui funciona, mas sem ele não PORQUE???
+    // REVIEW sendo que o groups é dado memset anteriormente
     memset(group_name, '\0', MAX_GNAME);
     fread(group_name, sizeof(char), MAX_GNAME, file);
     // NAO funciona assim : group_name[strlen(group_name)] = '\0';

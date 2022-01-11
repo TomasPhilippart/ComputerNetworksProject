@@ -6,7 +6,7 @@
 
 // NOTE giving warning
 // REVIEW changed to 100 just to not show warnings
-#define STATUS_FAIL 5
+#define STATUS_FAIL -1
 #define SUCCESS 0
 
 /* sizes */

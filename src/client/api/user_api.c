@@ -290,7 +290,7 @@ void get_all_groups(char ****list) {
 	int num_tokens;
 	char *aux;
 
-	sprintf(buf, "%s %s\n", "GLS", UID);
+	sprintf(buf, "%s\n", "GLS");
 	exchange_messages_udp(buf, strlen(buf));
 
 	num_tokens = sscanf(buf, "%" STR(5) "s %" STR(4) "s ", command, num_groups);
@@ -893,7 +893,7 @@ void exchange_messages_udp(char *buf, ssize_t max_rcv_size) {
 	buf[num_bytes] = '\0';
 
 	// DEBUG :
-	// printf("Received: %s\n", buf);
+	//printf("Received: %s\n", buf);
 	//NOTE : must the client close the socket? or the server?
 	
 }

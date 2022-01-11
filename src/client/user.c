@@ -184,6 +184,11 @@ void process_input() {
 		/* ===== LOGOUT ===== */
 		if (!strcmp(command, "logout")) {
 			
+			if (num_tokens != 1) {
+				fprintf(stderr, "Invalid format. Usage: %s\n", command);
+				continue;
+			}
+
 			if (!is_logged_in()) {
 				printf("Error: User not logged in.\n");
 				continue;
@@ -207,6 +212,11 @@ void process_input() {
 		if (!strcmp(command, "showuid") || !strcmp(command, "su")) {
 			char* UID = get_uid();
 			
+			if (num_tokens != 1) {
+				fprintf(stderr, "Invalid format. Usage: %s\n", command);
+				continue;
+			}
+
 			if (!is_logged_in()) {
 				printf("Error: User not logged in.\n");
 				continue;
@@ -218,12 +228,23 @@ void process_input() {
 
 		/* ===== EXIT ===== */
 		if (!strcmp(command, "exit")) {
+
+			if (num_tokens != 1) {
+				fprintf(stderr, "Invalid format. Usage: %s\n", command);
+				continue;
+			}
+
 			break;
 		}
 
 		/* ===== GROUPS ===== */
 		if (!strcmp(command, "groups") || !strcmp(command, "gl")) {
 			char ***groups;
+
+			if (num_tokens != 1) {
+				fprintf(stderr, "Invalid format. Usage: %s\n", command);
+				continue;
+			}
 
 			get_all_groups(&groups);
 			if (groups[0] == NULL) {

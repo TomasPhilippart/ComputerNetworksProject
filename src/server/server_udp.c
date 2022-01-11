@@ -194,7 +194,52 @@ void process_requests() {
 
         /* ====== GROUPS ====== */
         } else if (!strcmp(command, "GLS")) {
-            // TODO
+
+            char ***groups;
+            char *aux;
+            size_t sending_buf_size;
+
+            int num_groups = 0;
+            
+            if (parse_regex(receiving_buf, "^GLS\\\n$") == FALSE) {
+                printf("(UDP) Bad message format in command %s\n", command);
+                exit(EXIT_FAILURE);
+            }
+
+            if (num_tokens != 1) {
+                exit(EXIT_FAILURE);
+            }
+            
+            status = all_groups(&num_groups, &groups);
+
+            sending_buf_size =  num_groups * (GID_SIZE + MAX_GNAME + MID_SIZE + 3) + 7;
+            sending_buf = (char *) malloc(sizeof(char) * sending_buf_size);
+            memset(sending_buf, '\0', sending_buf_size);
+
+            switch (status) {
+                case STATUS_OK:
+                    // REVIEW 
+                    aux = sending_buf;
+                    
+                    sprintf(aux, "RGL %d", num_groups);
+                    aux += (strlen(aux) * sizeof(char));
+                    
+                    for (int i = 0; i < num_groups; i++) {
+                        printf("%s %s %s\t", groups[i][0], groups[i][1], groups[i][2]);
+                    }
+                    putchar('\n');
+
+                    for (int i = 0; i < num_groups; i++) {
+                        sprintf(aux, " %s %s %s", groups[i][0], groups[i][1], groups[i][2]);
+                        aux += (strlen(aux) * sizeof(char));
+                    }
+
+                    // NOTE need to free groups (make function to do that) 
+                    sprintf(aux, "\n");
+                    break;
+                case STATUS_FAIL:
+                    exit(STATUS_FAIL);
+            }
 
         /* ====== SUBSCRIBE ====== */
         } else if (!strcmp(command, "GSR")) {
@@ -281,6 +326,7 @@ void process_requests() {
             size_t sending_buf_size;
 
             int num_groups = 0;
+
             if (parse_regex(receiving_buf, "^GLM .{5}\\\n$") == FALSE) {
                 printf("(UDP) Bad message format in command %s\n", command);
                 exit(EXIT_FAILURE);
@@ -310,7 +356,6 @@ void process_requests() {
                     }
 
                     // NOTE need to free groups (make function to do that) 
-                    // and sending_buf (only when it is malloced)
 
                     sprintf(aux, "\n");
                     break;
@@ -331,6 +376,7 @@ void process_requests() {
         }
 
         free(sending_buf);
+        memset(receiving_buf, '\0', MAX_LINE_SIZE);
 	} 
 }
 
