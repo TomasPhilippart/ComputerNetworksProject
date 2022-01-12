@@ -49,6 +49,7 @@ int main(int argc, char **argv) {
     }
 
 	while (finished != 2) {
+		printf("Finished %d\n", finished);
 		aux = wait(&status);
 		finished ++;
 	}

@@ -12,28 +12,36 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <math.h>
 
+#define USERS_DIR "../USERS"
+#define GROUPS_DIR "../GROUPS"
 
+#define USER_DIR "../USERS/xxxxxx"
+
+// NOTE defines for directories?
 int next_available_gid;
 
-int check_user_registered(char *uid, char *user_dir);
 int check_user_subscribed(char *uid, char *gid);
+int check_user_registered(char *uid, char *userdir);
 int check_correct_password(char* uid, char *pass, char* user_dir, char *password_file);
 int check_user_logged (char *uid, char *login_file);
 int check_group_exists(char *gid, char *group_dir);
 int check_message_exists(char *gid, char *mid, char *message_dir);
 int create_group(char *group_name, char *group_dir, char *new_gid);
+void free_groups(char ***groups, int num_groups);
 
 int get_group_name(char *gid, char *group_name);
 int get_last_mid(char *gid, char *last_mid);
 
 void setup_state() {
+
     /* Check for the next available GID */
-    /* Iterate through dir directory and get the latest */
     char group_dir[11 + GID_SIZE];
     char gid[4];
     for (next_available_gid = 1; next_available_gid <= 99; next_available_gid++) {
         sprintf(gid, "%02d", next_available_gid);
+       
         /* if group GID doesn't exist, it is now the next available one */
         if(check_group_exists(gid, group_dir) == FALSE) {
             break;
@@ -55,6 +63,7 @@ int register_user(char *uid, char *pass) {
         return STATUS_NOK;
     }
 
+    // NOTE is this 0700?
     /* Create user directory */
     if (mkdir(user_dir, 0700) == STATUS_FAIL) {
         printf("Error : Couldnt create new dir with path %s\n", user_dir);
@@ -179,6 +188,11 @@ int logout_user(char *uid, char *pass) {
     return STATUS_OK;
 }
 
+/*  Getter for all groups
+    Input:
+    - num_groups: to be filled with the total number of groups
+    - groups: to be filled with entries of the format [GID, GNAME, MID]
+*/
 int all_groups(int *num_groups, char ****groups) {
     
     char gid[GID_SIZE + 1];
@@ -186,17 +200,9 @@ int all_groups(int *num_groups, char ****groups) {
 
     (*groups) = (char ***) malloc(sizeof(char **) * (next_available_gid - 1));
 
-    /* Loop through all created groups and verify is 
-       UID is subscribed in that group 
-    */
-
     for (int i = 1; i < next_available_gid; i++) {
         sprintf(gid, "%02d", i);
 
-        memset(group_name, '\0', strlen(group_name) * sizeof(char));
-        memset(last_mid, '\0', strlen(last_mid) * sizeof(char));
-    
-        /* Get group name */
         if (get_group_name(gid, group_name) == STATUS_FAIL) {
             printf("Error : couldnt get gid = %s group_name", gid);
             return STATUS_FAIL;
@@ -207,15 +213,12 @@ int all_groups(int *num_groups, char ****groups) {
             return STATUS_FAIL;
         }
 
-        // REVIEW 
         (*groups)[i - 1] = (char **) malloc(sizeof(char *) * 3);
         (*groups)[i - 1][0] = (char *) malloc(sizeof(char) * (GID_SIZE + 1));
         (*groups)[i - 1][1] = (char *) malloc(sizeof(char) * (MAX_GNAME + 1));
         (*groups)[i - 1][2] = (char *) malloc(sizeof(char) * (MID_SIZE + 1));
 
         strcpy((*groups)[i - 1][0], gid);
-
-        memset((*groups)[i - 1][1], '\0', MAX_GNAME + 1);
         strcpy((*groups)[i - 1][1], group_name);
         strcpy((*groups)[i - 1][2], last_mid);
 
@@ -252,7 +255,6 @@ int subscribe_group(char *uid, char *gid, char *group_name, char *new_gid) {
     if (check_group_name(group_name) == FALSE ) {
         return STATUS_GNAME_INVALID;
     }
-
 
     /* Check if full */
     if (next_available_gid > 99) {
@@ -318,23 +320,27 @@ int unsubscribe_user(char *uid, char *gid) {
     return STATUS_OK;
 }
 
+/*  Getter for all user subscribed groups 
+    Input:
+    - uid: the user ID
+    - num_groups: to be filled with the number of subscribed groups 
+    - groups: to be filled with entries of the type {GID GName MID}
+    Ouput: None
+*/
 int user_subscribed_groups(char *uid, int *num_groups, char ****groups) {
 
     char user_dir[10 + UID_SIZE], login_file[10 + UID_SIZE + UID_SIZE + 12];
     char gid[GID_SIZE + 1];
     char last_mid[MID_SIZE + 1], group_name[MAX_GNAME + 1];
+    int base_size = 100;
 
-    // REVIEW 
-    int max_groups = 1;
-    (*groups) = (char ***) malloc(sizeof(char **) * max_groups);
-    (*groups)[0] = (char **) malloc(sizeof(char *) * 3);
-    // REVIEW esta nojento
-    (*groups)[0][0] = (char *) malloc(sizeof(char) * (GID_SIZE + 1));
-    (*groups)[0][1] = (char *) malloc(sizeof(char) * (MAX_GNAME + 1));
-    (*groups)[0][2] = (char *) malloc(sizeof(char) * (MID_SIZE + 1));
+    *num_groups = 0;
+    if (((*groups) = (char ***) malloc(sizeof(char **) * base_size)) == NULL) {
+        return STATUS_USR_INVALID;
+    }
 
     /* Check UID */
-    if (!check_uid(uid) || check_user_registered(uid, user_dir) == FALSE) {
+    if (!(check_uid(uid) && check_user_registered(uid, user_dir))) { // NOTE: this is stupid as fuck
         return STATUS_USR_INVALID;
     }
 
@@ -344,16 +350,12 @@ int user_subscribed_groups(char *uid, int *num_groups, char ****groups) {
     }
 
     /* Loop through all created groups and verify is 
-       UID is subscribed in that group 
-    */
-
+       UID is subscribed in that group */
     for (int i = 1; i < next_available_gid; i++) {
+   
         sprintf(gid, "%02d", i);
         if (check_user_subscribed(uid, gid)) {
 
-            memset(group_name, '\0', strlen(group_name) * sizeof(char));
-            memset(last_mid, '\0', strlen(last_mid) * sizeof(char));
-        
             /* Get group name */
             if (get_group_name(gid, group_name) == STATUS_FAIL) {
                 printf("Error : couldnt get gid = %s group_name", gid);
@@ -365,25 +367,31 @@ int user_subscribed_groups(char *uid, int *num_groups, char ****groups) {
                 return STATUS_FAIL;
             }
 
-            if ((*num_groups) >= max_groups) {
-                max_groups++;
-                (*groups) = (char ***) realloc((*groups), sizeof(char **) * (max_groups));
-
-                // REVIEW esta nojento
-                (*groups)[max_groups - 1] = (char **) malloc(sizeof(char *) * 3);
-                (*groups)[max_groups - 1][0] = (char *) malloc(sizeof(char) * (GID_SIZE + 1));
-                (*groups)[max_groups - 1][1] = (char *) malloc(sizeof(char) * (MAX_GNAME + 1));
-                (*groups)[max_groups - 1][2] = (char *) malloc(sizeof(char) * (MID_SIZE + 1));
+            if (((*groups)[*num_groups] = (char **) malloc(3 * sizeof(char *))) == NULL) {
+                free_groups(*groups, *num_groups);
+                return STATUS_USR_INVALID;
             }
 
-            strcpy((*groups)[max_groups - 1][0], gid);
+            if ((((*groups)[*num_groups][0] = (char *) malloc((GID_SIZE  + 1) * sizeof(char))) == NULL) ||
+                (((*groups)[*num_groups][1] = (char *) malloc((MAX_GNAME  + 1) * sizeof(char))) == NULL) ||
+                (((*groups)[*num_groups][2] = (char *) malloc((MID_SIZE  + 1) * sizeof(char))) == NULL)) {
+                free_groups(*groups, *num_groups + 1);
+                return STATUS_USR_INVALID;
+            }
 
-            memset((*groups)[max_groups - 1][1], '\0', MAX_GNAME + 1);
-            strcpy((*groups)[max_groups - 1][1], group_name);
-            strcpy((*groups)[max_groups - 1][2], last_mid);
-
-
+            strcpy((*groups)[*num_groups][0], gid);
+            strcpy((*groups)[*num_groups][1], group_name);
+            strcpy((*groups)[*num_groups][2], last_mid);
             (*num_groups)++;
+
+            if ((*num_groups) % base_size == 0) {
+                char *** aux = (char ***) realloc((*groups), sizeof(char **) * ((*num_groups) + base_size));
+                if (aux == NULL) {
+                    free_groups(*groups, *num_groups);
+                    return STATUS_FAIL;
+                }
+                *groups = aux;
+            }            
         }
     }
 
@@ -393,23 +401,36 @@ int user_subscribed_groups(char *uid, int *num_groups, char ****groups) {
 
 
 /* ======== Auxiliary Functions ======== */
+
+/*  Check if user with UID uid is registered
+    Input:
+    - uid: the UID
+    - user_dir: to be filled with corresponding user_dir
+    Output: TRUE or FALSE
+*/
 int check_user_registered(char *uid, char *user_dir) {
 
     DIR* dir;
 
-    sprintf(user_dir, "../USERS/%s", uid);
+    sprintf(user_dir, USERS_DIR "/%s", uid);
     dir = opendir(user_dir);
 
     if (!(dir)) {
         return FALSE;
     }
-
     closedir(dir);
-
     return TRUE;
 }
 
-int check_user_subscribed(char *uid, char *gid) {
+// NOTE: enforcee maximum input sizes???
+/*  Check if user with UID uid is subscribed to group with
+    GID gid
+    Input:
+    - uid: the UID
+    - gid: the gid
+    Output: TRUE or FALSE
+*/
+int check_user_subscribed(char uid[UID_SIZE + 1], char *gid) {
 
     char user_file[10 + GID_SIZE + UID_SIZE + 6];
     sprintf(user_file, "../GROUPS/%s/%s.txt", gid, uid);
@@ -421,6 +442,12 @@ int check_user_subscribed(char *uid, char *gid) {
     return TRUE;
 }
 
+/*  Check if pass is correct
+    Input:
+    - uid: the UID
+    - gid: the pass
+    Output: TRUE or FALSE
+*/
 int check_correct_password(char* uid, char *pass, char* user_dir, char *password_file) {
     
     FILE *file;
@@ -433,6 +460,7 @@ int check_correct_password(char* uid, char *pass, char* user_dir, char *password
         return STATUS_FAIL;
     }
 
+    // note check this
     fread(true_pass, sizeof(char), PASSWORD_SIZE, file);
 
     if (strcmp(true_pass, pass)) {
@@ -447,13 +475,10 @@ int check_correct_password(char* uid, char *pass, char* user_dir, char *password
     return TRUE;
 }
 
-    
 int check_user_logged (char *uid, char *login_file) {
-
-    if(access(login_file, F_OK) != 0 ) {
+    if(access(login_file, F_OK) != 0) {
         return FALSE;
     }
-
     return TRUE;
 }
 
@@ -461,15 +486,14 @@ int check_group_exists(char *gid, char *group_dir) {
     DIR* dir;
     char path[MAX_BUF_SIZE];
 
-    sprintf(group_dir, "../GROUPS/%s", gid);
+    sprintf(group_dir, GROUPS_DIR "/%s", gid);
     dir = opendir(group_dir);
 
     if (!(dir)) {
-        closedir(dir);
         return FALSE;
     }
     closedir(dir);
-
+   
     /* Check GID_name.txt file exists */
     memset(path, '\0', MAX_BUF_SIZE);
     sprintf(path, "%s/%s_name.txt", group_dir, gid);
@@ -483,7 +507,6 @@ int check_group_exists(char *gid, char *group_dir) {
     dir = opendir(path);
 
     if (!(dir)) {
-        closedir(dir);
         return FALSE;
     }
     closedir(dir);
@@ -495,7 +518,7 @@ int check_message_exists(char *gid, char *mid, char *message_dir) {
     DIR *dir;
     char path[MAX_BUF_SIZE];
 
-    sprintf(message_dir, "../GROUPS/%s/MSG/%s/", gid, mid);
+    sprintf(message_dir, GROUPS_DIR "/%." STR(GID_SIZE) "s/MSG/%." STR(MID_SIZE) "s/", gid, mid);
     dir = opendir(message_dir);
 
     if (!(dir)) {
@@ -516,7 +539,7 @@ int check_message_exists(char *gid, char *mid, char *message_dir) {
     if (access(path, F_OK) != 0) {
         return FALSE;
     }
-
+    printf("There is message %s in group %s\n", mid, gid);
     return TRUE;
 }
 
@@ -564,25 +587,31 @@ int create_group(char *group_name, char *group_dir, char *new_gid) {
     return SUCCESS;
 }
 
+/*  Getter for group name of group with a given gid
+    Input: 
+    - gid: the group id
+    - group_name: buffer to hold the group name
+    Output: None
+*/
 int get_group_name(char *gid, char *group_name) {
 
     FILE *file;
-    char group_name_file[10 + GID_SIZE + GID_SIZE + 11];
+    char group_name_file[strlen("../GROUPS/") + GID_SIZE  + strlen("/") + GID_SIZE + strlen("_name.txt") + 1]; 
+    int read_bytes;
     
-    sprintf(group_name_file, "../GROUPS/%s/%s_name.txt", gid, gid);
-
+    sprintf(group_name_file, "../GROUPS/%." STR(GID_SIZE) "s/%." STR(GID_SIZE) "s_name.txt", gid, gid);
+   
     if (!(file = fopen(group_name_file, "r"))) {
         printf("Error opening group name file with path %s.\n", group_name_file);
         return STATUS_FAIL;
     }
-
-    //printf("group name : <%s>\n", group_name);
-    // REVIEW com memset aqui funciona, mas sem ele não PORQUE???
-    // REVIEW sendo que o groups é dado memset anteriormente
-    memset(group_name, '\0', MAX_GNAME);
-    fread(group_name, sizeof(char), MAX_GNAME, file);
-    // NAO funciona assim : group_name[strlen(group_name)] = '\0';
-    //printf("group name : %s\n", group_name);
+  
+    if ((read_bytes = fread(group_name, sizeof(char), MAX_GNAME, file)) == 0) {
+        printf("Error reading group name file with path %s.\n", group_name_file);
+        return STATUS_FAIL;
+    }
+  
+    group_name[read_bytes] = '\0';
 
     if (fclose(file) != 0) {
         printf("Error closing group name file.\n");
@@ -592,14 +621,20 @@ int get_group_name(char *gid, char *group_name) {
     return SUCCESS;
 }
 
+/*  Getter for the last message id in the group with
+    a given gid.
+    Input: 
+    - gid: the group id
+    - last_mid: buffer to hold the message id
+    Output: None
+*/
 int get_last_mid(char *gid, char *last_mid) {
 
-    char message_dir[10 + GID_SIZE + 5 + MID_SIZE + 5];
+    char message_dir[strlen(GROUPS_DIR) + strlen("/") + GID_SIZE + strlen("/MSG/") + MID_SIZE];
     char mid[MID_SIZE + 1];
 
-    for (int i = 1; i <= 9999; i++) {
-        sprintf(mid, "%04d", i);
-
+    for (int i = 1; i < pow(10, strlen(STR(MID_SIZE))); i++) {
+        sprintf(mid, "%0" STR(MID_SIZE) "d", i);
         if (check_message_exists(gid, mid, message_dir) == FALSE) {
             sprintf(last_mid, "%04d", i - 1);
             return SUCCESS;
@@ -611,10 +646,12 @@ int get_last_mid(char *gid, char *last_mid) {
 
 void free_groups(char ***groups, int num_groups) {
     for (int i = 0; i < num_groups; i++) {
-        free(groups[i][0]);
-        free(groups[i][1]);
-        free(groups[i][2]);
-        free(groups[i]);    
+        if (groups[i]) {
+            for (int j = 0; j < 3; j++) {
+                free(groups[i][j]);
+            }
+            free(groups[i]);
+        }
     }
     free(groups);
 }

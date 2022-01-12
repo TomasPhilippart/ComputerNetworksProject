@@ -179,6 +179,7 @@ int register_user(char *user, char *pass) {
 		end_session(EXIT_FAILURE);
 	}
 
+	// REVIEW
 	if (!strcmp(status, "OK")) {
 		return STATUS_OK;
 	} else if (!strcmp(status, "DUP")) {
@@ -244,7 +245,7 @@ int login(char *user, char *pass) {
 		printf("Error: Invalid message format, %s.\n", buf);
 		end_session(EXIT_FAILURE);
 	}
-
+	printf("I received %s\n", buf);
 	if (!strcmp(status, "OK")) {
 		strncpy(UID, user, UID_SIZE + 1);
 		strncpy(password, pass, PASSWORD_SIZE + 1);
@@ -280,7 +281,7 @@ int logout() {
 		printf("Error: Invalid message format, %s\n", buf);
 		end_session(EXIT_FAILURE);
 	}
-
+	printf("Here is the status: %s with strlen %d\n", status, strlen(status));
 	if (!strcmp(status, "OK")) {
 		logged_in = FALSE;
 		memset(UID, 0, sizeof(UID));
