@@ -425,6 +425,7 @@ int check_correct_password(char* uid, char *pass, char* user_dir, char *password
     
     FILE *file;
     char true_pass[PASSWORD_SIZE + 2];
+    int num_bytes;
 
     sprintf(password_file, "%s/%s_pass.txt", user_dir, uid);
 
@@ -433,7 +434,9 @@ int check_correct_password(char* uid, char *pass, char* user_dir, char *password
         return STATUS_FAIL;
     }
 
-    fread(true_pass, sizeof(char), PASSWORD_SIZE, file);
+    if ((num_bytes = fread(true_pass, sizeof(char), PASSWORD_SIZE, file)) == 0) {
+        return STATUS_FAIL;
+    }
 
     if (strcmp(true_pass, pass)) {
         return FALSE;
@@ -569,6 +572,7 @@ int get_group_name(char *gid, char *group_name) {
     FILE *file;
     char group_name_file[10 + GID_SIZE + GID_SIZE + 11];
     
+    printf("gid : %s", gid);
     sprintf(group_name_file, "../GROUPS/%s/%s_name.txt", gid, gid);
 
     if (!(file = fopen(group_name_file, "r"))) {

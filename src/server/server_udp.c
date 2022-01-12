@@ -98,7 +98,10 @@ void process_requests() {
           
             status = register_user(arg1, arg2);
 
-            sending_buf = (char *) malloc(sizeof(char) * 9);
+            if ((sending_buf = (char *) malloc(sizeof(char) * 9)) == NULL) {
+                printf("Error: Couldn't allocate memory for sending_buf\n");
+            }
+
             memset(sending_buf, '\0', strlen(sending_buf) * sizeof(char));
             switch (status) {
                 case STATUS_OK:
@@ -128,7 +131,10 @@ void process_requests() {
 
             status = unregister_user(arg1, arg2);
 
-            sending_buf = (char *) malloc(sizeof(char *) * 9);
+            if ((sending_buf = (char *) malloc(sizeof(char) * 9)) == NULL) {
+                printf("Error: Couldn't allocate memory for sending_buf\n");
+            }
+
             memset(sending_buf, '\0', strlen(sending_buf) * sizeof(char));
             switch (status) {
                 case STATUS_OK:
@@ -155,7 +161,10 @@ void process_requests() {
 
             status = login_user(arg1, arg2);
 
-            sending_buf = (char *) malloc(sizeof(char) * 9);
+            if ((sending_buf = (char *) malloc(sizeof(char) * 9)) == NULL) {
+                printf("Error: Couldn't allocate memory for sending_buf\n");
+            }
+
             memset(sending_buf, '\0', strlen(sending_buf) * sizeof(char));
             switch (status) {
                 case STATUS_OK:
@@ -182,7 +191,9 @@ void process_requests() {
 
             status = logout_user(arg1, arg2);
 
-            sending_buf = (char*) malloc(sizeof(char) * 9);
+            if ((sending_buf = (char *) malloc(sizeof(char) * 9)) == NULL) {
+                printf("Error: Couldn't allocate memory for sending_buf\n");
+            }
             memset(sending_buf, '\0', strlen(sending_buf) * sizeof(char));
             switch (status) {
                 case STATUS_OK:
@@ -216,7 +227,10 @@ void process_requests() {
             status = all_groups(&num_groups, &groups);
 
             sending_buf_size =  num_groups * (GID_SIZE + MAX_GNAME + MID_SIZE + 3) + 7;
-            sending_buf = (char *) malloc(sizeof(char) * sending_buf_size);
+            if ((sending_buf = (char *) malloc(sizeof(char) * sending_buf_size)) == NULL) {
+                printf("Error: Couldn't allocate memory for sending_buf\n");
+            }
+
             memset(sending_buf, '\0', sending_buf_size);
 
             switch (status) {
@@ -259,7 +273,10 @@ void process_requests() {
 
             status = subscribe_group(arg1, arg2, arg3, gid);
 
-            sending_buf = (char *) malloc(sizeof(char) * 13);
+            if ((sending_buf = (char *) malloc(sizeof(char) * 13)) == NULL) {
+                printf("Error: Couldn't allocate memory for sending_buf\n");
+            }
+
             memset(sending_buf, '\0', strlen(sending_buf) * sizeof(char));
             switch (status) {
                 case STATUS_OK:
@@ -302,7 +319,10 @@ void process_requests() {
 
             status = unsubscribe_user(arg1, arg2);
 
-            sending_buf = (char *) malloc(sizeof(char) * 11);   
+            if ((sending_buf = (char *) malloc(sizeof(char) * 11)) == NULL) {
+                printf("Error: Couldn't allocate memory for sending_buf\n");
+            }
+
             memset(sending_buf, '\0', strlen(sending_buf) * sizeof(char));
             switch (status) {
                 case STATUS_OK:
@@ -342,7 +362,10 @@ void process_requests() {
             status = user_subscribed_groups(arg1, &num_groups, &groups);
 
             sending_buf_size =  num_groups * (GID_SIZE + MAX_GNAME + MID_SIZE + 3) + 12;
-            sending_buf = (char *) malloc(sizeof(char) * sending_buf_size);
+            if ((sending_buf = (char *) malloc(sizeof(char) * sending_buf_size)) == NULL) {
+                printf("Error: Couldn't allocate memory for sending_buf\n");
+            }
+
             memset(sending_buf, '\0', sending_buf_size);
 
             switch (status) {
