@@ -12,7 +12,7 @@
 /* sizes */
 /* All constants pertraining to tokens
    given by input are all incremented by 1 */
-#define MAX_BUF_SIZE 4000
+#define MAX_BUF_SIZE 4096
 #define UID_SIZE 5
 #define PASSWORD_SIZE 8
 #define GID_SIZE 2
@@ -24,6 +24,7 @@
 #define EXTENSION_SIZE 3
 #define COMMAND_SIZE 3
 #define MAX_STATUS_SIZE 3
+#define MAX_NUM_MSG_DIGITS 4
 
 /* status codes */
 #define STATUS_OK 2
@@ -44,5 +45,10 @@
 /* for setting input size while scanning buffers */
 #define STR2(x) #x			
 #define STR(X) STR2(X)
+
+/* Expressions to match the format (need to check other aspects such being non zero afterwards) */
+#define GNAME_EXP "[a-zA-Z0-9_-]{1," STR(MAX_GNAME) "}"
+#define UID_EXP "[0-9]{" STR(UID_SIZE) "}"
+#define MID_EXP "[0-9]{" STR(MID_SIZE) "}"
 
 #endif

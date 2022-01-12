@@ -24,7 +24,7 @@ void get_all_groups(char ****list);
 int get_subscribed_groups(char ****list);
 int subscribe_group(char *gid, char *gName);
 int unsubscribe_group(char *gid);
-int get_uids_group(char ***list);
+int get_uids_group(char ****list);
 
 // Messaging
 int post(char *text, char *mid, char *filename);
