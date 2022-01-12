@@ -11,6 +11,7 @@
 #include <ctype.h>
 
 // NOTE: Make this function a wrapper of a regex validator 
+// NOTE: Check one-argument commands
 
 static void parse_args(int argc, char **argv);
 void process_input();
@@ -272,10 +273,10 @@ void process_input() {
 				continue;
 			}
 
-			if (!check_gid(arg1)) {
-				printf("Error: GID %s is invalid.\n", arg1);
-				continue;
-			} 
+			//if (!check_gid(arg1)) {
+			//	printf("Error: GID %s is invalid.\n", arg1);
+			//	continue;
+			//} 
 
 			status = subscribe_group(arg1, arg2);
 			switch(status) {
@@ -432,7 +433,7 @@ void process_input() {
 		/* ===== LIST UIDS IN CURRENT GROUP ===== */
 		if (!strcmp(command, "ulist") || !strcmp(command, "ul")) {
 
-			char **uids;
+			char ***uids;
 		
 			if (!is_logged_in()) {
 				printf("Error: User not logged in.\n");
@@ -449,13 +450,13 @@ void process_input() {
 				case STATUS_OK: 
 					if (uids[0] == NULL) {
 						printf("Group %s is not subscribed by any user.\n", get_gid());
-						free_uids(uids);
+						free_list(uids, 1);
 						continue;
 					}
 					for (int i = 0; uids[i] != NULL; i++) {
-						printf("%s\n", uids[i]);
+						printf("%s\n", uids[i][0]);
 					}
-					free_uids(uids);
+					free_list(uids, 1);
 					continue;
 				case STATUS_NOK:
 					printf("Error: group %s does not exist.\n", get_gid());
@@ -601,6 +602,7 @@ void process_input() {
 	}
 }
 
+/* Check if the user is subscribed to the group with GID gid */
 int check_if_subscribed(char *gid) {
 	char ***subscribed_groups;
 	int status = get_subscribed_groups(&subscribed_groups);
@@ -609,7 +611,6 @@ int check_if_subscribed(char *gid) {
 		return FALSE;
 	}
 
-	// Check if the user is subscribed to the group with the given GID
 	for (int i = 0; subscribed_groups[i] != NULL; i++) {
 		if (!strcmp(subscribed_groups[i][0], gid)) {
 			free_list(subscribed_groups, 2);

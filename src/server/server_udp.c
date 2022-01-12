@@ -27,30 +27,26 @@ char host[NI_MAXHOST], service[NI_MAXSERV];
 
 /* Setup the UDP server */
 void setup() {
-
+    
     fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (fd == -1) {
         printf("Error: Failed to create UDP socket.\n");
 		exit(EXIT_FAILURE);
 	}
-
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_INET; 	        /* IPv4 */
 	hints.ai_socktype = SOCK_DGRAM;     /* UDP socket */
     hints.ai_flags = AI_PASSIVE;
-
 	addrlen = sizeof(addr);             /* for receiving messages */
 
 	if (getaddrinfo(NULL, port, &hints, &res) != 0) {
         printf("Error: DNS couldn't resolve server's IP address for UDP connection.\n");
 		exit(EXIT_FAILURE);
 	}
-	
     if (bind(fd, res->ai_addr, res->ai_addrlen) == -1) {
 		printf("Error: Binding socket.\n");
 		exit(EXIT_FAILURE);
 	}
-
     /* Setup the file system */
     setup_state();
 }
@@ -70,6 +66,7 @@ void process_requests() {
         }
 
         receiving_buf[num_bytes] = '\0';
+        printf("I received %s with strlen %d\n", receiving_buf, strlen(receiving_buf));
         
         if (verbose) {
             if ((getnameinfo((struct sockaddr *)&addr, addrlen, host, sizeof(host), service, sizeof (service), 0)) != 0) {
@@ -188,7 +185,7 @@ void process_requests() {
             if (num_tokens != 3) {
                 exit(EXIT_FAILURE);
             }
-
+            
             status = logout_user(arg1, arg2);
 
             if ((sending_buf = (char *) malloc(sizeof(char) * 9)) == NULL) {
@@ -350,9 +347,10 @@ void process_requests() {
 
             int num_groups = 0;
 
-            if (parse_regex(receiving_buf, "^GLM .{5}\\\n$") == FALSE) {
+            if (!parse_regex(receiving_buf, "^GLM [0-9]{" STR(UID_SIZE) "}\\\n$")) {
                 printf("(UDP) Bad message format in command %s\n", command);
-                exit(EXIT_FAILURE);
+                sprintf(sending_buf, "ERR\n");
+                continue;
             }
 
             if (num_tokens != 2) {
@@ -395,7 +393,7 @@ void process_requests() {
         } else {
             sprintf(receiving_buf, "ERR\n");
         }
-
+        printf("And i am sending this %s\n", sending_buf);
         if (sendto(fd, sending_buf, strlen(sending_buf) * sizeof(char), 0, (struct sockaddr*) &addr, addrlen) < strlen(sending_buf)) {
 		    exit(EXIT_FAILURE);
         }
@@ -410,9 +408,8 @@ int main(int argc, char **argv) {
 	/* No need to validate port since it was already validated*/
     port = strdup(argv[1]);
     verbose = atoi(argv[2]);
-
     setup();
     process_requests();
 
-    return TRUE;
+    return 0;
 }
