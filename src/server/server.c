@@ -1,4 +1,5 @@
 #include "../constants.h"
+#include "backend/state.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -49,9 +50,9 @@ int main(int argc, char **argv) {
     }
 
 	while (finished != 2) {
-		printf("Finished %d\n", finished);
+		//printf("Finished %d\n", finished);
 		aux = wait(&status);
-		finished ++;
+		finished++;
 	}
    
 	/*if (status == EXIT_FAILURE) {
@@ -81,7 +82,7 @@ static void parse_args(int argc, char **argv) {
 		/* Check for wrong non-argument words in the middle of argv[] or
 		   existence of more than 2 options */
 		if (argv[optind][0] != '-' || opt_counter >= 2) {
-			fprintf(stderr, "Invalid format. Usage: ./server [-p DSport] [-v]\n");
+			printf("Invalid format. Usage: ./server [-p DSport] [-v]\n");
 			exit(EXIT_FAILURE);
 		}
 
@@ -91,7 +92,7 @@ static void parse_args(int argc, char **argv) {
 
 			case 'p':
 				if (!validate_port(optarg)) {
-					fprintf(stderr, "Invalid format: -p must be followed by a valid port number.\n");
+					printf("Invalid format: -p must be followed by a valid port number.\n");
 					exit(EXIT_FAILURE);
 				}
 				opt_counter++;
@@ -103,7 +104,7 @@ static void parse_args(int argc, char **argv) {
 				break;
 
 			default:
-				fprintf(stderr, "Invalid format. Usage: ./server [-p DSport] [-v]\n");
+				printf("Invalid format. Usage: ./server [-p DSport] [-v]\n");
 				exit(EXIT_FAILURE);
 		}	
     }

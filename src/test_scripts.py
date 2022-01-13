@@ -8,7 +8,6 @@ from bs4 import BeautifulSoup
 import netifaces as ni
 ni.ifaddresses('tun0')
 
-
 def reset_state():
 	# Delete existing USERS and GROUPS folders
 	try:
@@ -27,7 +26,7 @@ def reset_state():
 IP = ni.ifaddresses('tun0')[ni.AF_INET][0]['addr']
 PORT = 58043
 url = "http://tejo.tecnico.ulisboa.pt:59000/index.html"
-do_reset = False
+do_reset = True
 
 print(f"Running tests with IP: {IP}, Port: {PORT}, reset state: {do_reset}")
 
@@ -40,7 +39,7 @@ ALL_scripts = UDP_scripts + TCP_scripts
 Tejo_sequence = [6, 9,10,14,21,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39]
 
 # Run scripts -> Change the script sequence!!
-for script_number in Tejo_sequence:
+for script_number in UDP_scripts:
 	r = requests.get(url, params={'DSIP': IP,
 								  'DSPORT': PORT,
 								  'SCRIPT': script_number

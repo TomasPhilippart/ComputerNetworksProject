@@ -42,7 +42,7 @@ static void parse_args(int argc, char **argv) {
 		/* Check for wrong non-argument words in the middle of argv[] or
 		   existence of more than 2 options */
 		if (argv[optind][0] != '-' || opt_counter >= 2) {
-			fprintf(stderr, "Invalid format. Usage: ./user [-n DSIP] [-p DSport].\n");
+			printf("Invalid format. Usage: ./user [-n DSIP] [-p DSport].\n");
 			exit(EXIT_FAILURE);
 		}
 
@@ -51,7 +51,7 @@ static void parse_args(int argc, char **argv) {
         switch (opt) {
 			case 'n':
 				if (!(validate_ip(optarg) || validate_hostname(optarg))) {
-					fprintf(stderr, "Invalid format: -n must be followed by a valid IPv4 address or hostname.\n");
+					printf("Invalid format: -n must be followed by a valid IPv4 address or hostname.\n");
 					exit(EXIT_FAILURE);
 				}
 
@@ -60,21 +60,21 @@ static void parse_args(int argc, char **argv) {
 
 			case 'p':
 				if (!validate_port(optarg)) {
-					fprintf(stderr, "Invalid format: -p must be followed by a valid port number.\n");
+					printf("Invalid format: -p must be followed by a valid port number.\n");
 					exit(EXIT_FAILURE);
 				}
 				opt_counter++;
 				break;
 
 			default:
-				fprintf(stderr, "Invalid format. Usage: ./user [-n DSIP] [-p DSport].\n");
+				printf("Invalid format. Usage: ./user [-n DSIP] [-p DSport].\n");
 				exit(EXIT_FAILURE);
 		}	
     }
 }
 
 void process_input() {
-	char line[MAX_LINE_SIZE];
+	char line[MAX_LINE_SIZE] = "";
 
 	while (1) {
 
@@ -97,7 +97,7 @@ void process_input() {
 		if (!strcmp(command, "reg")) {
 
 			if (num_tokens != 3) {
-				fprintf(stderr, "Invalid format. Usage: reg UID pass\n");
+				printf("Invalid format. Usage: reg UID pass\n");
 				continue;
 			}
 
@@ -127,7 +127,7 @@ void process_input() {
 		if (!strcmp(command, "unregister") || !strcmp(command, "unr")) {
 
 			if (num_tokens != 3) {
-				fprintf(stderr, "Invalid format. Format: %s UID pass\n", command);
+				printf("Invalid format. Format: %s UID pass\n", command);
 				continue;
 			}
 			
@@ -154,7 +154,7 @@ void process_input() {
 		if (!strcmp(command, "login")) {
 
 			if (num_tokens != 3) {
-				fprintf(stderr, "Invalid format. Usage: %s UID pass\n", command);
+				printf("Invalid format. Usage: %s UID pass\n", command);
 				continue;
 			}
 
@@ -186,7 +186,7 @@ void process_input() {
 		if (!strcmp(command, "logout")) {
 			
 			if (num_tokens != 1) {
-				fprintf(stderr, "Invalid format. Usage: %s\n", command);
+				printf("Invalid format. Usage: %s\n", command);
 				continue;
 			}
 
@@ -214,7 +214,7 @@ void process_input() {
 			char* UID = get_uid();
 			
 			if (num_tokens != 1) {
-				fprintf(stderr, "Invalid format. Usage: %s\n", command);
+				printf("Invalid format. Usage: %s\n", command);
 				continue;
 			}
 
@@ -231,10 +231,21 @@ void process_input() {
 		if (!strcmp(command, "exit")) {
 
 			if (num_tokens != 1) {
-				fprintf(stderr, "Invalid format. Usage: %s\n", command);
+				printf("Invalid format. Usage: %s\n", command);
 				continue;
 			}
 
+			end_session(STATUS_OK);
+			if (is_logged_in()) {
+				status = logout();
+				switch(status) {
+					case STATUS_OK:
+						break;
+					case STATUS_NOK:
+						printf("Error: Failed to logout.\n");
+						break;
+				}
+			}
 			break;
 		}
 
@@ -243,7 +254,7 @@ void process_input() {
 			char ***groups;
 
 			if (num_tokens != 1) {
-				fprintf(stderr, "Invalid format. Usage: %s\n", command);
+				printf("Invalid format. Usage: %s\n", command);
 				continue;
 			}
 
@@ -264,7 +275,7 @@ void process_input() {
 		// ===== SUBSCRIBE =====
 		if (!strcmp(command, "subscribe") || !strcmp(command, "s")) {
 			if (num_tokens != 3) {
-				fprintf(stderr, "Invalid format. Usage: subscribe %s GID GName\n", command);
+				printf("Invalid format. Usage: subscribe %s GID GName\n", command);
 				continue;
 			}
 
@@ -284,7 +295,7 @@ void process_input() {
 					printf("User with UID %s subscribed successfully to group %s with GID %s\n", get_uid(), arg2, arg1);
 					continue;
 				case STATUS_NEW_GROUP:
-					printf("Created new group %s\n", arg2);
+					printf("Created new group %s with GID %s\n", arg2, arg1);
 					continue;
 				case STATUS_USR_INVALID: 
 					printf("Error: UID %s is not valid\n", get_uid());
@@ -310,7 +321,7 @@ void process_input() {
 		/* ===== UNSUBSCRIBE ===== */
 		if (!strcmp(command, "unsubscribe") || !strcmp(command, "u")) {
 			if (num_tokens != 2) {
-				fprintf(stderr, "Invalid. Format: %s GID\n", command);
+				printf("Invalid. Format: %s GID\n", command);
 				continue;
 			}
 
@@ -355,7 +366,7 @@ void process_input() {
 			char ***groups;
 
 			if (num_tokens != 1) {
-				fprintf(stderr, "Invalid. Format: %s\n", command);
+				printf("Invalid. Format: %s\n", command);
 				continue;
 			}
 
@@ -385,7 +396,7 @@ void process_input() {
 		/* ===== SELECT ===== */
 		if (!strcmp(command, "select") || !strcmp(command, "sag")) {
 			if (num_tokens != 2) {
-				fprintf(stderr, "Invalid. Format: %s GID\n", command);
+				printf("Invalid. Format: %s GID\n", command);
 				continue;
 			}
 
@@ -412,7 +423,7 @@ void process_input() {
 		/* ===== SHOW GID ===== */
 		if (!strcmp(command, "showgid") || !strcmp(command, "sg")) {
 			if (num_tokens != 1) {
-				fprintf(stderr, "Invalid. Format: %s\n", command);
+				printf("Invalid. Format: %s\n", command);
 				continue;
 			}
 
@@ -471,8 +482,8 @@ void process_input() {
 		if (!strcmp(command, "post")) {
 			
 			char *rest;
-			char buf[MAX_TSIZE + 1];
-			char mid[MID_SIZE + 1];	
+			char buf[MAX_TSIZE + 1] = "";
+			char mid[MID_SIZE + 1] = "";	
 
 			if (!is_logged_in()) {
 				printf("Error: User not logged in.\n");
@@ -544,7 +555,7 @@ void process_input() {
 			char *** list; 
 
 			if (num_tokens != 2) {
-				fprintf(stderr, "Invalid. Format: %s\n", command);
+				printf("Invalid. Format: %s\n", command);
 				continue;
 			}
 			
@@ -588,7 +599,7 @@ void process_input() {
 		}
 
 		if (!strcmp(command, "debug")) {
-			char buf[MAX_TSIZE + 1];
+			char buf[MAX_TSIZE + 1] = "";
 			get_text(buf, line + strlen(command) + 1);
 			buf[strlen(buf) + 1] = '\0';
 			buf[strlen(buf)] = '\n';

@@ -23,7 +23,8 @@ struct addrinfo hints;
 socklen_t addrlen;
 struct sockaddr_in addr;
 
-char host[NI_MAXHOST], service[NI_MAXSERV];
+char host[NI_MAXHOST] = "";
+char service[NI_MAXSERV] = "";
 
 /* Setup the UDP server */
 void setup() {
@@ -53,9 +54,14 @@ void setup() {
 
 void process_requests() {
 
-    char receiving_buf[MAX_LINE_SIZE];
+    char receiving_buf[MAX_LINE_SIZE] = "";
     char *sending_buf;
-    char command[MAX_ARG_SIZE], arg1[MAX_ARG_SIZE], arg2[MAX_ARG_SIZE], arg3[MAX_ARG_SIZE], arg4[MAX_ARG_SIZE]; 
+    char command[MAX_ARG_SIZE] = "";
+    char arg1[MAX_ARG_SIZE] = "";
+    char arg2[MAX_ARG_SIZE] = ""; 
+    char arg3[MAX_ARG_SIZE] = "";
+    char arg4[MAX_ARG_SIZE] = "";
+
     int num_bytes, num_tokens, status;
 
     while (1) {
@@ -91,9 +97,9 @@ void process_requests() {
             if (num_tokens != 3) {
                 exit(EXIT_FAILURE);
             }
-          
-            status = register_user(arg1, arg2);
 
+            status = register_user(arg1, arg2);
+    
             if ((sending_buf = (char *) malloc(sizeof(char) * 9)) == NULL) {
                 printf("Error: Couldn't allocate memory for sending_buf\n");
             }
@@ -213,6 +219,7 @@ void process_requests() {
             
             if (parse_regex(receiving_buf, "^GLS\\\n$") == FALSE) {
                 printf("(UDP) Bad message format in command %s\n", command);
+                // NOTE should we send ERR message?
                 exit(EXIT_FAILURE);
             }
 
@@ -252,7 +259,7 @@ void process_requests() {
         /* ====== SUBSCRIBE ====== */
         } else if (!strcmp(command, "GSR")) {
             
-            char gid[GID_SIZE + 1];
+            char gid[GID_SIZE + 1] = "";
             if (parse_regex(receiving_buf, "^GSR .{5} .{2} .{1,24}\\\n$") == FALSE) {
                 printf("(UDP) Bad message format in command %s\n", command);
                 exit(EXIT_FAILURE);
@@ -388,7 +395,7 @@ void process_requests() {
             sprintf(receiving_buf, "ERR\n");
         }
 
-
+        //printf("Sending: <%s>\n", sending_buf);
         if (sendto(fd, sending_buf, strlen(sending_buf) * sizeof(char), 0, (struct sockaddr*) &addr, addrlen) < strlen(sending_buf)) {
 		    exit(EXIT_FAILURE);
         }
