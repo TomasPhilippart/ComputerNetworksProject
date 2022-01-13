@@ -13,6 +13,7 @@
 /* All constants pertraining to tokens
    given by input are all incremented by 1 */
 #define MAX_BUF_SIZE 4096
+#define MAX_PORT_SIZE 5
 #define UID_SIZE 5
 #define PASSWORD_SIZE 8
 #define GID_SIZE 2

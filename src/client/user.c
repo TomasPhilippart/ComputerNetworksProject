@@ -235,17 +235,19 @@ void process_input() {
 				continue;
 			}
 
-			end_session(STATUS_OK);
 			if (is_logged_in()) {
 				status = logout();
 				switch(status) {
 					case STATUS_OK:
+						end_session(STATUS_OK);
 						break;
 					case STATUS_NOK:
 						printf("Error: Failed to logout.\n");
+						end_session(STATUS_FAIL);
 						break;
 				}
 			}
+			end_session(STATUS_OK);
 			break;
 		}
 

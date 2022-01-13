@@ -28,7 +28,7 @@
 
 /* Default server ip and port */
 char *server_ip = NULL;
-char *server_port = "58043";
+char server_port[MAX_PORT_SIZE + 1] = "58043";
 
 /* User ID, password, group ID and flag for when a user is logged in */
 char UID[UID_SIZE + 1] = ""; // 5 digit numeric
@@ -81,7 +81,6 @@ void setup_udp() {
 		printf("Error: DNS couldn't resolve server's IP address for UDP connection.\n");
 		exit(EXIT_FAILURE);
 	}
-
 }
 
 void setup_tcp() {
@@ -144,9 +143,9 @@ int validate_ip(char *ip_addr) {
 int validate_port(char *port) {
 	int port_number = atoi(port);
 	if (port_number > 0 && port_number <= 65535) {
-		server_port = strdup(port);
+		strcpy(server_port, port);
 		return TRUE;
-	}
+	} 
 	return FALSE;
 }
 
@@ -973,7 +972,7 @@ void exchange_messages_udp(char *buf, ssize_t max_rcv_size) {
 	buf[num_bytes] = '\0';
 
 	// DEBUG :
-	printf("Received: %s\n", buf);
+	//printf("Received: %s\n", buf);
 	//NOTE : must the client close the socket? or the server?
 	
 }
@@ -1049,9 +1048,11 @@ void end_session(int status) {
 	close(tcp_socket);
 
 	freeaddrinfo(res_udp);
-	free(server_ip);
-	free(server_port);
-
+	if (server_ip != NULL) {
+		free(server_ip);
+	}
+	
+	printf("Ending session with status %s\n", status == STATUS_OK ? "SUCCESS" : "FAIL");
 	exit(status);
 }
 
