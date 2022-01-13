@@ -66,7 +66,6 @@ void process_requests() {
         }
 
         receiving_buf[num_bytes] = '\0';
-        printf("I received %s with strlen %d\n", receiving_buf, strlen(receiving_buf));
         
         if (verbose) {
             if ((getnameinfo((struct sockaddr *)&addr, addrlen, host, sizeof(host), service, sizeof (service), 0)) != 0) {
@@ -237,11 +236,6 @@ void process_requests() {
                     
                     sprintf(aux, "RGL %d", num_groups);
                     aux += (strlen(aux) * sizeof(char));
-                    
-                    for (int i = 0; i < num_groups; i++) {
-                        printf("%s %s %s\t", groups[i][0], groups[i][1], groups[i][2]);
-                    }
-                    putchar('\n');
 
                     for (int i = 0; i < num_groups; i++) {
                         sprintf(aux, " %s %s %s", groups[i][0], groups[i][1], groups[i][2]);
@@ -393,7 +387,8 @@ void process_requests() {
         } else {
             sprintf(receiving_buf, "ERR\n");
         }
-        printf("And i am sending this %s\n", sending_buf);
+
+
         if (sendto(fd, sending_buf, strlen(sending_buf) * sizeof(char), 0, (struct sockaddr*) &addr, addrlen) < strlen(sending_buf)) {
 		    exit(EXIT_FAILURE);
         }

@@ -281,7 +281,7 @@ int logout() {
 		printf("Error: Invalid message format, %s\n", buf);
 		end_session(EXIT_FAILURE);
 	}
-	printf("Here is the status: %s with strlen %d\n", status, strlen(status));
+
 	if (!strcmp(status, "OK")) {
 		logged_in = FALSE;
 		memset(UID, 0, sizeof(UID));
