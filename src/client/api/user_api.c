@@ -171,7 +171,7 @@ int register_user(char *user, char *pass) {
 	if (num_tokens < 1) {
 		end_session(EXIT_FAILURE);
 	}
-	if (strcmp(status, "ERR")) {
+	if (!strcmp(status, "ERR")) {
 		return STATUS_ERR;
 	}
 	if (num_tokens != 2 || strcmp(command, "RRG") != 0) {
@@ -245,7 +245,7 @@ int login(char *user, char *pass) {
 		printf("Error: Invalid message format, %s.\n", buf);
 		end_session(EXIT_FAILURE);
 	}
-	printf("I received %s\n", buf);
+
 	if (!strcmp(status, "OK")) {
 		strncpy(UID, user, UID_SIZE + 1);
 		strncpy(password, pass, PASSWORD_SIZE + 1);
@@ -281,7 +281,7 @@ int logout() {
 		printf("Error: Invalid message format, %s\n", buf);
 		end_session(EXIT_FAILURE);
 	}
-	printf("Here is the status: %s with strlen %d\n", status, strlen(status));
+
 	if (!strcmp(status, "OK")) {
 		logged_in = FALSE;
 		memset(UID, 0, sizeof(UID));
@@ -954,7 +954,7 @@ void exchange_messages_udp(char *buf, ssize_t max_rcv_size) {
 	buf[num_bytes] = '\0';
 
 	// DEBUG :
-	//printf("Received: %s\n", buf);
+	printf("Received: %s\n", buf);
 	//NOTE : must the client close the socket? or the server?
 	
 }

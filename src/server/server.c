@@ -49,9 +49,9 @@ int main(int argc, char **argv) {
     }
 
 	while (finished != 2) {
-		printf("Finished %d\n", finished);
+		//printf("Finished %d\n", finished);
 		aux = wait(&status);
-		finished ++;
+		finished++;
 	}
    
 	/*if (status == EXIT_FAILURE) {

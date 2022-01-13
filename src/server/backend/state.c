@@ -60,13 +60,13 @@ int register_user(char *uid, char *pass) {
 
     /* Check if the uid is registed */
     if (check_user_registered(uid, user_dir) == TRUE) {
-        return STATUS_NOK;
+        return STATUS_DUP;
     }
 
     // NOTE is this 0700?
     /* Create user directory */
     if (mkdir(user_dir, 0700) == STATUS_FAIL) {
-        printf("Error : Couldnt create new dir with path %s\n", user_dir);
+        printf("Error: Couldn't create new dir with path %s\n", user_dir);
         return STATUS_FAIL;
     }
 
@@ -74,17 +74,17 @@ int register_user(char *uid, char *pass) {
 
     /* Create user password file */
     if (!(file = fopen(password_file, "w"))) {
-        printf("Error : Couldnt open file with path %s\n", password_file);
+        printf("Error: Couldn't open file with path %s\n", password_file);
         return STATUS_FAIL;
     }
 
     if (fwrite(pass, sizeof(char), strlen(pass), file) != strlen(pass)) {
-        printf("Error : Couldnt write to file with path %s\n", password_file);
+        printf("Error: Couldn't write to file with path %s\n", password_file);
         return STATUS_FAIL;
     }
 
     if (fclose(file) != 0) {
-        printf("Error : Couldnt close file with path %s\n", password_file);
+        printf("Error: Couldn't close file with path %s\n", password_file);
         return STATUS_FAIL;
     }
 
@@ -111,13 +111,13 @@ int unregister_user(char *uid, char *pass) {
 
     /* Remove UID_pass.txt file from USERS/UID */
     if (unlink(password_file) != 0) {
-        printf("Error : removing password file from directory.\n");
+        printf("Error: Removing password file from directory.\n");
         return STATUS_FAIL;
     }
 
     /* Remove remove the directory USERS/UID */
     if (rmdir(user_dir) != 0) {
-        printf("Error : removing user directory with path %s.\n", user_dir);
+        printf("Error: Removing user directory with path %s.\n", user_dir);
         return STATUS_FAIL;
     }
 
@@ -147,7 +147,7 @@ int login_user(char *uid, char *pass) {
     /* Create login file */
     sprintf(login_file, "%s/%s_login.txt", user_dir, uid);
     if (!(file = fopen(login_file, "w"))) {
-        printf("Error : creating login file.\n");
+        printf("Error: Creating login file.\n");
         return STATUS_FAIL;
     }
 
@@ -181,7 +181,7 @@ int logout_user(char *uid, char *pass) {
     }
 
     if (unlink(login_file) != 0) {
-        printf("Error : removing login file\n");
+        printf("Error: Removing login file\n");
         return STATUS_FAIL;
     }
 
