@@ -457,7 +457,7 @@ int get_subscribed_groups(char ****list) {
 	sprintf(buf, "%s %s\n", "GLM", UID);	
 	exchange_messages_udp(buf, strlen(buf));
 
-	num_tokens = sscanf(buf, "%" STR(4) "s %" STR(5) "s ", command, num_groups);
+	num_tokens = sscanf(buf, "%" STR(COMMAND_SIZE) "s %" STR(5) "s ", command, num_groups);
 
 	if (num_tokens < 2) {
 		printf("Error: Invalid message format, %s.\n", buf);

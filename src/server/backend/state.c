@@ -166,7 +166,7 @@ int register_user(char *uid, char *pass) {
 
 int unregister_user(char *uid, char *pass) {
     
-    char *user_dir, *password_file;
+    char *user_dir, *password_file, *login_file;
 
     if (!(check_uid(uid) && check_pass(pass))) {
         return STATUS_NOK;
@@ -197,6 +197,14 @@ int unregister_user(char *uid, char *pass) {
 
     if ((user_dir = generate_user_dir(uid)) == NULL) {
         return STATUS_FAIL;
+    }
+
+    /* If unregistering a logged in user, force logout first */
+    if (check_user_logged(uid)) {
+        if (logout_user(uid, pass) != STATUS_OK) {
+            printf("Error: Logging out when unregistering UID %s,\n", uid);
+            return STATUS_FAIL;
+        }
     }
 
     /* Remove remove the directory USERS/UID */
