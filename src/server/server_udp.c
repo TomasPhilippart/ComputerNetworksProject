@@ -104,7 +104,7 @@ void process_requests() {
                 printf("Error: Couldn't allocate memory for sending_buf\n");
             }
 
-            memset(sending_buf, '\0', strlen(sending_buf) * sizeof(char));
+            memset(sending_buf, 0, sizeof(sending_buf) * sizeof(char));
             switch (status) {
                 case STATUS_OK:
                     sprintf(sending_buf, "RRG OK\n");
@@ -137,7 +137,7 @@ void process_requests() {
                 printf("Error: Couldn't allocate memory for sending_buf\n");
             }
 
-            memset(sending_buf, '\0', strlen(sending_buf) * sizeof(char));
+            memset(sending_buf, 0, sizeof(sending_buf) * sizeof(char));
             switch (status) {
                 case STATUS_OK:
                     sprintf(sending_buf, "RUN OK\n");
@@ -167,7 +167,7 @@ void process_requests() {
                 printf("Error: Couldn't allocate memory for sending_buf\n");
             }
 
-            memset(sending_buf, '\0', strlen(sending_buf) * sizeof(char));
+            memset(sending_buf, 0, sizeof(sending_buf) * sizeof(char));
             switch (status) {
                 case STATUS_OK:
                     sprintf(sending_buf, "RLO OK\n");
@@ -196,7 +196,7 @@ void process_requests() {
             if ((sending_buf = (char *) malloc(sizeof(char) * 9)) == NULL) {
                 printf("Error: Couldn't allocate memory for sending_buf\n");
             }
-            memset(sending_buf, '\0', strlen(sending_buf) * sizeof(char));
+            memset(sending_buf, 0, sizeof(sending_buf) * sizeof(char));
             switch (status) {
                 case STATUS_OK:
                     sprintf(sending_buf, "ROU OK\n");
@@ -234,7 +234,7 @@ void process_requests() {
                 printf("Error: Couldn't allocate memory for sending_buf\n");
             }
 
-            memset(sending_buf, '\0', sending_buf_size);
+            memset(sending_buf, 0, sending_buf_size);
 
             switch (status) {
                 case STATUS_OK:
@@ -275,7 +275,7 @@ void process_requests() {
                 printf("Error: Couldn't allocate memory for sending_buf\n");
             }
 
-            memset(sending_buf, '\0', strlen(sending_buf) * sizeof(char));
+            memset(sending_buf, 0, sizeof(sending_buf) * sizeof(char));
             switch (status) {
                 case STATUS_OK:
                     sprintf(sending_buf, "RGS OK\n");
@@ -321,7 +321,7 @@ void process_requests() {
                 printf("Error: Couldn't allocate memory for sending_buf\n");
             }
 
-            memset(sending_buf, '\0', strlen(sending_buf) * sizeof(char));
+            memset(sending_buf, 0, sizeof(sending_buf) * sizeof(char));
             switch (status) {
                 case STATUS_OK:
                     sprintf(sending_buf, "RGU OK\n");
@@ -365,7 +365,7 @@ void process_requests() {
                 printf("Error: Couldn't allocate memory for sending_buf\n");
             }
 
-            memset(sending_buf, '\0', sending_buf_size);
+            memset(sending_buf, 0, sending_buf_size);
 
             switch (status) {
                 case STATUS_OK:
@@ -401,7 +401,7 @@ void process_requests() {
         }
 
         free(sending_buf);
-        memset(receiving_buf, '\0', MAX_LINE_SIZE);
+        memset(receiving_buf, 0, MAX_LINE_SIZE * sizeof(char));
 	} 
 }
 
