@@ -450,14 +450,14 @@ int unsubscribe_group(char *gid) {
 int get_subscribed_groups(char ****list) {
 	char buf[MAX_BUF_SIZE] = "";
 	char command[COMMAND_SIZE + 2] = "";
-	char num_groups[GID_SIZE + 2] = "";
+	char num_groups[GID_SIZE + 3] = "";
 	int num_tokens;
 	char *aux;
 
 	sprintf(buf, "%s %s\n", "GLM", UID);	
 	exchange_messages_udp(buf, strlen(buf));
 
-	num_tokens = sscanf(buf, "%" STR(4) "s %" STR(3) "s ", command, num_groups);
+	num_tokens = sscanf(buf, "%" STR(4) "s %" STR(5) "s ", command, num_groups);
 
 	if (num_tokens < 2) {
 		printf("Error: Invalid message format, %s.\n", buf);
