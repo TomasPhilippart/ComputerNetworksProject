@@ -301,8 +301,6 @@ int all_groups(int *num_groups, char ****groups) {
     for (int i = 1; i < next_available_gid; i++) {
         
         sprintf(gid, "%02d", i);
-        printf("i: %d\n", i);
-
 
         if (get_group_name(gid, group_name) == STATUS_FAIL) {
             printf("Error: Couldn't get GID %s's group name.\n", gid);
@@ -328,24 +326,15 @@ int all_groups(int *num_groups, char ****groups) {
             return STATUS_USR_INVALID;
         }
         */
-        printf("mid: %s, gid: %s, gname: %s\n" , last_mid, gid, group_name);
-        printf("malloc gid\n");
         (*groups)[i - 1][0] = (char *) malloc((GID_SIZE  + 1) * sizeof(char));
         
-        printf("malloc gname\n");
         (*groups)[i - 1][1] = (char *) malloc((MAX_GNAME  + 1) * sizeof(char));
 
-        printf("malloc mid\n");
         (*groups)[i - 1][2] = (char *) malloc((MID_SIZE  + 1) * sizeof(char));
         
-        printf("mallocs done\n");
-
-    
         strcpy((*groups)[i - 1][0], gid);
-
         memset((*groups)[i - 1][1], '\0', MAX_GNAME + 1);
         strcpy((*groups)[i - 1][1], group_name);
-
         strcpy((*groups)[i - 1][2], last_mid);
 
         (*num_groups)++;
@@ -725,7 +714,7 @@ int check_message_exists(char *gid, char *mid) {
     if ((text_file = generate_text_file(gid)) == NULL) {
         return STATUS_FAIL;
     }
-
+    
     if (access(text_file, F_OK) != 0) {
         free(text_file);
         return FALSE;
@@ -736,6 +725,8 @@ int check_message_exists(char *gid, char *mid) {
     if ((author_file = generate_author_file(gid)) == NULL) {
         return STATUS_FAIL;
     }
+
+    printf("author_file : %s\n", author_file);
 
     if (access(author_file, F_OK) != 0) {
         free(author_file);
@@ -860,7 +851,7 @@ int get_last_mid(char *gid, char *last_mid) {
         sprintf(mid, "%0" STR(MID_SIZE) "d", i);
 
         if (check_message_exists(gid, mid) == FALSE) {
-            sprintf(last_mid, "%04d", i - 1);
+            sprintf(last_mid, "%0" STR(MID_SIZE) "d", i - 1);
             return SUCCESS;
         }
     }
@@ -1019,12 +1010,12 @@ char *generate_text_file(char *gid) {
         return text_file;
     }
 
-    if ((text_file = (char *) malloc(sizeof((strlen(TEXT_FILE) + 1) * sizeof(char)))) == NULL) {
+    if ((text_file = (char *) malloc((strlen(TEXT_FILE) + 1) * sizeof(char))) == NULL) {
         return NULL;
     }
 
-    sprintf(text_file, "%s%s", msg_dir, TEXT_FILE_EXTENSION);
-
+    sprintf(text_file, "%s" TEXT_FILE_EXTENSION, msg_dir);
+    
     free(msg_dir);
     return text_file;
 }
@@ -1037,7 +1028,7 @@ char *generate_author_file(char *gid) {
         return author_file;
     }
 
-    if ((author_file = (char *) malloc(sizeof((strlen(AUTHOR_FILE) + 1) * sizeof(char)))) == NULL) {
+    if ((author_file = (char *) malloc((strlen(AUTHOR_FILE) + 1) * sizeof(char))) == NULL) {
         return NULL;
     }
 
