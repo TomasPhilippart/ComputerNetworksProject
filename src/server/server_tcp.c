@@ -16,8 +16,11 @@
 #include <errno.h>
 #include <math.h>
 #include <libgen.h>
+#include<signal.h>
 
 #define QUEUE_SIZE 5
+
+struct sigaction old_action;
 
 /* variables needed for TCP connection */
 char *port;
@@ -37,9 +40,14 @@ int rcv_message_tcp(char *buf, int num_bytes);
 int start_timer(int fd);
 int stop_timer(int fd);
 
+void ctrlC_handler (int sig_no);
+void end_session();
+
 /* Setup the UDP server */
 void setup() {
 	int option = 1;
+	struct sigaction action;
+
     fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (fd == -1) {
         printf("(TCP) Error: Failed to create TCP socket.\n");
@@ -69,6 +77,11 @@ void setup() {
         printf("(TCP) Error: Could not perform listening\n");
 		exit(EXIT_FAILURE);
     }
+
+	/* Setup ctrl-c new action */
+    memset(&action, 0, sizeof(action));
+    action.sa_handler = &ctrlC_handler;
+    sigaction(SIGINT, &action, &old_action);
 }
 
 // NOTE: mudar a implementação do buffer
@@ -124,7 +137,6 @@ void process_requests() {
         }
 		
 		reset_buffer(rcv_buf);
-		printf("Let's gooooo!\n");
         write_to_buffer(rcv_buf, rcv_buf->size, rcv_message_tcp);
 
 		printf("buffer in server_tcp : %s\n", rcv_buf->buf);
@@ -218,10 +230,7 @@ void process_requests() {
 					exit(EXIT_FAILURE);
 			}
 
-			break;
-
-			
-			
+			break;	
 		}
 //
 			/* ====== RETRIEVE ====== */
@@ -424,11 +433,10 @@ int main(int argc, char **argv) {
     verbose = atoi(argv[2]);
 	
     setup();
-	printf("Let's go!\n");
     process_requests();
 	
-    return TRUE;
-
+	end_session(SUCCESS);
+    return SUCCESS;
 }
 
 int start_timer(int fd) {
@@ -445,4 +453,18 @@ int stop_timer(int fd){
     struct timeval timeout;
     memset((char *)&timeout, 0, sizeof(timeout)); 
     return (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *) &timeout, sizeof(struct timeval)));
+}
+
+void ctrlC_handler (int sig_no) {
+	printf("Closing TCP connection...\n");
+
+	end_session(SUCCESS);
+
+    sigaction(SIGINT, &old_action, NULL);
+    kill(0, SIGINT);
+}
+
+void end_session (int status) {
+	free(port);
+	freeaddrinfo(res);
 }

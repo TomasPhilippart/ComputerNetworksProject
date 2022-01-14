@@ -30,7 +30,8 @@
 
 /* Group paths */
 #define GROUP_DIR "../GROUPS/xx/"
-#define MSG_DIR "../GROUPS/xx/MSG/"
+#define MSG_DIR_PARENT "../GROUPS/xx/MSG/"
+#define MSG_DIR "../GROUPS/xx/MSG/xxxx/"
 #define USER_FILE "../GROUPS/xx/xxxxx.txt"
 #define GNAME_FILE "../GROUPS/xx/xx_name.txt"
 #define TEXT_FILE "../GROUPS/xx/MSG/xxxx/T E X T.txt"
@@ -68,7 +69,8 @@ char *generate_user_file (char *gid, char *uid);
 char* generate_text_file(char *gid, char *mid);
 char* generate_author_file(char *gid, char *mid); 
 
-// NOTE make connection on timer
+// NOTE make server end_session
+// NOTE some timers commented
 
 void setup_state() {
 
@@ -223,8 +225,13 @@ int login_user(char *uid, char *pass) {
         free(login_file);
         return STATUS_FAIL;
     }
-
     free(login_file);
+
+    if (fclose(file) != 0) {
+        printf("Error closing login file.\n");
+        return STATUS_FAIL;
+    }
+
     return STATUS_OK;
 }
 
@@ -663,7 +670,6 @@ int post_message(char *uid, char *gid, char *text, char *mid, char *file_name, i
         return STATUS_OK;
     }
 
-    // NOTE make generate path function for file_name?
     sprintf(file_dir, "%s%s", msg_dir, file_name);
     if ((file = fopen(file_dir, "w")) == NULL) {
         unlink(author_file);
@@ -1093,10 +1099,12 @@ int create_group(char *group_name, char *new_gid) {
     if (mkdir(msg_dir, 0777) == STATUS_FAIL) {
         printf("Error creating MSG sub directory.\n");
         rmrf(group_dir);
+        free(msg_dir);
 		return STATUS_FAIL;
 	}
 
     /* Increment next_available gid */
+    free(msg_dir);
     next_available_gid++;
     return SUCCESS;
 }
@@ -1295,11 +1303,11 @@ char *generate_msg_dir_father(char *gid) {
         return msg_dir;
     }
 
-    if ((msg_dir = (char *) malloc((strlen(MSG_DIR) + 1) * sizeof(char))) == NULL) {
+    if ((msg_dir = (char *) malloc((strlen(MSG_DIR_PARENT) + 1) * sizeof(char))) == NULL) {
         return NULL;
     }
 
-    sprintf(msg_dir, "%s" MSG_DIR_EXTENSION , group_dir);
+    sprintf(msg_dir, "%s" MSG_DIR_EXTENSION "/" , group_dir);
     msg_dir[strlen(MSG_DIR)] = '\0';
     
     free(group_dir);
@@ -1309,10 +1317,12 @@ char *generate_msg_dir_father(char *gid) {
 /* Generates a path of the form "../GROUPS/xx/MSG/xxxx/" */
 char *generate_msg_dir(char *gid, char *mid) {
 
+    // NOTE valfrind : Invalid write of size 1 generate_msg_dir_father
+    // NOTE valgrind : Address 0x4a4f2e6 is 4 bytes after a block of size 18 alloc'd
     char *msg_dir = NULL;
-    char *group_dir = generate_group_dir(gid);
+    char *msg_dir_parent = generate_msg_dir_father(gid);
 
-    if (group_dir == NULL) {
+    if (msg_dir_parent == NULL) {
         return msg_dir;
     }
 
@@ -1320,10 +1330,10 @@ char *generate_msg_dir(char *gid, char *mid) {
         return NULL;
     }
 
-    sprintf(msg_dir, "%s" MSG_DIR_EXTENSION "/%s/", group_dir, mid);
-    msg_dir[strlen(MSG_DIR) + MID_SIZE + 1] = '\0';
+    sprintf(msg_dir,  "%s%s/", msg_dir_parent, mid);
+    msg_dir[strlen(MSG_DIR)] = '\0';
     
-    free(group_dir);
+    free(msg_dir_parent);
     return msg_dir;
 }
 
@@ -1384,7 +1394,7 @@ char *generate_author_file(char *gid, char *mid) {
 
     sprintf(author_file, "%s" AUTHOR_FILE_EXTENSION, msg_dir);
     author_file[strlen(AUTHOR_FILE)] = '\0';
-
+    
     free(msg_dir);
     return author_file;
 }

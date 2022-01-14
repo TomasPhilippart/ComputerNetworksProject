@@ -219,6 +219,7 @@ int unregister_user(char *user, char *pass) {
 	}
 
 	if (!strcmp(status, "OK")) {
+		logged_in = FALSE;
 		return STATUS_OK;
 	} else if (!strcmp(status, "NOK")) {
 		return STATUS_NOK;
@@ -417,7 +418,7 @@ int unsubscribe_group(char *gid) {
 
 	exchange_messages_udp(buf, strlen(buf));
 	
-	int num_tokens = sscanf(buf, "%s %s\n", command, status); //NOTE: Check this
+	int num_tokens = sscanf(buf, "%s %s\n", command, status);
 	if (num_tokens != 2 || strcmp(command, "RGU") != 0) {
 		printf("Error : unsubscribe group, bad message received, %s.\n", buf);
 		end_session(EXIT_FAILURE);
@@ -774,7 +775,6 @@ int retrieve(char *mid, char ****list) {
 	/* Parse "RRT status N" which has its maximum size when status = OK */
 	reset_buffer(rcv_buf);
 	write_to_buffer(rcv_buf, strlen("RRT OK ") + MAX_NUM_MSG_DIGITS,  rcv_message_tcp); // NOTE: return value??
-	printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
 	
 	// NOTE: use regex to parse spaces, one for each case!!!*/
 	num_tokens = sscanf(rcv_buf->buf, "%" STR(MAX_ARG_SIZE) "s %" STR(MAX_ARG_SIZE) "s %" 
@@ -813,13 +813,10 @@ int retrieve(char *mid, char ****list) {
 
 	/* push rest of response to the front of the buffer */
 	flush_buffer(rcv_buf, strlen(command) + strlen(status) + strlen(num_messages) + 2);
-	printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
 	write_to_buffer(rcv_buf, MAX(0, 3 + MID_SIZE + UID_SIZE + 3 - rcv_buf->tail), rcv_message_tcp);
 	
 
 	for (int i = 0; i < atoi(num_messages); i++) {
-		printf("\n\n\n");
-		printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
 
 		/* Parse [ MID UID Tsize text] */
 		if (!parse_regex(rcv_buf->buf, "^ [0-9]{" STR(MID_SIZE) "} [0-9]{" STR(UID_SIZE) "} [0-9]{1,3}")) {
@@ -832,9 +829,7 @@ int retrieve(char *mid, char ****list) {
 		sscanf(rcv_buf->buf, " %s %s %s", mid_aux, uid_aux, text_size);
 	
 		flush_buffer(rcv_buf, MID_SIZE + UID_SIZE + strlen(text_size) + 3);
-		printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
 		write_to_buffer(rcv_buf, MAX(0, 1 + atoi(text_size) - rcv_buf->tail), rcv_message_tcp);
-		printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
 	
 		if (!parse_regex(rcv_buf->buf, "^ .{0,240}")) {
 			destroy_buffer(rcv_buf);
@@ -846,9 +841,7 @@ int retrieve(char *mid, char ****list) {
 		memcpy((*list)[i][0], rcv_buf->buf + 1, atoi(text_size) * sizeof(char));
 		(*list)[i][0][atoi(text_size)] = '\0';
 		flush_buffer(rcv_buf, 1 + atoi(text_size));
-		printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
 		write_to_buffer(rcv_buf, MAX(0, 2 - rcv_buf->tail), rcv_message_tcp);
-		printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
 		/* Check the existence of a file in the message */
 		if (!parse_regex(rcv_buf->buf, "^ /")) {
 			write_to_buffer(rcv_buf, MAX(0, 3 + MID_SIZE + UID_SIZE + 3 - rcv_buf->tail), rcv_message_tcp);
@@ -857,9 +850,7 @@ int retrieve(char *mid, char ****list) {
 
 
 		flush_buffer(rcv_buf, 2);
-		printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
 		write_to_buffer(rcv_buf, MAX(0, 3 + MAX_FNAME + MAX_FSIZE - rcv_buf->tail), rcv_message_tcp);
-		printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
 		for (int i = 0; i < rcv_buf->tail; i++) {
 			printf("%x\n", (rcv_buf->buf)[i]);
 		}
@@ -888,13 +879,11 @@ int retrieve(char *mid, char ****list) {
 		sscanf(rcv_buf->buf, " %s %s ", (*list)[i][1], (*list)[i][2]);
 	
 		flush_buffer(rcv_buf, 3 + strlen((*list)[i][1]) + strlen((*list)[i][2]));
-		printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
 	
 		if ((file = fopen((*list)[i][1], "wb"))) {
 
 			int file_size = atoi((*list)[i][2]);
 			int bytes_to_write = MIN(file_size, rcv_buf->tail);
-			printf("The file size is %d\n", file_size);
 			
 			if (fwrite(rcv_buf->buf, sizeof(char), bytes_to_write, file) != bytes_to_write) {
 				destroy_buffer(rcv_buf);
@@ -904,14 +893,11 @@ int retrieve(char *mid, char ****list) {
 			
 			file_size -= bytes_to_write;
 			flush_buffer(rcv_buf, bytes_to_write);
-			printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
 
 			while (file_size != 0) {
 				bytes_to_write = MIN(file_size, rcv_buf->size);
 
 				write_to_buffer(rcv_buf, bytes_to_write, rcv_message_tcp);	// NOTE: check this
-				printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
-				//printf("Buffer state: %s\n", rcv_buf->buf);
 
 				if (fwrite(rcv_buf->buf, sizeof(char), bytes_to_write, file) != bytes_to_write) {
 					destroy_buffer(rcv_buf);
@@ -1041,24 +1027,18 @@ int rcv_message_tcp(char *buf, int num_bytes) {
 	num_bytes_left = num_bytes;
 
 	while (num_bytes_left != 0) {
-		//printf("Waiting...\n");
 		//start_timer(tcp_socket);
 		num_bytes_read = read(tcp_socket, aux, num_bytes_left);
 		//stop_timer(tcp_socket);
 
-		printf("bytes read = %ld\n", num_bytes_read);
 		if (num_bytes_read == 0) {
-			printf("Arrived here!\n");
 			break;
 		}
 		
 		if (num_bytes_read == -1) {
-			printf("It returned -1\n");
 			if (errno == EWOULDBLOCK || errno == EAGAIN || errno == ECONNRESET) {
-				printf("Why: %s with errno %d\n", strerror(errno), errno);
 				break;
 			}
-			printf("Error: Failed to read message from TCP socket. Why: %s with errno %d\n", strerror(errno), errno);
 			exit(EXIT_FAILURE);
 		}
 		
@@ -1070,16 +1050,7 @@ int rcv_message_tcp(char *buf, int num_bytes) {
 		putchar(*(buf + i));
 	}
 	putchar('\n');
-	//printf("First NULL at %d\n", i);
-
-	// Debug
-	//if (*buf != '\0') {
-	//	printf("Received: %s\n", buf);
-	////	printf("With length: %d\n", strlen(buf));
-	//}
-	printf("I received  %d\n", num_bytes - num_bytes_left);
 	return num_bytes - num_bytes_left;
-
 }
 
 // NOTE: leave at least some kind of message??

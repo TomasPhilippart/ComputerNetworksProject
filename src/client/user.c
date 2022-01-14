@@ -286,11 +286,6 @@ void process_input() {
 				continue;
 			}
 
-			//if (!check_gid(arg1)) {
-			//	printf("Error: GID %s is invalid.\n", arg1);
-			//	continue;
-			//} 
-
 			status = subscribe_group(arg1, arg2);
 			switch(status) {
 				case STATUS_OK:

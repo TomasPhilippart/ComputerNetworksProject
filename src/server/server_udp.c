@@ -12,7 +12,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include<signal.h>
 
+struct sigaction old_action;
 
 /* variables needed for UDP connection */
 char *port;
@@ -30,10 +32,15 @@ char service[NI_MAXSERV] = "";
 int start_timer(int fd);
 int stop_timer(int fd);
 
+void ctrlC_handler (int sig_no);
+void end_session();
+
 /* Setup the UDP server */
 void setup() {
     
     fd = socket(AF_INET, SOCK_DGRAM, 0);
+	struct sigaction action;
+
 	if (fd == -1) {
         printf("Error: Failed to create UDP socket.\n");
 		exit(EXIT_FAILURE);
@@ -54,6 +61,11 @@ void setup() {
 	}
 
     setup_state();
+
+    /* Setup ctrl-c new action */
+    memset(&action, 0, sizeof(action));
+    action.sa_handler = &ctrlC_handler;
+    sigaction(SIGINT, &action, &old_action);
 
 }
 
@@ -435,6 +447,22 @@ int main(int argc, char **argv) {
     setup();
     process_requests();
 
-    return 0;
+    end_session(SUCCESS);
+    return SUCCESS;
+}
+
+void ctrlC_handler (int sig_no) {
+	printf("Closing UDP connection...\n");
+
+	end_session(SUCCESS);
+
+    sigaction(SIGINT, &old_action, NULL);
+    kill(0, SIGINT);
+}
+
+void end_session () {
+	free(port);
+    
+    freeaddrinfo(res);
 }
 

@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include<sys/wait.h>
+#include<signal.h>
 
 /* Default port */
 char port[6] = "58043";
@@ -18,14 +19,24 @@ char port[6] = "58043";
 /* Verbose mode flag */
 int verbose = FALSE;
 
+pid_t pid_tcp;
+pid_t pid_udp;
+
+struct sigaction old_action;
+
+
 static void parse_args(int argc, char **argv);
 void process_input();
 int validate_port(char *port);
 
+void ctrlC_handler (int sig_no);
+void end_session();
+
 int main(int argc, char **argv) {
-    pid_t pid_tcp, pid_udp, aux;
+    pid_t aux;
 	int finished = 0;
-	int status; 
+	int status;
+	struct sigaction action;
 
 	parse_args(argc, argv);
 
@@ -47,21 +58,26 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
     }
 
+	/* Setup ctrl-c new action */
+    memset(&action, 0, sizeof(action));
+    action.sa_handler = &ctrlC_handler;
+    sigaction(SIGINT, &action, &old_action);
+
 	while (finished != 2) {
 		aux = wait(&status);
-		printf("Finished %lu\n", aux);
 		finished++;
 	}
    
-	/*if (status == EXIT_FAILURE) {
+	if (status == EXIT_FAILURE) {
 		if (aux == pid_udp) {
 			kill(pid_tcp, SIGTERM);
 		} else {
 			kill(pid_udp, SIGTERM);
 		}
-	}*/
+	}
 	
-    return 0;
+	printf("mas isto chega aqui?\n");
+    end_session(SUCCESS);
 }
 
 /*	Parse arguments from the command line according to 
@@ -115,4 +131,16 @@ int validate_port(char *port_to_validate) {
 		return TRUE;
 	}
 	return FALSE;
+}
+
+void ctrlC_handler (int sig_no) {
+
+	end_session();
+
+    sigaction(SIGINT, &old_action, NULL);
+    kill(0, SIGINT);
+}
+
+void end_session () {
+	// TODO
 }
