@@ -67,10 +67,12 @@ int parse_regex(char *str, char *regex) {
 
     res = regexec(&aux, str, 0, NULL, 0);
     if (!res) {
+		regfree(&aux);
         return TRUE;
-    } else {
-        return FALSE;
     }
+	
+	regfree(&aux);
+	return FALSE;
 }
 
 /*	Flushable buffer constructor 

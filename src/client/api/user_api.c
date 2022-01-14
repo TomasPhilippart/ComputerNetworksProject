@@ -28,7 +28,7 @@
 
 /* Default server ip and port */
 char *server_ip = NULL;
-char *server_port = "58043";
+char server_port[MAX_PORT_SIZE + 1] = "58043";
 
 /* User ID, password, group ID and flag for when a user is logged in */
 char UID[UID_SIZE + 1] = ""; // 5 digit numeric
@@ -81,7 +81,6 @@ void setup_udp() {
 		printf("Error: DNS couldn't resolve server's IP address for UDP connection.\n");
 		exit(EXIT_FAILURE);
 	}
-
 }
 
 void setup_tcp() {
@@ -144,9 +143,9 @@ int validate_ip(char *ip_addr) {
 int validate_port(char *port) {
 	int port_number = atoi(port);
 	if (port_number > 0 && port_number <= 65535) {
-		server_port = strdup(port);
+		strcpy(server_port, port);
 		return TRUE;
-	}
+	} 
 	return FALSE;
 }
 
@@ -161,7 +160,9 @@ int validate_port(char *port) {
 	- STATUS_ERR: if the message did not arrive correctly at the server
 */
 int register_user(char *user, char *pass) {
-	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
+	char buf[MAX_LINE_SIZE] = "";
+	char status[MAX_ARG_SIZE] = "";
+	char command[MAX_ARG_SIZE] = "";
 	sprintf(buf, "%s %s %s\n", "REG", user, pass);
 
 	exchange_messages_udp(buf, strlen(buf));
@@ -202,9 +203,11 @@ int register_user(char *user, char *pass) {
 	- STATUS_ERR: if the message did not arrive correctly at the server
 */
 int unregister_user(char *user, char *pass) {
-	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
+	char buf[MAX_LINE_SIZE] = "";
+	char status[MAX_ARG_SIZE] = "";
+	char command[MAX_ARG_SIZE] = "";
+	
 	snprintf(buf, sizeof(buf), "%s %s %s\n", "UNR", user, pass);
-
 	exchange_messages_udp(buf, strlen(buf));
 
 	int num_tokens = sscanf(buf, "%s %s", command, status);
@@ -235,7 +238,9 @@ int unregister_user(char *user, char *pass) {
 	- STATUS_ERR: if the message did not arrive correctly at the server
 */
 int login(char *user, char *pass) {
-	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
+	char buf[MAX_LINE_SIZE] = "";
+	char status[MAX_ARG_SIZE] = "";
+	char command[MAX_ARG_SIZE] = "";
 	sprintf(buf, "%s %s %s\n", "LOG", user, pass);
 
 	exchange_messages_udp(buf, strlen(buf));
@@ -309,8 +314,9 @@ char *get_uid () {
 	[GID, Gname], one for each available group
 */
 void get_all_groups(char ****list) {
-	char buf[MAX_BUF_SIZE];
-	char command[COMMAND_SIZE + 2], num_groups[GID_SIZE + 2];
+	char buf[MAX_BUF_SIZE] = "";
+	char command[COMMAND_SIZE + 2] = "";
+	char num_groups[GID_SIZE + 2] = "";
 	int num_tokens;
 	char *aux;
 
@@ -347,7 +353,10 @@ void get_all_groups(char ****list) {
 	- STATUS_ERR: if the message did not arrive correctly at the server
 */
 int subscribe_group(char *gid, char *gName) {
-	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
+	char buf[MAX_LINE_SIZE] = "";
+	char status[MAX_ARG_SIZE] = "";
+	char command[MAX_ARG_SIZE] = "";
+	char new_gid[GID_SIZE + 1] = "";
 
 	/* add a zero on the left if gid = 0 for new group creation */
 	if (!strcmp(gid, "0")) {
@@ -361,8 +370,8 @@ int subscribe_group(char *gid, char *gName) {
 
 	exchange_messages_udp(buf, strlen(buf));
 
-	int num_tokens = sscanf(buf, "%s %s\n", command, status);
-	if (num_tokens != 2 || strcmp(command, "RGS") != 0) {
+	int num_tokens = sscanf(buf, "%s %s %s\n", command, status, new_gid);
+	if (strcmp(command, "RGS") != 0) {
 		printf("Error: Invalid message format, %s.\n", buf);
 		end_session(EXIT_FAILURE);
 	}
@@ -370,6 +379,7 @@ int subscribe_group(char *gid, char *gName) {
 	if (!strcmp(status, "OK")) {
 		return STATUS_OK;
 	} else if (!strcmp(status, "NEW")) {
+		strcpy(gid, new_gid);
 		return STATUS_NEW_GROUP;
 	} else if (!strcmp(status, "E_USR")) {	/* Not logged in */
 		return STATUS_USR_INVALID;
@@ -397,7 +407,9 @@ int subscribe_group(char *gid, char *gName) {
 	- NOK: if another error occurs
 */
 int unsubscribe_group(char *gid) {
-	char buf[MAX_LINE_SIZE], status[MAX_ARG_SIZE], command[MAX_ARG_SIZE];
+	char buf[MAX_LINE_SIZE] = "";
+	char status[MAX_ARG_SIZE] = "";
+	char command[MAX_ARG_SIZE] = "";
 	sprintf(buf, "%s %s %s\n", "GUR", UID, gid);
 
 	exchange_messages_udp(buf, strlen(buf));
@@ -436,14 +448,16 @@ int unsubscribe_group(char *gid) {
 	- STATUS_ERROR: if there was in the message reception by the server
 */
 int get_subscribed_groups(char ****list) {
-	char buf[MAX_BUF_SIZE], command[COMMAND_SIZE + 2], num_groups[GID_SIZE + 2];
+	char buf[MAX_BUF_SIZE] = "";
+	char command[COMMAND_SIZE + 2] = "";
+	char num_groups[GID_SIZE + 3] = "";
 	int num_tokens;
 	char *aux;
 
 	sprintf(buf, "%s %s\n", "GLM", UID);	
 	exchange_messages_udp(buf, strlen(buf));
 
-	num_tokens = sscanf(buf, "%" STR(4) "s %" STR(3) "s ", command, num_groups);
+	num_tokens = sscanf(buf, "%" STR(COMMAND_SIZE) "s %" STR(5) "s ", command, num_groups);
 
 	if (num_tokens < 2) {
 		printf("Error: Invalid message format, %s.\n", buf);
@@ -488,7 +502,7 @@ char ***parse_groups(char *buf, int num_groups) {
 	
 	/* Allocate and fill response entries with each GID and GNAME */
 	char ***response = (char***) malloc(sizeof(char**) * (num_groups + 1));
-	char mid[MID_SIZE + 1];
+	char mid[MID_SIZE + 1] = "";
 	int num_tokens;
 
 	for (int i = 0; i < num_groups; i++) {
@@ -534,7 +548,8 @@ char* get_gid() {
 */
 int get_uids_group(char ****list) {
 
-	char group_name[MAX_ARG_SIZE], buf[MAX_BUF_SIZE];
+	char group_name[MAX_ARG_SIZE] = "";
+	char buf[MAX_BUF_SIZE] = "";
 	Buffer rcv_buffer = new_buffer(MAX_BUF_SIZE);
 	int base_size = 100;	/* no of entries in which the list is incremented */
 	int parsed_groups = 0;
@@ -635,8 +650,9 @@ int get_uids_group(char ****list) {
 */
 int post(char* text, char *mid, char *filename) {
 
-	char buf[MAX_BUF_SIZE];
-	char command[MAX_ARG_SIZE], status[MAX_ARG_SIZE];
+	char buf[MAX_BUF_SIZE] = "";
+	char command[MAX_ARG_SIZE] = "";
+	char status[MAX_ARG_SIZE] = "";
 	FILE *file;
 	ssize_t bytes_read, file_size;
 	int rcv_size;
@@ -727,8 +743,10 @@ int post(char* text, char *mid, char *filename) {
 */
 int retrieve(char *mid, char ****list) {
 
-	char buf[MAX_BUF_SIZE];
-	char command[MAX_ARG_SIZE], status[MAX_ARG_SIZE], num_messages[MAX_ARG_SIZE];
+	char buf[MAX_BUF_SIZE] = "";
+	char command[MAX_ARG_SIZE] = "";
+	char status[MAX_ARG_SIZE] = "";
+	char num_messages[MAX_ARG_SIZE] = "";
 	Buffer rcv_buf = new_buffer(MAX_BUF_SIZE); /* This a circular-ish buffer, see aux_functions.c */
 	FILE *file;
 	int num_tokens, rcv_bytes, excess;
@@ -954,7 +972,7 @@ void exchange_messages_udp(char *buf, ssize_t max_rcv_size) {
 	buf[num_bytes] = '\0';
 
 	// DEBUG :
-	printf("Received: %s\n", buf);
+	//printf("Received: %s\n", buf);
 	//NOTE : must the client close the socket? or the server?
 	
 }
@@ -1030,10 +1048,18 @@ void end_session(int status) {
 	close(tcp_socket);
 
 	freeaddrinfo(res_udp);
+<<<<<<< HEAD
 	free(server_ip);
 	free(server_port);
 
 	printf("Ending session with status %s.\n", status == SUCCESS ? "SUCCESS" : "FAIL");
+=======
+	if (server_ip != NULL) {
+		free(server_ip);
+	}
+	
+	printf("Ending session with status %s\n", status == STATUS_OK ? "SUCCESS" : "FAIL");
+>>>>>>> 0ddee450a9bb56fc2119a02ceb2b9609bee21e8f
 	exit(status);
 }
 

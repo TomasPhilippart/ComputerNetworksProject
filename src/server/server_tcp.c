@@ -25,7 +25,8 @@ struct addrinfo hints;
 socklen_t addrlen;
 struct sockaddr_in addr;
 
-char host[NI_MAXHOST], service[NI_MAXSERV];
+char host[NI_MAXHOST] = "";
+char service[NI_MAXSERV] = "";
 
 void send_message_tcp(char *buf, ssize_t num_bytes);
 int rcv_message_tcp(char *buf, int num_bytes);

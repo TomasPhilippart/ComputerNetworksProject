@@ -23,7 +23,8 @@ struct addrinfo hints;
 socklen_t addrlen;
 struct sockaddr_in addr;
 
-char host[NI_MAXHOST], service[NI_MAXSERV];
+char host[NI_MAXHOST] = "";
+char service[NI_MAXSERV] = "";
 
 /* Setup the UDP server */
 void setup() {
@@ -53,9 +54,14 @@ void setup() {
 
 void process_requests() {
 
-    char receiving_buf[MAX_LINE_SIZE];
+    char receiving_buf[MAX_LINE_SIZE] = "";
     char *sending_buf;
-    char command[MAX_ARG_SIZE], arg1[MAX_ARG_SIZE], arg2[MAX_ARG_SIZE], arg3[MAX_ARG_SIZE], arg4[MAX_ARG_SIZE]; 
+    char command[MAX_ARG_SIZE] = "";
+    char arg1[MAX_ARG_SIZE] = "";
+    char arg2[MAX_ARG_SIZE] = ""; 
+    char arg3[MAX_ARG_SIZE] = "";
+    char arg4[MAX_ARG_SIZE] = "";
+
     int num_bytes, num_tokens, status;
 
     while (1) {
@@ -66,7 +72,6 @@ void process_requests() {
         }
 
         receiving_buf[num_bytes] = '\0';
-        // printf("I received %s with strlen %d\n", receiving_buf, strlen(receiving_buf));
         
         if (verbose) {
             if ((getnameinfo((struct sockaddr *)&addr, addrlen, host, sizeof(host), service, sizeof (service), 0)) != 0) {
@@ -92,9 +97,9 @@ void process_requests() {
             if (num_tokens != 3) {
                 exit(EXIT_FAILURE);
             }
-          
-            status = register_user(arg1, arg2);
 
+            status = register_user(arg1, arg2);
+    
             if ((sending_buf = (char *) malloc(sizeof(char) * 9)) == NULL) {
                 printf("Error: Couldn't allocate memory for sending_buf\n");
             }
@@ -214,6 +219,7 @@ void process_requests() {
             
             if (parse_regex(receiving_buf, "^GLS\\\n$") == FALSE) {
                 printf("(UDP) Bad message format in command %s\n", command);
+                // NOTE should we send ERR message?
                 exit(EXIT_FAILURE);
             }
 
@@ -228,7 +234,11 @@ void process_requests() {
                 printf("Error: Couldn't allocate memory for sending_buf\n");
             }
 
+<<<<<<< HEAD
             memset(sending_buf, 0, sending_buf_size * sizeof(char));
+=======
+            memset(sending_buf, 0, sending_buf_size);
+>>>>>>> 0ddee450a9bb56fc2119a02ceb2b9609bee21e8f
 
             switch (status) {
                 case STATUS_OK:
@@ -237,11 +247,6 @@ void process_requests() {
                     
                     sprintf(aux, "RGL %d", num_groups);
                     aux += (strlen(aux) * sizeof(char));
-                    
-                    for (int i = 0; i < num_groups; i++) {
-                        printf("%s %s %s\t", groups[i][0], groups[i][1], groups[i][2]);
-                    }
-                    putchar('\n');
 
                     for (int i = 0; i < num_groups; i++) {
                         sprintf(aux, " %s %s %s", groups[i][0], groups[i][1], groups[i][2]);
@@ -258,7 +263,7 @@ void process_requests() {
         /* ====== SUBSCRIBE ====== */
         } else if (!strcmp(command, "GSR")) {
             
-            char gid[GID_SIZE + 1];
+            char gid[GID_SIZE + 1] = "";
             if (parse_regex(receiving_buf, "^GSR .{5} .{2} .{1,24}\\\n$") == FALSE) {
                 printf("(UDP) Bad message format in command %s\n", command);
                 exit(EXIT_FAILURE);
@@ -364,7 +369,11 @@ void process_requests() {
                 printf("Error: Couldn't allocate memory for sending_buf\n");
             }
 
+<<<<<<< HEAD
             memset(sending_buf, 0, sending_buf_size * sizeof(char));
+=======
+            memset(sending_buf, 0, sending_buf_size);
+>>>>>>> 0ddee450a9bb56fc2119a02ceb2b9609bee21e8f
 
             switch (status) {
                 case STATUS_OK:
@@ -393,7 +402,8 @@ void process_requests() {
         } else {
             sprintf(receiving_buf, "ERR\n");
         }
-        //  printf("And i am sending this %s\n", sending_buf);
+
+        //printf("Sending: <%s>\n", sending_buf);
         if (sendto(fd, sending_buf, strlen(sending_buf) * sizeof(char), 0, (struct sockaddr*) &addr, addrlen) < strlen(sending_buf)) {
 		    exit(EXIT_FAILURE);
         }

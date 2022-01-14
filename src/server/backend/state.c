@@ -14,44 +14,74 @@
 #include <dirent.h>
 #include <math.h>
 
-#define USERS_DIR "../USERS"
-#define GROUPS_DIR "../GROUPS"
+#define USERS_DIR "../USERS/"
+#define GROUPS_DIR "../GROUPS/"
 
-#define USER_DIR "../USERS/xxxxxx"
+/* User paths */
+#define USER_DIR "../USERS/xxxxx/"
+#define LOGIN_FILE "../USERS/xxxxx/xxxxx_login.txt"
+#define PASSWORD_FILE "../USERS/xxxxx/xxxxx_pass.txt"
 
-// NOTE defines for directories?
+#define LOGIN_FILE_EXTENSION "_login.txt"
+#define PASSWORD_FILE_EXTENSION "_pass.txt"
+
+
+/* Group paths */
+#define GROUP_DIR "../GROUPS/xx/"
+#define MSG_DIR "../GROUPS/xx/MSG/"
+#define USER_FILE "../GROUPS/xx/xxxxx.txt"
+#define GNAME_FILE "../GROUPS/xx/xx_name.txt"
+#define TEXT_FILE "../GROUPS/xx/MSG/T E X T.txt"
+#define AUTHOR_FILE "../GROUPS/xx/MSG/A U T H O R.txt"
+
+#define MSG_DIR_EXTENSION "MSG"
+#define USER_FILE_EXTENSION ".txt"
+#define GNAME_FILE_EXTENSION "_name.txt"
+#define TEXT_FILE_EXTENSION "T E X T.txt"
+#define AUTHOR_FILE_EXTENSION "A U T H O R.txt"
+
 int next_available_gid;
 
 int check_user_subscribed(char *uid, char *gid);
-int check_user_registered(char *uid, char *userdir);
-int check_correct_password(char* uid, char *pass, char* user_dir, char *password_file);
-int check_user_logged (char *uid, char *login_file);
-int check_group_exists(char *gid, char *group_dir);
-int check_message_exists(char *gid, char *mid, char *message_dir);
-int create_group(char *group_name, char *group_dir, char *new_gid);
+int check_user_registered(char *uid);
+int check_correct_password(char* uid, char *pass);
+int check_user_logged (char *uid);
+int check_group_exists(char *gid);
+int check_message_exists(char *gid, char *mid);
+int create_group(char *group_name, char *new_gid);
 void free_groups(char ***groups, int num_groups);
+int logout_user(char *uid, char *pass);
 
 int get_group_name(char *gid, char *group_name);
 int get_last_mid(char *gid, char *last_mid);
 
+char* generate_user_dir (char *uid); 
+char* generate_group_dir (char *gid); 
+char* generate_login_file (char *uid); 
+char *generate_password_file (char *uid); 
+char *generate_gname_file(char *gid);
+char *generate_msg_dir(char *gid);
+char *generate_user_file (char *gid, char *uid);
+char* generate_text_file(char *gid);
+char* generate_author_file(char *gid); 
+
 void setup_state() {
 
     /* Check for the next available GID */
-    char group_dir[11 + GID_SIZE];
-    char gid[4];
+    char gid[GID_SIZE + 1] = "";
+
     for (next_available_gid = 1; next_available_gid <= 99; next_available_gid++) {
         sprintf(gid, "%02d", next_available_gid);
        
         /* if group GID doesn't exist, it is now the next available one */
-        if(check_group_exists(gid, group_dir) == FALSE) {
+        if(check_group_exists(gid) == FALSE) {
             break;
         }
     }
 }
 
 int register_user(char *uid, char *pass) {
-
-    char user_dir[10 + UID_SIZE], password_file[10 + UID_SIZE + UID_SIZE + 11];
+    char *user_dir, *password_file;
     FILE *file;
 
     if (!(check_uid(uid) && check_pass(pass))) {
@@ -59,132 +89,174 @@ int register_user(char *uid, char *pass) {
     }
 
     /* Check if the uid is registed */
-    if (check_user_registered(uid, user_dir) == TRUE) {
+    if (check_user_registered(uid) == TRUE) {
         return STATUS_DUP;
     }
 
-    // NOTE is this 0700?
+    if ((user_dir = generate_user_dir(uid)) == NULL) {
+        printf("Error: Couldn't generate user directory.\n");
+        return STATUS_FAIL;
+    }
+    
     /* Create user directory */
-    if (mkdir(user_dir, 0700) == STATUS_FAIL) {
-        printf("Error: Couldn't create new dir with path %s\n", user_dir);
+    if (mkdir(user_dir, 0777) == STATUS_FAIL) {
+        printf("Error : Couldn't create new dir with path %s\n", user_dir);
+        free(user_dir);
         return STATUS_FAIL;
     }
 
-    sprintf(password_file, "%s/%s_pass.txt", user_dir, uid);
+    free(user_dir);
+
+    if ((password_file = generate_password_file(uid)) == NULL) {
+        return STATUS_FAIL;
+    }
 
     /* Create user password file */
     if (!(file = fopen(password_file, "w"))) {
-        printf("Error: Couldn't open file with path %s\n", password_file);
+        printf("Error : Couldn't open file with path %s\n", password_file);
+        free(password_file);
         return STATUS_FAIL;
     }
 
     if (fwrite(pass, sizeof(char), strlen(pass), file) != strlen(pass)) {
-        printf("Error: Couldn't write to file with path %s\n", password_file);
+        printf("Error : Couldnt write to file with path %s\n", password_file);
+        free(password_file);
         return STATUS_FAIL;
     }
 
     if (fclose(file) != 0) {
-        printf("Error: Couldn't close file with path %s\n", password_file);
+        printf("Error : Couldnt close file with path %s\n", password_file);
+        free(password_file);
         return STATUS_FAIL;
     }
 
+    free(password_file);
     return STATUS_OK;
 }
 
 int unregister_user(char *uid, char *pass) {
     
-    char user_dir[10 + UID_SIZE], password_file[10 + UID_SIZE + UID_SIZE + 11];
+    char *user_dir, *password_file, *login_file;
 
     if (!(check_uid(uid) && check_pass(pass))) {
         return STATUS_NOK;
     }
 
     /* Check if the uid is registed */
-    if (check_user_registered(uid, user_dir) == FALSE) {
+    if (check_user_registered(uid) == FALSE) {
         return STATUS_NOK;
     }
 
     /* Check if the password is correct */
-    if (check_correct_password(uid, pass, user_dir, password_file) == FALSE) {
+    if (check_correct_password(uid, pass) == FALSE) {
         return STATUS_NOK;
+    }
+
+    /* If unregistering a logged in user, force logout first */
+    if (check_user_logged(uid)) {
+        if (logout_user(uid, pass) != STATUS_OK) {
+            printf("Error: Logging out when unregistering UID %s,\n", uid);
+            return STATUS_FAIL;
+        }
+    }
+
+    if ((password_file = generate_password_file(uid)) == NULL) {
+        return STATUS_FAIL;
     }
 
     /* Remove UID_pass.txt file from USERS/UID */
     if (unlink(password_file) != 0) {
         printf("Error: Removing password file from directory.\n");
+        free(password_file);
+        return STATUS_FAIL;
+    }
+
+    free(password_file);
+
+    if ((user_dir = generate_user_dir(uid)) == NULL) {
         return STATUS_FAIL;
     }
 
     /* Remove remove the directory USERS/UID */
     if (rmdir(user_dir) != 0) {
         printf("Error: Removing user directory with path %s.\n", user_dir);
+        free(user_dir);
         return STATUS_FAIL;
     }
 
+    free(user_dir);
     return STATUS_OK;
 }
 
 int login_user(char *uid, char *pass) {
     
     FILE *file;
-    char user_dir[10 + UID_SIZE], password_file[10 + UID_SIZE + UID_SIZE + 11];  
-    char login_file[10 + UID_SIZE + UID_SIZE + 12];
+    char *user_dir, *password_file;  
+    char *login_file;
 
     if (!(check_uid(uid) && check_pass(pass))) {
         return STATUS_NOK;
     }
 
     /* Check if the uid is registed */
-    if (check_user_registered(uid, user_dir) == FALSE) {
+    if (check_user_registered(uid) == FALSE) {
         return STATUS_NOK;
     }
 
     /* Check if the password is correct */
-    if (check_correct_password(uid, pass, user_dir, password_file) == FALSE) {
+    if (check_correct_password(uid, pass) == FALSE) {
         return STATUS_NOK;
     }
 
     /* Create login file */
-    sprintf(login_file, "%s/%s_login.txt", user_dir, uid);
-    if (!(file = fopen(login_file, "w"))) {
-        printf("Error: Creating login file.\n");
+    if ((login_file = generate_login_file(uid)) == NULL) {
         return STATUS_FAIL;
     }
 
+    if (!(file = fopen(login_file, "w"))) {
+        printf("Error: Creating login file.\n");
+        free(login_file);
+        return STATUS_FAIL;
+    }
+
+    free(login_file);
     return STATUS_OK;
 }
 
 int logout_user(char *uid, char *pass) {
 
-    char user_dir[10 + UID_SIZE], password_file[10 + UID_SIZE + UID_SIZE + 11];  
-    char login_file[10 + UID_SIZE + UID_SIZE + 12];
+    char *login_file;
 
     if (!(check_uid(uid) && check_pass(pass))) {
         return STATUS_NOK;
     }
 
     /* Check if the uid is registed */
-    if (check_user_registered(uid, user_dir) == FALSE) {
+    if (check_user_registered(uid) == FALSE) {
         return STATUS_NOK;
     }
 
     /* Check if the password is correct */
-    if (check_correct_password(uid, pass, user_dir, password_file) == FALSE) {
+    if (check_correct_password(uid, pass) == FALSE) {
         return STATUS_NOK;
     }
 
     /* Remove login file */
-    sprintf(login_file, "%s/%s_login.txt", user_dir, uid);
-
-    if (check_user_logged(uid, login_file) == FALSE) {
+    if (check_user_logged(uid) == FALSE) {
         return STATUS_NOK;
     }
 
+    if ((login_file = generate_login_file(uid)) == NULL) {
+        return STATUS_FAIL;
+    }
+    
     if (unlink(login_file) != 0) {
         printf("Error: Removing login file\n");
+        free(login_file);
         return STATUS_FAIL;
     }
 
+    free(login_file);
     return STATUS_OK;
 }
 
@@ -195,30 +267,51 @@ int logout_user(char *uid, char *pass) {
 */
 int all_groups(int *num_groups, char ****groups) {
     
-    char gid[GID_SIZE + 1];
-    char last_mid[MID_SIZE + 1], group_name[MAX_GNAME + 1];
+    char gid[GID_SIZE + 1] = "";
+    char last_mid[MID_SIZE + 1] = "";
+    char group_name[MAX_GNAME + 1] = "";
 
-    (*groups) = (char ***) malloc(sizeof(char **) * (next_available_gid - 1));
+    (*num_groups) = 0;
+    if (((*groups) = (char ***) malloc(sizeof(char **) * (next_available_gid - 1))) == NULL) {
+        return STATUS_FAIL;
+    }
 
     for (int i = 1; i < next_available_gid; i++) {
+        
         sprintf(gid, "%02d", i);
 
         if (get_group_name(gid, group_name) == STATUS_FAIL) {
-            printf("Error : couldnt get gid = %s group_name", gid);
+            printf("Error: Couldn't get GID %s's group name.\n", gid);
             return STATUS_FAIL;
         }
 
         if (get_last_mid(gid, last_mid) == STATUS_FAIL) {
-            printf("Error : couldnt get last mid, from gid = %s", gid);
+            printf("Error: Couldn't get last MID from GID %s\n", gid);
             return STATUS_FAIL;
         }
 
-        (*groups)[i - 1] = (char **) malloc(sizeof(char *) * 3);
-        (*groups)[i - 1][0] = (char *) malloc(sizeof(char) * (GID_SIZE + 1));
-        (*groups)[i - 1][1] = (char *) malloc(sizeof(char) * (MAX_GNAME + 1));
-        (*groups)[i - 1][2] = (char *) malloc(sizeof(char) * (MID_SIZE + 1));
+        if (((*groups)[i - 1] = (char **) malloc(3 * sizeof(char *))) == NULL) {
+            free_groups(*groups, *num_groups);
+            return STATUS_USR_INVALID;
+        }
 
+        /*
+        if ((((*groups)[i - 1][0] = (char *) malloc((GID_SIZE  + 1) * sizeof(char))) == NULL) ||
+            (((*groups)[i - 1][1] = (char *) malloc((MAX_GNAME  + 1) * sizeof(char))) == NULL) ||
+            (((*groups)[i - 1][2] = (char *) malloc((MID_SIZE  + 1) * sizeof(char))) == NULL)) {
+            free_groups(*groups, *num_groups + 1);
+            printf("error malloc\n");
+            return STATUS_USR_INVALID;
+        }
+        */
+        (*groups)[i - 1][0] = (char *) malloc((GID_SIZE  + 1) * sizeof(char));
+        
+        (*groups)[i - 1][1] = (char *) malloc((MAX_GNAME  + 1) * sizeof(char));
+
+        (*groups)[i - 1][2] = (char *) malloc((MID_SIZE  + 1) * sizeof(char));
+        
         strcpy((*groups)[i - 1][0], gid);
+        memset((*groups)[i - 1][1], '\0', MAX_GNAME + 1);
         strcpy((*groups)[i - 1][1], group_name);
         strcpy((*groups)[i - 1][2], last_mid);
 
@@ -231,23 +324,21 @@ int all_groups(int *num_groups, char ****groups) {
 int subscribe_group(char *uid, char *gid, char *group_name, char *new_gid) {
 
     // REVIEW which cases should return STATUS_NOK
-    char user_dir[10 + UID_SIZE], group_dir[11 + GID_SIZE];
-    char login_file[10 + UID_SIZE + UID_SIZE + 12];
-    char group_uid_file[11 + GID_SIZE + UID_SIZE + 6];
+    int new_group_created = FALSE;
+    char *user_file;
     FILE *file;    
 
     /* Check UID */
-    if (!check_uid(uid) || check_user_registered(uid, user_dir) == FALSE) {
+    if (!check_uid(uid) || check_user_registered(uid) == FALSE) {
         return STATUS_USR_INVALID;
     }
 
-    sprintf(login_file, "%s/%s_login.txt", user_dir, uid);
-    if (check_user_logged(uid, login_file) == FALSE) {
+    if (check_user_logged(uid) == FALSE) {
         return STATUS_USR_INVALID;
     }
 
     /* Check GID: GID invalid OR group doesn't exist and isn't 00 */
-    if ( (!check_gid(gid) && strcmp(gid, "00")) || (check_group_exists(gid, group_dir) == FALSE && strcmp(gid, "00"))) {
+    if ( (!check_gid(gid) && strcmp(gid, "00")) || (check_group_exists(gid) == FALSE && strcmp(gid, "00"))) {
         return STATUS_GID_INVALID;
     } 
     
@@ -261,62 +352,72 @@ int subscribe_group(char *uid, char *gid, char *group_name, char *new_gid) {
         return STATUS_GROUPS_FULL;
     }
     
-    /* If GID = 00, create a new group with the next available GID */ 
+    /* If GID = 00, create a new group with the next available GID */     
     if (!strcmp(gid, "00")) {
-        if (create_group(group_name, group_dir, new_gid) == STATUS_FAIL) {
+        if (create_group(group_name, new_gid) == STATUS_FAIL) {
             printf("Error creating group.\n");
             return STATUS_FAIL;
         }
+        strcpy(gid, new_gid);
+        new_group_created = TRUE;
     } 
-
+   
     /* Subscribe existing group and create GROUPS/GID/uid.txt */
-    sprintf(group_uid_file, "%s/%s.txt", group_dir, uid);
-    
-    if (!(file = fopen(group_uid_file, "w"))) {
-        printf("Error creating group uid file.\n");
+    if ((user_file = generate_user_file(gid, uid)) == NULL) {
         return STATUS_FAIL;
     }
+    
+    if (!(file = fopen(user_file, "w"))) {
+        printf("Error creating group uid file.\n");
+        free(user_file);
+        return STATUS_FAIL;
+    }
+    
+    free(user_file);
 
     if (fclose(file) != 0) {
         printf("Error closing group uid file.\n");
         return STATUS_FAIL;
     }
     
-    if (!strcmp(gid, "00")) {
+    if (new_group_created == TRUE) {
         return STATUS_NEW_GROUP;
     }
+
     return STATUS_OK;
 }
 
 int unsubscribe_user(char *uid, char *gid) {
     
-    char user_dir[10 + UID_SIZE], group_dir[11 + GID_SIZE];
-    char login_file[10 + UID_SIZE + UID_SIZE + 12];
-    char group_uid_file[11 + GID_SIZE + UID_SIZE + 6];
+    char *user_file;
     FILE *file;  
 
     /* Check UID */
-    if (!check_uid(uid) || check_user_registered(uid, user_dir) == FALSE) {
+    if (!check_uid(uid) || check_user_registered(uid) == FALSE) {
         return STATUS_USR_INVALID;
     }
 
-    sprintf(login_file, "%s/%s_login.txt", user_dir, uid);
-    if (check_user_logged(uid, login_file) == FALSE) {
+    if (check_user_logged(uid) == FALSE) {
         return STATUS_USR_INVALID;
     }
     
     /* Check GID */
-    if (check_group_exists(gid, group_dir) == FALSE || !strcmp(gid, "00") || check_gid(gid) == FALSE) {
+    if (check_group_exists(gid) == FALSE || !strcmp(gid, "00") || check_gid(gid) == FALSE) {
         return STATUS_GID_INVALID;
     } 
 
-    /* Remove UID.txt file from GROUPS/GID */
-    sprintf(group_uid_file, "%s/%s.txt", group_dir, uid);    
-    if (unlink(group_uid_file) != 0) {
-        printf("Error : user uid file from GROUPS/%s.\n", gid);
+    if ((user_file = generate_user_file(gid, uid)) == NULL) {
         return STATUS_FAIL;
     }
 
+    /* Remove UID.txt file from GROUPS/GID */
+    if (unlink(user_file) != 0) {
+        printf("Error : user uid file from GROUPS/%s.\n", gid);
+        free(user_file);
+        return STATUS_FAIL;
+    }
+
+    free(user_file);
     return STATUS_OK;
 }
 
@@ -329,7 +430,6 @@ int unsubscribe_user(char *uid, char *gid) {
 */
 int user_subscribed_groups(char *uid, int *num_groups, char ****groups) {
 
-    char user_dir[10 + UID_SIZE], login_file[10 + UID_SIZE + UID_SIZE + 12];
     char gid[GID_SIZE + 1];
     char last_mid[MID_SIZE + 1], group_name[MAX_GNAME + 1];
     int base_size = 100;
@@ -340,12 +440,11 @@ int user_subscribed_groups(char *uid, int *num_groups, char ****groups) {
     }
 
     /* Check UID */
-    if (!(check_uid(uid) && check_user_registered(uid, user_dir))) { // NOTE: this is stupid as fuck
+    if (!(check_uid(uid) && check_user_registered(uid))) {
         return STATUS_USR_INVALID;
     }
 
-    sprintf(login_file, "%s/%s_login.txt", user_dir, uid);
-    if (check_user_logged(uid, login_file) == FALSE) {
+    if (check_user_logged(uid) == FALSE) {
         return STATUS_USR_INVALID;
     }
 
@@ -402,43 +501,68 @@ int user_subscribed_groups(char *uid, int *num_groups, char ****groups) {
 
 /* ======== Auxiliary Functions ======== */
 
+// NOTE some auxiliary funcions are returning STATUS_FAIL that isnt  
+// been checked for when the same function is called by the server
+
 /*  Check if user with UID uid is registered
     Input:
     - uid: the UID
     - user_dir: to be filled with corresponding user_dir
     Output: TRUE or FALSE
 */
-int check_user_registered(char *uid, char *user_dir) {
+int check_user_registered(char *uid) {
 
     DIR* dir;
+    char *user_dir, *password_file;
+    
+    if ((user_dir = generate_user_dir(uid)) == NULL) {
+        return STATUS_FAIL;
+    }
 
-    sprintf(user_dir, USERS_DIR "/%s", uid);
     dir = opendir(user_dir);
 
     if (!(dir)) {
+        free(user_dir);
         return FALSE;
     }
+
+    free(user_dir);
     closedir(dir);
+
+    if ((password_file = generate_password_file(uid)) == NULL) {
+        return STATUS_FAIL;
+    }
+
+    if(access(password_file, F_OK) != 0 ) {
+        free(password_file);
+        return FALSE;
+    }
+
+    free(password_file);
     return TRUE;
 }
 
-// NOTE: enforcee maximum input sizes???
 /*  Check if user with UID uid is subscribed to group with
     GID gid
     Input:
     - uid: the UID
-    - gid: the gid
+    - gid: the GID
     Output: TRUE or FALSE
 */
-int check_user_subscribed(char uid[UID_SIZE + 1], char *gid) {
+int check_user_subscribed(char *uid, char *gid) {
 
-    char user_file[10 + GID_SIZE + UID_SIZE + 6];
-    sprintf(user_file, "../GROUPS/%s/%s.txt", gid, uid);
+    char *user_file;
+
+    if ((user_file = generate_user_file(gid, uid)) == NULL) {
+        return STATUS_FAIL;
+    }
     
     if(access(user_file, F_OK) != 0 ) {
+        free(user_file);
         return FALSE;
     }
 
+    free(user_file);
     return TRUE;
 }
 
@@ -448,121 +572,213 @@ int check_user_subscribed(char uid[UID_SIZE + 1], char *gid) {
     - gid: the pass
     Output: TRUE or FALSE
 */
-int check_correct_password(char* uid, char *pass, char* user_dir, char *password_file) {
+int check_correct_password(char* uid, char *pass) {
     
     FILE *file;
-    char true_pass[PASSWORD_SIZE + 2];
+    char *password_file;
+    char true_pass[PASSWORD_SIZE + 2] = "";
     int num_bytes;
 
-    sprintf(password_file, "%s/%s_pass.txt", user_dir, uid);
-
-    if (!(file = fopen(password_file, "r"))) {
-        printf("Error opening password file with path %s.\n", password_file);
+    if ((password_file = generate_password_file(uid)) == NULL) {
         return STATUS_FAIL;
     }
 
-    // note check this
-    fread(true_pass, sizeof(char), PASSWORD_SIZE, file);
+    if (!(file = fopen(password_file, "r"))) {
+        printf("Error opening password file with path %s.\n", password_file);
+        free(password_file);
+        return STATUS_FAIL;
+    }
 
-    if (strcmp(true_pass, pass)) {
-        return FALSE;
+    if ((num_bytes = fread(true_pass, sizeof(char), PASSWORD_SIZE, file)) == 0) {
+        printf("Error reading password file with path %s.\n", password_file);
+        free(password_file);
+        return STATUS_FAIL;
     }
 
     if (fclose(file) != 0) {
         printf("Error closing password file.\n");
+        free(password_file);
         return STATUS_FAIL;
     }
 
-    return TRUE;
-}
-
-int check_user_logged (char *uid, char *login_file) {
-    if(access(login_file, F_OK) != 0) {
+    if (strcmp(true_pass, pass)) {
+        free(password_file);
         return FALSE;
     }
+
+    free(password_file);
     return TRUE;
 }
 
-int check_group_exists(char *gid, char *group_dir) {
-    DIR* dir;
-    char path[MAX_BUF_SIZE];
+/*  Check if the user with UID = uid is logged in
+    Input:
+    - uid: the UID
+    Output: TRUE or FALSE
+*/
+int check_user_logged (char *uid) {
 
-    sprintf(group_dir, GROUPS_DIR "/%s", gid);
+    char *login_file;
+
+    if ((login_file = generate_login_file(uid)) == NULL) {
+        return STATUS_FAIL;
+    }
+
+    if(access(login_file, F_OK) != 0) {
+        free(login_file);
+        return FALSE;
+    }
+
+    free(login_file);
+    return TRUE;
+}
+
+int check_group_exists(char *gid) {
+    DIR* dir;
+
+    char *group_dir, *msg_dir, *gname_file;
+
+    if ((group_dir = generate_group_dir(gid)) == NULL) {
+        return STATUS_FAIL;
+    }
+
     dir = opendir(group_dir);
 
     if (!(dir)) {
+        free(group_dir);
         return FALSE;
     }
     closedir(dir);
+    free(group_dir);
    
     /* Check GID_name.txt file exists */
+<<<<<<< HEAD
     memset(path, 0, MAX_BUF_SIZE * sizeof(char));
     sprintf(path, "%s/%s_name.txt", group_dir, gid);
     if(access(path, F_OK) != 0 ) {
+=======
+    if ((gname_file = generate_gname_file(gid)) == NULL) {
+        return STATUS_NOK;
+    }
+
+    if(access(gname_file, F_OK) != 0 ) {
+        free(gname_file);
+>>>>>>> 0ddee450a9bb56fc2119a02ceb2b9609bee21e8f
         return FALSE;
     }
-    
+
+    free(gname_file);
+
     /* Check MSG folder exists */
+<<<<<<< HEAD
     memset(path, 0, MAX_BUF_SIZE * sizeof(char));
     sprintf(path, "%s/MSG", group_dir);
     dir = opendir(path);
+=======
+    if ((msg_dir = generate_msg_dir(gid)) == NULL) {
+        return STATUS_FAIL;
+    }
+
+    dir = opendir(msg_dir);
+>>>>>>> 0ddee450a9bb56fc2119a02ceb2b9609bee21e8f
 
     if (!(dir)) {
+        free(msg_dir);
         return FALSE;
     }
     closedir(dir);
+    free(msg_dir);
 
     return TRUE; 
 }
 
-int check_message_exists(char *gid, char *mid, char *message_dir) {
+int check_message_exists(char *gid, char *mid) {
     DIR *dir;
-    char path[MAX_BUF_SIZE];
+    char *msg_dir, *text_file, *author_file;
 
-    sprintf(message_dir, GROUPS_DIR "/%." STR(GID_SIZE) "s/MSG/%." STR(MID_SIZE) "s/", gid, mid);
-    dir = opendir(message_dir);
+    if ((msg_dir = generate_msg_dir(gid)) == NULL) {
+        return STATUS_FAIL;
+    }
+
+    dir = opendir(msg_dir);
 
     if (!(dir)) {
+        free(msg_dir);
         return FALSE;
     }
+    free(msg_dir);
     closedir(dir);
 
     /* Check T E X T.txt file exists */
+<<<<<<< HEAD
     memset(path, 0, MAX_BUF_SIZE * sizeof(char));
     sprintf(path, "%s/T E X T.txt", message_dir);
     if (access(path, F_OK) != 0) {
+=======
+    if ((text_file = generate_text_file(gid)) == NULL) {
+        return STATUS_FAIL;
+    }
+    
+    if (access(text_file, F_OK) != 0) {
+        free(text_file);
+>>>>>>> 0ddee450a9bb56fc2119a02ceb2b9609bee21e8f
         return FALSE;
     }
+    free(text_file);
 
     /* Check A U T H O R.txt file exists */
+<<<<<<< HEAD
     memset(path, 0, MAX_BUF_SIZE * sizeof(char));
     sprintf(path, "%s/A U T H O R.txt", message_dir);
     if (access(path, F_OK) != 0) {
+=======
+    if ((author_file = generate_author_file(gid)) == NULL) {
+        return STATUS_FAIL;
+    }
+
+    printf("author_file : %s\n", author_file);
+
+    if (access(author_file, F_OK) != 0) {
+        free(author_file);
+>>>>>>> 0ddee450a9bb56fc2119a02ceb2b9609bee21e8f
         return FALSE;
     }
-    printf("There is message %s in group %s\n", mid, gid);
+
+    free(author_file);
     return TRUE;
 }
 
-int create_group(char *group_name, char *group_dir, char *new_gid) {
+int create_group(char *group_name, char *new_gid) {
     
-    char group_name_file[10 + GID_SIZE + 1 + MAX_GNAME + 10];
+    // NOTE if in the middle of creating a group it fails need 
+    // to delete all files crated before the bug occurred
     FILE *file;
+    char *group_dir, *gname_file, *msg_dir;
+
+    sprintf(new_gid, "%02d", next_available_gid);
 
     /* 1. Create GROUPS/GID*/
-    sprintf(group_dir, "../GROUPS/%02d", next_available_gid);
-    if (mkdir(group_dir, 0777) == STATUS_FAIL) {
-        printf("Error creating group directory.\n");
-		return STATUS_FAIL;
-	}
-
-    /* 2. Create GROUPS/GID/GID_name.txt with group name inside txt */
-    sprintf(group_name_file, "%s/%02d_name.txt", group_dir, next_available_gid);
-
-    if (!(file = fopen(group_name_file, "w"))) {
-        printf("Error opening group name file.\n");
+    if ((group_dir = generate_group_dir(new_gid)) == NULL) {
         return STATUS_FAIL;
     }
+    
+    if (mkdir(group_dir, 0777) == STATUS_FAIL) {
+        printf("Error creating group directory.\n");
+        free(group_dir);
+		return STATUS_FAIL;
+	}
+    free(group_dir);
+
+    /* 2. Create GROUPS/GID/GID_name.txt with group name inside txt */
+    if ((gname_file = generate_gname_file(new_gid)) == NULL) {
+        return STATUS_FAIL;
+    }
+
+    if (!(file = fopen(gname_file, "w"))) {
+        printf("Error opening group name file.\n");
+        free(gname_file);
+        return STATUS_FAIL;
+    }
+    free(gname_file);
 
     group_name[strlen(group_name)] = '\0';
     if (fwrite(group_name, sizeof(char), strlen(group_name), file) != strlen(group_name)) {
@@ -576,14 +792,16 @@ int create_group(char *group_name, char *group_dir, char *new_gid) {
     }
 
     /* 3. Create sub directory GROUPS/GID/MSG */
-    sprintf(group_name_file, "%s/MSG", group_dir); /* Reusing group_name_file buffer*/
-    if (mkdir(group_name_file, 0777) == STATUS_FAIL) {
+    if ((msg_dir = generate_msg_dir(new_gid)) == NULL) {
+        return STATUS_FAIL;
+    }
+
+    if (mkdir(msg_dir, 0777) == STATUS_FAIL) {
         printf("Error creating MSG sub directory.\n");
 		return STATUS_FAIL;
 	}
 
     /* Increment next_available gid */
-    sprintf(new_gid, "%02d", next_available_gid);
     next_available_gid++;
     return SUCCESS;
 }
@@ -591,26 +809,31 @@ int create_group(char *group_name, char *group_dir, char *new_gid) {
 /*  Getter for group name of group with a given gid
     Input: 
     - gid: the group id
-    - group_name: buffer to hold the group name
+    - group_name: buffer to hold the path to the group name file
     Output: None
 */
 int get_group_name(char *gid, char *group_name) {
 
     FILE *file;
-    char group_name_file[strlen("../GROUPS/") + GID_SIZE  + strlen("/") + GID_SIZE + strlen("_name.txt") + 1]; 
+    char *gname_file;
     int read_bytes;
     
-    sprintf(group_name_file, "../GROUPS/%." STR(GID_SIZE) "s/%." STR(GID_SIZE) "s_name.txt", gid, gid);
+    if ((gname_file = generate_gname_file(gid)) == NULL) {
+        return STATUS_FAIL;
+    }
    
-    if (!(file = fopen(group_name_file, "r"))) {
-        printf("Error opening group name file with path %s.\n", group_name_file);
+    if (!(file = fopen(gname_file, "r"))) {
+        printf("Error opening group name file with path %s.\n", gname_file);
+        free(gname_file);
         return STATUS_FAIL;
     }
   
     if ((read_bytes = fread(group_name, sizeof(char), MAX_GNAME, file)) == 0) {
-        printf("Error reading group name file with path %s.\n", group_name_file);
+        printf("Error reading group name file with path %s.\n", gname_file);
+        free(gname_file);
         return STATUS_FAIL;
     }
+    free(gname_file);
   
     group_name[read_bytes] = '\0';
 
@@ -631,13 +854,13 @@ int get_group_name(char *gid, char *group_name) {
 */
 int get_last_mid(char *gid, char *last_mid) {
 
-    char message_dir[strlen(GROUPS_DIR) + strlen("/") + GID_SIZE + strlen("/MSG/") + MID_SIZE];
-    char mid[MID_SIZE + 1];
+    char mid[MID_SIZE + 1] = "";
 
     for (int i = 1; i < pow(10, strlen(STR(MID_SIZE))); i++) {
         sprintf(mid, "%0" STR(MID_SIZE) "d", i);
-        if (check_message_exists(gid, mid, message_dir) == FALSE) {
-            sprintf(last_mid, "%04d", i - 1);
+
+        if (check_message_exists(gid, mid) == FALSE) {
+            sprintf(last_mid, "%0" STR(MID_SIZE) "d", i - 1);
             return SUCCESS;
         }
     }
@@ -655,4 +878,171 @@ void free_groups(char ***groups, int num_groups) {
         }
     }
     free(groups);
+}
+
+
+/* Generate DS path files */
+char *generate_user_dir (char *uid) {
+    
+    char *user_dir = NULL;
+
+    if (strlen(uid) != UID_SIZE) {
+        return NULL;
+    }
+
+    if ((user_dir = (char *) malloc((strlen(USER_DIR) + 1) * sizeof(char))) == NULL) {
+        return NULL;
+    }
+
+    sprintf(user_dir, USERS_DIR "%." STR(UID_SIZE) "s/", uid);
+    return user_dir;
+}
+
+char *generate_group_dir (char *gid) {
+    
+    char *group_dir = NULL;
+
+    if (strlen(gid) != GID_SIZE) {
+        return group_dir;
+    }
+
+    if ((group_dir = (char *) malloc((strlen(GROUP_DIR) + 1) * sizeof(char))) == NULL) {
+        return NULL;
+    }
+
+    sprintf(group_dir, GROUPS_DIR "%." STR(GID_SIZE) "s/", gid);
+
+    return group_dir;
+}
+
+char *generate_login_file (char *uid) {
+    
+    char *login_file = NULL;
+    char *user_dir = generate_user_dir(uid);
+
+    if (user_dir == NULL) {
+        return login_file;
+    }
+
+    if ((login_file = (char *) malloc((strlen(LOGIN_FILE) + 1) * sizeof(char))) == NULL) {
+        return NULL;
+    }
+
+    sprintf(login_file, "%s%." STR(UID_SIZE) "s" LOGIN_FILE_EXTENSION, user_dir, uid);
+
+    free(user_dir);
+    return login_file;
+}
+
+char *generate_password_file (char *uid) {
+    
+    char *password_file = NULL;
+    char *user_dir = generate_user_dir(uid);
+
+    if (user_dir == NULL) {
+        return password_file;
+    }
+
+    if ((password_file = (char *) malloc((strlen(PASSWORD_FILE) + 1) * sizeof(char))) == NULL) {
+        return NULL;
+    }
+
+    sprintf(password_file, "%s%." STR(UID_SIZE) "s" PASSWORD_FILE_EXTENSION, user_dir, uid);
+
+    free(user_dir);
+    return password_file;
+}
+
+char *generate_gname_file(char *gid) {
+
+    char *gname_file = NULL;
+    char *group_dir = generate_group_dir(gid);
+
+    if (group_dir == NULL) {
+        return gname_file;
+    }
+
+    if ((gname_file = (char *) malloc((strlen(GNAME_FILE) + 1) * sizeof(char))) == NULL) {
+        return NULL;
+    }
+
+    sprintf(gname_file, "%s%." STR(GID_SIZE) "s" GNAME_FILE_EXTENSION, group_dir, gid);
+
+    free(group_dir);
+    return gname_file;
+}
+
+char *generate_msg_dir(char *gid) {
+
+    char *msg_dir = NULL;
+    char *group_dir = generate_group_dir(gid);
+
+    if (group_dir == NULL) {
+        return msg_dir;
+    }
+
+    if ((msg_dir = (char *) malloc((strlen(MSG_DIR) + 1) * sizeof(char))) == NULL) {
+        return NULL;
+    }
+
+    sprintf(msg_dir, "%s" MSG_DIR_EXTENSION "/", group_dir);
+    
+    free(group_dir);
+    return msg_dir;
+}
+
+char *generate_user_file (char *gid, char *uid) {
+    
+    char *user_file = NULL;
+    char *group_dir = generate_group_dir(gid);
+
+    if (group_dir == NULL) {
+        return user_file;
+    }
+
+    if ((user_file = (char *) malloc((strlen(USER_FILE) + 1) * sizeof(char))) == NULL) {
+        return NULL;
+    }
+
+    sprintf(user_file, "%s%." STR(UID_SIZE) "s" USER_FILE_EXTENSION , group_dir, uid);
+
+    free(group_dir);
+    return user_file;
+}
+
+char *generate_text_file(char *gid) {
+
+    char *text_file = NULL;
+    char *msg_dir = generate_msg_dir(gid);
+
+    if (msg_dir == NULL) {
+        return text_file;
+    }
+
+    if ((text_file = (char *) malloc((strlen(TEXT_FILE) + 1) * sizeof(char))) == NULL) {
+        return NULL;
+    }
+
+    sprintf(text_file, "%s" TEXT_FILE_EXTENSION, msg_dir);
+    
+    free(msg_dir);
+    return text_file;
+}
+
+char *generate_author_file(char *gid) {
+    char *author_file = NULL;
+    char *msg_dir = generate_msg_dir(gid);
+
+    if (msg_dir == NULL) {
+        return author_file;
+    }
+
+    if ((author_file = (char *) malloc((strlen(AUTHOR_FILE) + 1) * sizeof(char))) == NULL) {
+        return NULL;
+    }
+
+    sprintf(author_file, "%s" AUTHOR_FILE_EXTENSION, msg_dir);
+
+    free(msg_dir);
+    return author_file;
 }
