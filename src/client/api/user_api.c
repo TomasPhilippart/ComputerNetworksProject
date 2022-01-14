@@ -46,7 +46,7 @@ ssize_t n;
 struct sockaddr_in addr;
 socklen_t addrlen;
 
-char ***parse_groups (char *buf, int num_groups);
+int parse_groups (char *buf, int num_groups, char ****list);
 char **parse_uids (char *buf);
 char ***parse_messages(char *buf, int num_messages);
 void exchange_messages_udp(char *buf, ssize_t max_rcv_size);
@@ -334,7 +334,7 @@ void get_all_groups(char ****list) {
 
 	/* advance pointer to group section of server response for parsing */
 	aux = buf + (strlen(command) + strlen(num_groups) + 1) * sizeof(char);
-	*list = parse_groups(aux, atoi(num_groups));
+	parse_groups(aux, atoi(num_groups), list);
 
 }
 
@@ -486,14 +486,14 @@ int get_subscribed_groups(char ****list) {
 	
 	/* advance pointer to group section of server response for parsing */
 	aux = buf + strlen(command) + strlen(num_groups) + 1;
-	*list = parse_groups(aux, atoi(num_groups));
+	parse_groups(aux, atoi(num_groups), list);
 
 	return STATUS_OK;
 
 }
 
 /*	Parses a response from the server regarding group listing
-	to an array of arrays of 2 string of the format {GID, Gname}, 
+	to an array of arrays of 2 string of the format {GID, Gname, MID}, 
 	one for each available group, with the last entry being NULL.
 	Input: 
 	- buf: the buffer with the response of the type [ GID GName MID]*
@@ -501,11 +501,11 @@ int get_subscribed_groups(char ****list) {
 	Output: 
 	- the array of {GID, Gname} elements.
 */
-char ***parse_groups(char *buf, int num_groups) {
+int parse_groups(char *buf, int num_groups, char ****list) {
 	
 	/* Allocate and fill response entries with each GID and GNAME */
-	char ***response;
-	if ((response = (char***) malloc(sizeof(char**) * (num_groups + 1))) == NULL) {
+
+	if (((*list) = (char***) malloc(sizeof(char**) * (num_groups + 1))) == NULL) {
 		printf("Error : malloc");
 		exit(EXIT_FAILURE);
 	}
@@ -515,12 +515,12 @@ char ***parse_groups(char *buf, int num_groups) {
 	char *aux = buf;
 
 	for (int i = 0; i < num_groups; i++) {
-		if ((response[i] = (char **) malloc(sizeof(char*) * (21))) == NULL) {
+		if (((*list)[i] = (char **) malloc(sizeof(char*) * (3))) == NULL) {
 			printf("Error : malloc");
 			exit(EXIT_FAILURE);
 		}
-		for (int j = 0; j < 2; j++) {
-			if ((response[i][j] = (char *) malloc(sizeof(char) * (MAX_FNAME + 1))) == NULL) {
+		for (int j = 0; j < 3; j++) {
+			if (((*list)[i][j] = (char *) malloc(sizeof(char) * (MAX_FNAME + 1))) == NULL) {
 				printf("Error : malloc");
 				exit(EXIT_FAILURE);
 			}
@@ -529,25 +529,29 @@ char ***parse_groups(char *buf, int num_groups) {
 	
 	for (int i = 0; i < num_groups; i++) {
 		
-		num_tokens = sscanf(aux, " %s %s %s", response[i][0], response[i][1], mid);
-		
-		if (num_tokens != 3) {
-			printf("Error: Invalid message format, %s.\n", buf);
+		if (!parse_regex(aux, "^ [0-9]{" STR(GID_SIZE) "} [a-zA-Z0-9_-]{1," STR(MAX_GNAME) "} [0-9]{" STR(MID_SIZE) "}")) {
+			printf("Error: Invalid message format.\n");
 			end_session(EXIT_FAILURE);
 		}
+
+		num_tokens = sscanf(aux, " %s %s %s", (*list)[i][0],(*list)[i][1], (*list)[i][2]);
+		
+		if (!(atoi((*list)[i][0]))) {
+			printf("Error: Invalid message format.\n");
+			end_session(EXIT_FAILURE);
+		}
+	
 		/* advance buf pointer 3 tokens */
-		aux += (strlen(response[i][0]) + strlen(response[i][1]) + strlen(mid) + 3) * sizeof(char);
+		aux += (strlen((*list)[i][0]) + strlen((*list)[i][1]) + strlen((*list)[i][2]) + 3) * sizeof(char);
 	}
 	
 	/* Ensure that there are exactly num_messages messages  */
-	if (*(aux) != '\n') {
+	if (strcmp(aux, "\n")) {
 		printf("Error: Buffer doesn't end in a \\n\n");
 		end_session(EXIT_FAILURE);
 	}
-
-	response[num_groups] = NULL;
-
-	return response;
+	(*list)[num_groups] = NULL;
+	return SUCCESS;
 }
 
 void set_gid(char *gid) {
@@ -780,7 +784,7 @@ int retrieve(char *mid, char ****list) {
 	if (rcv_buf == NULL) {
 		exit(EXIT_FAILURE);
 	}
-
+	
 	sprintf(buf, "RTV %." STR(MAX_ARG_SIZE) "s %." STR(MAX_ARG_SIZE) "s %." STR(MAX_ARG_SIZE) "s\n", UID, GID, mid); 
 
 	// NOTE check these
@@ -790,6 +794,7 @@ int retrieve(char *mid, char ****list) {
 	/* Parse "RRT status N" which has its maximum size when status = OK */
 	reset_buffer(rcv_buf);
 	write_to_buffer(rcv_buf, strlen("RRT OK ") + MAX_NUM_MSG_DIGITS,  rcv_message_tcp); // NOTE: return value??
+	printf("Buffer: <%s> with size %d\n", rcv_buf->buf, rcv_buf->tail);
 	
 	// NOTE: use regex to parse spaces, one for each case!!!*/
 	num_tokens = sscanf(rcv_buf->buf, "%" STR(MAX_ARG_SIZE) "s %" STR(MAX_ARG_SIZE) "s %" 

@@ -260,15 +260,15 @@ void process_input() {
 			get_all_groups(&groups);
 			if (groups[0] == NULL) {
 				printf("No groups are available.\n");
-				free_list(groups, 2);
+				free_list(groups, 3);
 				continue;
 			}
 
 			for (int i = 0; groups[i] != NULL; i++) {
-				printf("%s %s\n", groups[i][0], groups[i][1]);
+				printf("%s %s %s\n", groups[i][0], groups[i][1], groups[i][2]);
 			}
 
-			free_list(groups, 2);
+			free_list(groups, 3);
 			continue;
 		}
 		// ===== SUBSCRIBE =====
@@ -373,9 +373,9 @@ void process_input() {
 			switch (status) {
 				case STATUS_OK:
 					for (int i = 0; groups[i] != NULL; i++) {
-						printf("%s %s\n", groups[i][0], groups[i][1]);
+						printf("%s %s %s\n", groups[i][0], groups[i][1], groups[i][2]);
 					}
-					free_list(groups, 2);
+					free_list(groups, 3);
 					continue;
 				case STATUS_USR_INVALID:
 					printf("Error: Invalid UID.\n");
