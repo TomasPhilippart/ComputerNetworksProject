@@ -12,7 +12,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <sys/stat.h>
-// NOTE remove just for debug
 #include <errno.h>
 #include<math.h>
 
@@ -179,7 +178,6 @@ int register_user(char *user, char *pass) {
 		end_session(EXIT_FAILURE);
 	}
 
-	// REVIEW
 	if (!strcmp(status, "OK")) {
 		return STATUS_OK;
 	} else if (!strcmp(status, "DUP")) {
@@ -582,7 +580,6 @@ int get_uids_group(char ****list) {
 	memset(buf, 0, MAX_BUF_SIZE);
 	sprintf(buf, "ULS %." STR(MAX_ARG_SIZE) "s\n", GID); 
 
-	// NOTE: check these
 	setup_tcp();
 	send_message_tcp(buf, strlen(buf));	
 	write_to_buffer(rcv_buffer, 31, rcv_message_tcp);
@@ -882,7 +879,6 @@ int retrieve(char *mid, char ****list) {
 	
 		if ((((*list)[i][1] = (char *) malloc(sizeof(char) * (FILENAME_MAX + 1))) == NULL) ||
 			(((*list)[i][2] = (char *) malloc(sizeof(char) * (MAX_FSIZE + 1))) == NULL)) {
-			printf("f\n");
 			destroy_buffer(rcv_buf);
 			free_list(*list, 3);
 			exit(EXIT_FAILURE);
@@ -935,7 +931,6 @@ int retrieve(char *mid, char ****list) {
 		
 		} 
 		write_to_buffer(rcv_buf, MAX(0, 3 + MID_SIZE + UID_SIZE + 3 - rcv_buf->tail), rcv_message_tcp);
-		//printf("Buffer \"%s\"  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
 	}
 	
 	/* Ensure that the response ended */
@@ -993,18 +988,13 @@ void exchange_messages_udp(char *buf, ssize_t max_rcv_size) {
 	
 	
 	memset(buf, 0, sizeof(buf) * sizeof(char));
-	//start_timer(udp_socket);
 	if ((num_bytes = recvfrom(udp_socket, buf, MAX_BUF_SIZE, 0, (struct sockaddr*) &addr, &addrlen)) <= 0){
 		printf("Error: Failed to receive message.\n");
 		exit(EXIT_FAILURE);
 	}
-	//stop_timer(udp_socket);
 
 	buf[num_bytes] = '\0';
 
-	// DEBUG :
-	//printf("Received: %s\n", buf);
-	//NOTE : must the client close the socket? or the server?
 	
 }
 
@@ -1033,9 +1023,6 @@ void send_message_tcp(char *buf, ssize_t num_bytes) {
 		aux += num_bytes_written;
 	}
 
-	// Debug
-	//printf("Sent: %s\n", buf);
-
 }
 
 int rcv_message_tcp(char *buf, int num_bytes) {
@@ -1046,9 +1033,7 @@ int rcv_message_tcp(char *buf, int num_bytes) {
 	num_bytes_left = num_bytes;
 
 	while (num_bytes_left != 0) {
-		//start_timer(tcp_socket);
 		num_bytes_read = read(tcp_socket, aux, num_bytes_left);
-		//stop_timer(tcp_socket);
 
 		if (num_bytes_read == 0) {
 			break;

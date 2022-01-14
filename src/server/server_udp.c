@@ -83,9 +83,8 @@ void process_requests() {
 
     while (1) {
         
-        /* TODO where to start/stop timer? */
         if ((num_bytes = recvfrom(fd, receiving_buf, MAX_LINE_SIZE - 1, 0, (struct sockaddr*) &addr, &addrlen)) <= 0) {
-            printf("Error: ");
+            printf("(UDP) Error: Receiving message from user, received = %s", receiving_buf);
             exit(EXIT_FAILURE);
         }
 
@@ -93,7 +92,7 @@ void process_requests() {
         
         if (verbose) {
             if ((getnameinfo((struct sockaddr *)&addr, addrlen, host, sizeof(host), service, sizeof (service), 0)) != 0) {
-                printf("Error getting user address information.\n");
+                printf("(UDP) Error getting user address information.\n");
                 exit(EXIT_FAILURE);
             } else {
                 printf("(UDP) %s@%s: %s", host, service, receiving_buf); /* /n missing because buf already contains it */ 
@@ -119,7 +118,7 @@ void process_requests() {
             status = register_user(arg1, arg2);
     
             if ((sending_buf = (char *) malloc(sizeof(char) * 9)) == NULL) {
-                printf("Error: Couldn't allocate memory for sending_buf\n");
+                printf("(UDP) Error: Couldn't allocate memory for sending_buf\n");
             }
 
             memset(sending_buf, 0, sizeof(sending_buf) * sizeof(char));
@@ -152,7 +151,7 @@ void process_requests() {
             status = unregister_user(arg1, arg2);
 
             if ((sending_buf = (char *) malloc(sizeof(char) * 9)) == NULL) {
-                printf("Error: Couldn't allocate memory for sending_buf\n");
+                printf("(UDP) Error: Couldn't allocate memory for sending_buf\n");
             }
 
             memset(sending_buf, 0, sizeof(sending_buf) * sizeof(char));
@@ -182,7 +181,7 @@ void process_requests() {
             status = login_user(arg1, arg2);
 
             if ((sending_buf = (char *) malloc(sizeof(char) * 9)) == NULL) {
-                printf("Error: Couldn't allocate memory for sending_buf\n");
+                printf("(UDP) Error: Couldn't allocate memory for sending_buf\n");
             }
 
             memset(sending_buf, 0, sizeof(sending_buf) * sizeof(char));
@@ -212,7 +211,7 @@ void process_requests() {
             status = logout_user(arg1, arg2);
 
             if ((sending_buf = (char *) malloc(sizeof(char) * 9)) == NULL) {
-                printf("Error: Couldn't allocate memory for sending_buf\n");
+                printf("(UDP) Error: Couldn't allocate memory for sending_buf\n");
             }
             memset(sending_buf, 0, sizeof(sending_buf) * sizeof(char));
             switch (status) {
@@ -248,14 +247,13 @@ void process_requests() {
 
             sending_buf_size =  num_groups * (GID_SIZE + MAX_GNAME + MID_SIZE + 3) + 7;
             if ((sending_buf = (char *) malloc(sizeof(char) * sending_buf_size)) == NULL) {
-                printf("Error: Couldn't allocate memory for sending_buf\n");
+                printf("(UDP) Error: Couldn't allocate memory for sending_buf\n");
             }
 
             memset(sending_buf, 0, sending_buf_size * sizeof(char));
 
             switch (status) {
                 case STATUS_OK:
-                    // REVIEW 
                     aux = sending_buf;
                     
                     sprintf(aux, "RGL %d", num_groups);
@@ -263,7 +261,6 @@ void process_requests() {
 
                     for (int i = 0; i < num_groups; i++) {
                         sprintf(aux, " %s %s %s", groups[i][0], groups[i][1], groups[i][2]);
-                        // printf("Got %s %s %s\n", groups[i][0], groups[i][1], groups[i][2]);
                         aux += (strlen(aux) * sizeof(char));
                     }
 
@@ -290,7 +287,7 @@ void process_requests() {
             status = subscribe_group(arg1, arg2, arg3, gid);
 
             if ((sending_buf = (char *) malloc(sizeof(char) * 13)) == NULL) {
-                printf("Error: Couldn't allocate memory for sending_buf\n");
+                printf("(UDP) Error: Couldn't allocate memory for sending_buf\n");
             }
 
             memset(sending_buf, 0, sizeof(sending_buf) * sizeof(char));
@@ -336,7 +333,7 @@ void process_requests() {
             status = unsubscribe_user(arg1, arg2);
 
             if ((sending_buf = (char *) malloc(sizeof(char) * 11)) == NULL) {
-                printf("Error: Couldn't allocate memory for sending_buf\n");
+                printf("(UDP) Error: Couldn't allocate memory for sending_buf\n");
             }
 
             memset(sending_buf, 0, sizeof(sending_buf) * sizeof(char));
@@ -380,14 +377,13 @@ void process_requests() {
 
             sending_buf_size =  num_groups * (GID_SIZE + MAX_GNAME + MID_SIZE + 3) + 12;
             if ((sending_buf = (char *) malloc(sizeof(char) * sending_buf_size)) == NULL) {
-                printf("Error: Couldn't allocate memory for sending_buf\n");
+                printf("(UDP) Error: Couldn't allocate memory for sending_buf\n");
             }
 
             memset(sending_buf, 0, sending_buf_size * sizeof(char));
 
             switch (status) {
                 case STATUS_OK:
-                    // REVIEW 
                     aux = sending_buf;
 
                     sprintf(aux, "RGM %d", num_groups);
@@ -413,7 +409,6 @@ void process_requests() {
             sprintf(receiving_buf, "ERR\n");
         }
 
-        //printf("Sending: <%s>\n", sending_buf);
         if (sendto(fd, sending_buf, strlen(sending_buf) * sizeof(char), 0, (struct sockaddr*) &addr, addrlen) < strlen(sending_buf)) {
 		    exit(EXIT_FAILURE);
         }

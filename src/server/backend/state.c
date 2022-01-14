@@ -324,7 +324,6 @@ int all_groups(int *num_groups, char ****groups) {
     for (int i = 1; i < next_available_gid; i++) {
      
         sprintf(gid, "%02d", i);
-        //printf("Checking group %s\n", gid);
         if (get_group_name(gid, group_name) == STATUS_FAIL) {
             printf("Error: Couldn't get GID %s's group name.\n", gid);
             return STATUS_FAIL;
@@ -362,7 +361,6 @@ int all_groups(int *num_groups, char ****groups) {
 
 int subscribe_group(char *uid, char *gid, char *group_name, char *new_gid) {
 
-    // REVIEW which cases should return STATUS_NOK
     int new_group_created = FALSE;
     char *user_file;
     FILE *file;    
@@ -502,7 +500,7 @@ int user_subscribed_groups(char *uid, int *num_groups, char ****groups) {
     
     /* Check UID */
     status = check_user_registered(uid);
-    if (!(check_uid(uid) && status == TRUE)) {
+    if (!check_uid(uid) || status == FALSE) {
         return STATUS_USR_INVALID;
     } else if (status == STATUS_FAIL) {
         return STATUS_FAIL;
@@ -597,7 +595,6 @@ int get_uids_group(char *gid, char *group_name, char ***uids,  int *num_uids) {
         return STATUS_FAIL;
     }
 
-    //printf("Searching in %s\n", group_dir_name);
     groups = opendir(group_dir_name);
     if (groups) {
         free(group_dir_name);
@@ -822,23 +819,29 @@ int retrieve_messages(char *uid, char *gid, char *mid, char ***uids,
         return STATUS_FAIL;
     }
 
+    printf("zz 1");
+
     /* Check if user is subscribed */
     status = check_user_subscribed(uid, gid);
-    if (status = FALSE) {
+    if (status == FALSE) {
         return STATUS_NOK;
     } else if (status == STATUS_FAIL) {
         return STATUS_FAIL;
     }
 
+    printf("zz 2");
+
+
     for (i = 0; i < 20; i++) {
+        printf("zz 3, i = %d", i);
         int found = 0;
         char curr_mid[UID_SIZE + 1];
         char curr_file[128];
 
         sprintf(curr_mid, "%04d", atoi(mid) + i);
 
-        // NOTE See this
-        status = check_message_exists(gid, mid);
+        status = check_message_exists(gid, curr_mid);
+        printf("zz 4, mid = %s, curr_mid = %s", curr_mid, mid);
         if (status == FALSE) {
             break;
         } else if (status == STATUS_FAIL) {
@@ -851,14 +854,13 @@ int retrieve_messages(char *uid, char *gid, char *mid, char ***uids,
 
         if (entries) {
             while ((entry = readdir(entries)) != NULL) {
-                //printf("Got %s\n", entry->d_name);
                 if (!strcmp(entry->d_name, "A U T H O R.txt")) { 
                     author_file = generate_author_file(gid, curr_mid);
-                    //printf("Fetching author from %s\n", author_file);
                     if ((file = fopen(author_file, "r")) == NULL) {
                         free(author_file);
                         return STATUS_FAIL;
                     }
+                    printf("Searching author file %s\n", author_file);
                     (*uids)[i] = (char *) malloc(sizeof(char) * (UID_SIZE + 1));
                     if (fread((*uids)[i], sizeof(char), UID_SIZE, file) != UID_SIZE) {
                         free(author_file);
@@ -871,17 +873,15 @@ int retrieve_messages(char *uid, char *gid, char *mid, char ***uids,
                    
                 } else if (strcmp(entry->d_name, "T E X T.txt") && strcmp(entry->d_name,".") && 
                                                                    strcmp(entry->d_name,"..") && found == 0) { 
-                    //printf("Here is the dir entry %s\n", entry->d_name);
                     (*files)[i] = (char *) malloc(sizeof(char) * (128));
                     sprintf((*files)[i], "%s%s", msg_dir, entry->d_name);
-                    //printf("Fetching content file from %s\n", (*files)[i]);
+                    printf("Searching author file %s\n", author_file);
                     found = 1;
                 }   
             }
             if (found == 0) {
                 (*files)[i] = NULL;
             }
-            //printf("Got out!\n");
         } else {
             return STATUS_FAIL;
         }
@@ -895,8 +895,6 @@ int retrieve_messages(char *uid, char *gid, char *mid, char ***uids,
 }
  
 //======== Auxiliary Functions ======== */
-//NOTE some auxiliary funcions are returning STATUS_FAIL that isnt  
-// been checked for when the same function is called by the server
 
 /*  Check if user with UID uid is registered
     Input:
@@ -1239,14 +1237,13 @@ int get_last_mid(char *gid, char *last_mid) {
 
     char mid[MID_SIZE + 1] = "";
     int status;
-    
+
     for (int i = 1; i < pow(10, MID_SIZE); i++) {
         sprintf(mid, "%0" STR(MID_SIZE) "d", i);
 
         status = check_message_exists(gid, mid); 
         if (status == FALSE) {
             sprintf(last_mid, "%0" STR(MID_SIZE) "d", i - 1);
-            //printf("message %s does not exist\n", mid);
             return SUCCESS;
         } else if (status == STATUS_FAIL) {
             return STATUS_FAIL;

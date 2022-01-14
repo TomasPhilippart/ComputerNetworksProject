@@ -339,7 +339,7 @@ void process_input() {
 				case STATUS_OK:
 					printf("User with UID %s unsubscribed successfully from group with GID %s\n", get_uid(), arg1);
 					continue;
-				case STATUS_USR_INVALID: // TODO: see this
+				case STATUS_USR_INVALID: 
 					printf("Error: UID %s is not valid\n", get_uid());
 					continue;
 				case STATUS_GID_INVALID: 

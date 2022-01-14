@@ -53,6 +53,7 @@ void setup() {
         printf("(TCP) Error: Failed to create TCP socket.\n");
 		exit(EXIT_FAILURE);
 	}
+
 	setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
 
 	memset(&hints, 0, sizeof(hints));
@@ -108,7 +109,7 @@ void process_requests() {
 			int res = close(new_fd);
 			while ((res == -1) && (errno == EINTR));
 			if (res == -1) {
-				printf("Error closing the socket: %s\n", strerror(errno));
+				printf("(TCP) Error closing the socket: %s\n", strerror(errno));
 			}
 
 			// NOTE what is the point of forking if the parent waits for
@@ -120,7 +121,7 @@ void process_requests() {
 			} else if(WIFSIGNALED(status)) {
 				/* The child process was killed by a signal. Note the use of strsignal
 				to make the output human-readable. */
-				printf("Killed by %s\n", strsignal(WTERMSIG(status)));
+				printf("(TCP) Killed by %s\n", strsignal(WTERMSIG(status)));
 			}
 			continue;
         }
@@ -128,7 +129,7 @@ void process_requests() {
 		close(fd);
 		if (verbose) {
             if ((getnameinfo((struct sockaddr *)&addr, addrlen, host, sizeof(host), service, sizeof (service), 0)) != 0) {
-                printf("Error getting user address information.\n");
+                printf("(TCP) Error getting user address information.\n");
 				close(new_fd);
                 exit(EXIT_FAILURE);
 			}
@@ -238,21 +239,10 @@ void process_requests() {
 			if (verbose) {
                 	printf("(TCP) %s@%s: RTV %s %s %s\n", host, service, uid, gid, mid); 
            	}
-			status = retrieve_messages(uid, gid, mid, &uids, &text_files, &content_files, &num_messages);
-
-			//for (int i = 0; i < num_messages; i++) {
-			//	printf("Fetching %s ", text_files[i]);
-			//	if (content_files[i] != NULL) {
-			//		printf("and %s ", content_files[i]);
-			//	}
-			//	printf("from %s\n", uids[i]);
-			//}
-
-			//send_message_tcp("Ye\n", strlen(send_buf));
+			status = retrieve_messages(uid, gid, mid, &uids, &text_files, &content_files, &num_messages);;
 		
-//
 			if (status == STATUS_OK) {
-//
+
 				int file_size, bytes_read, total;
 
 				if (num_messages == 0) {
@@ -260,18 +250,15 @@ void process_requests() {
 					send_message_tcp(send_buf, strlen(send_buf));
 					break;
 				}
-//
+
 				FILE *file;
 				sprintf(send_buf, "RRT OK %d", num_messages);
-				//printf("Buffer for now %s with size %d\n", send_buf, strlen(send_buf));
 				send_message_tcp(send_buf, strlen(send_buf));
 				memset(send_buf, 0, strlen(send_buf) * sizeof(char));
 
 				for (int i = 0; i < num_messages; i++) {
-					printf("Fetching text %s \n", text_files[i]);
 					/* Send text files */
 					sprintf(send_buf, " %04d %s", atoi(mid) + i, uids[i]);
-					//printf("Buffer for now \"%s\" with size %d\n", send_buf, strlen(send_buf));
 		
 					if ((file = fopen(text_files[i], "r")) == NULL) {
 						exit(EXIT_FAILURE);
@@ -283,26 +270,19 @@ void process_requests() {
 						exit(EXIT_FAILURE);
 					}
 
-					///* Check maximum filesize */
-					//if (file_size >= pow(10, MAX_FSIZE)) {
-					//	exit(EXIT_FAILURE);
-					//}
-					
 					sprintf(send_buf + strlen(send_buf), " %d ", file_size);
-					//printf("Buffer for now \"%s\" with size %d\n", send_buf, strlen(send_buf));
-//
+
 					if (fread(send_buf + strlen(send_buf), sizeof(char), file_size, file) < 0) {
 						exit(EXIT_FAILURE);
 					}
 
-					//printf("Buffer for now \"%s\" with size %d\n", send_buf, strlen(send_buf));
 
 					if (fclose(file) != 0) {
 						exit(EXIT_FAILURE);
 					}
 					send_message_tcp(send_buf, strlen(send_buf));
 					memset(send_buf, 0, (strlen(send_buf) * sizeof(char)));
-//
+
 					/* Send file content, if it exists */
 					if (content_files[i] != NULL) {
 
@@ -319,7 +299,6 @@ void process_requests() {
 							exit(EXIT_FAILURE);
 						}
 						sprintf(send_buf, " / %s %d ", basename(content_files[i]), file_size);
-						//printf("Buffer for now \"%s\" with size %d\n", send_buf, strlen(send_buf));
 						send_message_tcp(send_buf, strlen(send_buf));
 						memset(send_buf, 0, strlen(send_buf) * sizeof(char));
 
@@ -328,14 +307,11 @@ void process_requests() {
 							exit(EXIT_FAILURE);
 						}
 
-						//printf("Sending file\n");
 						while (1) {
 							bytes_read = fread(send_buf, sizeof(char), MAX_BUF_SIZE - 1, file);
-							//printf("Buffer for now \"%s\" with size %d\n", send_buf, strlen(send_buf));
 							send_message_tcp(send_buf, bytes_read);	// NOTE: check this
 							memset(send_buf, 0, sizeof(char) * bytes_read);
 							if (feof(file)) {
-								//printf("Bazei??\n");
 								break;
 							} else if (ferror(file)) {
 								exit(EXIT_FAILURE);
@@ -399,10 +375,6 @@ void send_message_tcp(char *buf, ssize_t num_bytes) {
 		aux += num_bytes_written;
 	}
 
-	//write(new_fd, "", 0);
-	// Debug
-	//printf("Sent: %s\n", buf);
-
 }
 
 int rcv_message_tcp(char *buf, int num_bytes) {
@@ -429,14 +401,8 @@ int rcv_message_tcp(char *buf, int num_bytes) {
 		num_bytes_left -= num_bytes_read;
 
 	}
-	// Debug
-	//if (*buf != '\0') {
-	//	printf("Received: %s\n", buf);
-	//	printf("With length: %d\n", strlen(buf));
-	//}
 
 	return num_bytes - num_bytes_left;
-
 }
 
 int main(int argc, char **argv) {

@@ -76,7 +76,6 @@ int main(int argc, char **argv) {
 		}
 	}
 	
-	printf("mas isto chega aqui?\n");
     end_session(SUCCESS);
 }
 
@@ -135,7 +134,8 @@ int validate_port(char *port_to_validate) {
 
 void ctrlC_handler (int sig_no) {
 
-	end_session();
+	kill(pid_tcp, SIGINT);
+	kill(pid_udp, SIGINT);
 
     sigaction(SIGINT, &old_action, NULL);
     kill(0, SIGINT);
