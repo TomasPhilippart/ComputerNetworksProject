@@ -1,5 +1,6 @@
 #include "../../constants.h"
 #include "../../aux_functions.h"
+#include "state.h"
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -13,6 +14,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <math.h>
+#include <errno.h>
 
 #define USERS_DIR "../USERS/"
 #define GROUPS_DIR "../GROUPS/"
@@ -60,7 +62,8 @@ char* generate_group_dir (char *gid);
 char* generate_login_file (char *uid); 
 char *generate_password_file (char *uid); 
 char *generate_gname_file(char *gid);
-char *generate_msg_dir(char *gid);
+char *generate_msg_dir(char *gid, char* mid);
+char *generate_msg_dir_father(char *gid);
 char *generate_user_file (char *gid, char *uid);
 char* generate_text_file(char *gid, char *mid);
 char* generate_author_file(char *gid, char *mid); 
@@ -305,9 +308,7 @@ int all_groups(int *num_groups, char ****groups) {
         }
         */
         (*groups)[i - 1][0] = (char *) malloc((GID_SIZE  + 1) * sizeof(char));
-        
         (*groups)[i - 1][1] = (char *) malloc((MAX_GNAME  + 1) * sizeof(char));
-
         (*groups)[i - 1][2] = (char *) malloc((MID_SIZE  + 1) * sizeof(char));
         
         strcpy((*groups)[i - 1][0], gid);
@@ -454,7 +455,7 @@ int user_subscribed_groups(char *uid, int *num_groups, char ****groups) {
    
         sprintf(gid, "%02d", i);
         if (check_user_subscribed(uid, gid)) {
-
+            
             /* Get group name */
             if (get_group_name(gid, group_name) == STATUS_FAIL) {
                 printf("Error : couldnt get gid = %s group_name", gid);
@@ -465,6 +466,7 @@ int user_subscribed_groups(char *uid, int *num_groups, char ****groups) {
                 printf("Error : couldnt get last mid, from gid = %s", gid);
                 return STATUS_FAIL;
             }
+
 
             if (((*groups)[*num_groups] = (char **) malloc(3 * sizeof(char *))) == NULL) {
                 free_groups(*groups, *num_groups);
@@ -493,10 +495,307 @@ int user_subscribed_groups(char *uid, int *num_groups, char ****groups) {
             }            
         }
     }
-
+    
     return STATUS_OK;
 }
 
+int get_uids_group(char *gid, char *group_name, char ***uids,  int *num_uids) {
+    char *group_dir_name;
+    DIR *groups;
+    struct dirent *uid_dir;
+    int base_size = 100;
+
+    *num_uids = 0;
+    if ((*uids = (char **) malloc(base_size * sizeof(char *))) == NULL) {
+         printf("nao pode mano\n");
+        return STATUS_FAIL;
+    }
+    memset(*uids, 0, base_size * sizeof(char *));
+
+    if (!check_group_exists(gid)) {
+        return STATUS_NOK;
+    }
+
+    if (get_group_name(gid, group_name) != SUCCESS) {
+        return STATUS_FAIL;
+    }
+    group_dir_name = generate_group_dir(gid);
+    //printf("Searching in %s\n", group_dir_name);
+    groups = opendir(group_dir_name);
+    if (groups) {
+        free(group_dir_name);
+        while ((uid_dir = readdir(groups)) != NULL) {
+
+            if (parse_regex(uid_dir->d_name, "^[0-9]{" STR(UID_SIZE) "}.txt$") && atoi(uid_dir->d_name)) {
+
+                if (((*uids)[*num_uids] = (char *) malloc(sizeof(char) * UID_SIZE)) == NULL) {
+                    free_uids(*uids);
+                }
+                strncpy((*uids)[*num_uids], uid_dir->d_name, UID_SIZE);
+                (*uids)[*num_uids][UID_SIZE] = '\0';
+                
+                (*num_uids) += 1;
+
+                if ((*num_uids) % base_size == 0) {
+                    if ((*uids = (char **) realloc(*uids, ((*num_uids) + base_size) * sizeof(char *))) == NULL) {
+                        free_uids(*uids);
+                    }
+                    memset(*uids + base_size * sizeof(char *), 0, base_size * sizeof(char *));
+                }
+            }
+        }
+    } else {
+        return STATUS_FAIL;
+    }
+    return STATUS_OK;
+
+}
+
+void free_uids(char **uids) {
+    for (int i = 0; uids[i] != NULL; i++) {
+        free(uids[i]);
+    }
+    free(uids);
+}
+
+/* Post a text from user with UID uid to group with GID gid */
+int post_message(char *uid, char *gid, char *text, char *mid, char *file_name, int file_size, Buffer buf, int (*write)(char*, int)) {
+
+    char *author_file, *msg_dir, *text_file;
+    char last_mid[MID_SIZE + 1], file_dir[strlen(MSG_DIR) + UID_SIZE + 1 + MAX_FNAME + 1];
+    FILE *file;
+
+    /* Check UID */
+    if (!(check_uid(uid) && check_user_registered(uid) & check_user_logged(uid))) { 
+        return STATUS_NOK;
+    }
+
+    if (!check_user_subscribed(uid, gid)) {
+        return STATUS_NOK;
+    }
+   
+    get_last_mid(gid, last_mid);
+    printf("Here is the last mid: %s\n", last_mid);
+    if (!strcmp(last_mid, "9999")) {
+        return STATUS_NOK;
+    }
+    
+    sprintf(mid, "%04d", atoi(last_mid) + 1);
+    mid[MID_SIZE] = '\0';
+
+    msg_dir = generate_msg_dir(gid, mid);
+    printf("Writing to %s\n", msg_dir);
+   
+    if (mkdir(msg_dir, 0700) == -1) {
+        free(msg_dir);
+        return STATUS_FAIL;
+    }
+
+    author_file = generate_author_file(gid, mid);
+    printf("Writing to %s\n", author_file);
+    // write to file 
+    if ((file = fopen(author_file, "w")) == NULL) {
+        free(msg_dir);
+        free(author_file);
+        rmdir(msg_dir);
+        return STATUS_FAIL;
+    }
+
+    if ((fwrite(uid, sizeof(char), UID_SIZE, file)) != UID_SIZE) {
+        unlink(author_file);
+        free(msg_dir);
+        free(author_file);
+        rmdir(msg_dir);
+        return STATUS_FAIL;
+    }
+
+    if (fclose(file) != 0) {
+        unlink(author_file);
+        free(msg_dir);
+        free(author_file);
+        rmdir(msg_dir);
+        return STATUS_FAIL;
+    }
+    text_file = generate_text_file(gid, mid);
+    printf("Writing to %s\n", text_file);
+    /* register messate text to a file */
+    if ((file = fopen(text_file, "w")) == NULL) {
+        unlink(author_file);
+        free(msg_dir);
+        free(author_file);
+        free(text_file);
+        rmdir(msg_dir);
+        return STATUS_FAIL;
+    }
+
+    if ((fwrite(text, sizeof(char), strlen(text), file)) != strlen(text)) {
+        unlink(author_file);
+        free(msg_dir);
+        free(author_file);
+        free(text_file);
+        rmdir(msg_dir);
+        return STATUS_FAIL;
+    }
+
+    if (fclose(file) != 0) {
+        unlink(author_file);
+        free(msg_dir);
+        free(author_file);
+        free(text_file);
+        rmdir(msg_dir);
+        return STATUS_FAIL;
+    }
+   
+    if (file_name == NULL) {
+        return STATUS_OK;
+    }
+
+    sprintf(file_dir, "%s%s", msg_dir, file_name);
+    if ((file = fopen(file_dir, "w")) == NULL) {
+        unlink(author_file);
+        free(msg_dir);
+        free(author_file);
+        free(text_file);
+        rmdir(msg_dir);
+        return STATUS_FAIL;
+    }
+
+    int bytes_to_write = MIN(file_size, buf->tail);
+
+    if (fwrite(buf->buf, sizeof(char), bytes_to_write, file) != bytes_to_write) {
+        unlink(author_file);
+        free(msg_dir);
+        free(author_file);
+        free(text_file);
+        rmdir(msg_dir);
+        return STATUS_FAIL;
+    }
+
+    file_size -= bytes_to_write;
+	flush_buffer(buf, bytes_to_write);
+
+    while (file_size != 0) {
+        bytes_to_write = MIN(file_size, buf->size);
+        
+        write_to_buffer(buf, bytes_to_write, write);	
+
+        if (fwrite(buf->buf, sizeof(char), bytes_to_write, file) != bytes_to_write) {
+            unlink(author_file);
+            free(msg_dir);
+            free(author_file);
+            free(text_file);
+            rmdir(msg_dir);
+            return STATUS_FAIL;
+        }
+        
+        reset_buffer(buf);
+        file_size -= bytes_to_write;
+    }
+
+    if (fclose(file) != 0) {
+        unlink(author_file);
+        free(msg_dir);
+        free(author_file);
+        free(text_file);
+        rmdir(msg_dir);
+        return STATUS_FAIL;
+    }
+
+    return STATUS_OK;
+   
+}
+
+//int retrieve_messages(char *uid, char *gid, char *mid, char ***uids, 
+//                      char ***text_files, char ***files, int *num_messages) {
+//
+//    char user_dir[10 + UID_SIZE], login_file[10 + UID_SIZE + UID_SIZE + 12] = {0};
+//    char msg_dir[strlen(GROUPS_DIR) + GID_SIZE + MID_SIZE + 6 + 1];
+//    char curr_file[128];
+//    DIR *entries;
+//    FILE *file;
+//    struct dirent *entry;
+//    int i;
+//
+//    if ((((*uids) = (char **) malloc(sizeof(char *) * 20)) == NULL) || 
+//        (((*text_files) = (char **) malloc(sizeof(char *) * 20)) == NULL) || 
+//        (((*files) = (char **) malloc(sizeof(char *) * 20)) == NULL)) {
+//        return STATUS_FAIL;
+//    }
+//   
+//    /* Check UID */
+//    if (!(check_uid(uid) && check_user_registered(uid, user_dir))) { 
+//        return STATUS_NOK;
+//    }
+//
+//    sprintf(login_file, "%s/%s_login.txt", user_dir, uid);
+//    if (!check_user_logged(uid, login_file)) {
+//        return STATUS_NOK;
+//    }
+//
+//    if (!check_user_subscribed(uid, gid)) {
+//        return STATUS_NOK;
+//    }
+//
+//    for (i = 0; i < 20; i++) {
+//        int found = 0;
+//        char curr_mid[UID_SIZE + 1];
+//        char curr_file[128];
+//
+//        sprintf(curr_mid, "%04d", atoi(mid) + i);
+//
+//        if (!(check_message_exists(gid, curr_mid, msg_dir))) {
+//            printf("Bazei!\n");
+//            break;
+//        }
+//       
+//        (*text_files)[i] = (char *) malloc(sizeof(char) * (128));
+//        sprintf((*text_files)[i], "%sT E X T.txt", msg_dir);
+//
+//    
+//        entries = opendir(msg_dir);
+//        if (entries) {
+//            while ((entry = readdir(entries)) != NULL) {
+//                memset(curr_file, 0, 128);
+//                if (!strcmp(entry->d_name, "A U T H O R.txt")) { 
+//                    sprintf(curr_file, "%sA U T H O R.txt", msg_dir);
+//                    printf("Fetching author from %s\n", curr_file);
+//                    if ((file = fopen(curr_file, "r")) == NULL) {
+//                        return STATUS_FAIL;
+//                    }
+//                    (*uids)[i] = (char *) malloc(sizeof(char) * (UID_SIZE + 1));
+//                    if (fread((*uids)[i], sizeof(char), UID_SIZE, file) != UID_SIZE) {
+//                        return STATUS_FAIL;
+//                    }
+//                    if (fclose(file) != 0) {
+//                        return STATUS_FAIL;
+//                    }
+//                    //printf("Got the author: %s\n", (*uids)[i]);
+//                } else if (strcmp(entry->d_name, "T E X T.txt") && strcmp(entry->d_name,".") && 
+//                                                                   strcmp(entry->d_name,"..") && found == 0) { 
+//                    //printf("Here is the dir entry %s\n", entry->d_name);
+//                    (*files)[i] = (char *) malloc(sizeof(char) * (128));
+//                    sprintf((*files)[i], "%s%s", msg_dir, entry->d_name);
+//                    printf("Fetching content file from %s\n", (*files)[i]);
+//                    found = 1;
+//                }
+//
+//                if (found == 0) {
+//                    (*files)[i] = NULL;
+//                }
+//               
+//            }
+//            
+//        } else {
+//            return STATUS_FAIL;
+//        }
+//
+//    }
+//
+//    (*num_messages) = i;
+//
+//    return STATUS_OK;
+//
+//}
 
 
 /* ======== Auxiliary Functions ======== */
@@ -663,7 +962,7 @@ int check_group_exists(char *gid) {
     free(gname_file);
 
     /* Check MSG folder exists */
-    if ((msg_dir = generate_msg_dir(gid)) == NULL) {
+    if ((msg_dir = generate_msg_dir_father(gid)) == NULL) {
         return STATUS_FAIL;
     }
 
@@ -683,7 +982,7 @@ int check_message_exists(char *gid, char *mid) {
     DIR *dir;
     char *msg_dir, *text_file, *author_file;
 
-    if ((msg_dir = generate_msg_dir(gid)) == NULL) {
+    if ((msg_dir = generate_msg_dir(gid, mid)) == NULL) {
         
         return STATUS_FAIL;
     }
@@ -768,8 +1067,8 @@ int create_group(char *group_name, char *new_gid) {
         return STATUS_FAIL;
     }
 
-    /* 3. Create sub directory GROUPS/GID/MSG */
-    if ((msg_dir = generate_msg_dir(new_gid)) == NULL) {
+    /* 3. Create sub directory GROUPS/GID/MSG/ */
+    if ((msg_dir = generate_msg_dir_father(new_gid)) == NULL) {
         rmrf(group_dir);
         return STATUS_FAIL;
     }
@@ -797,6 +1096,7 @@ int get_group_name(char *gid, char *group_name) {
     FILE *file;
     char *gname_file;
     int read_bytes;
+
     
     if ((gname_file = generate_gname_file(gid)) == NULL) {
         return STATUS_FAIL;
@@ -868,7 +1168,7 @@ void free_groups(char ***groups, int num_groups) {
 }
 
 
-/* Generate DS path files */
+/* Generates a path of the form "../USERS/" */
 char *generate_user_dir (char *uid) {
     
     char *user_dir = NULL;
@@ -886,6 +1186,7 @@ char *generate_user_dir (char *uid) {
     return user_dir;
 }
 
+/* Generates a path of the form "../GROUPS/xx/" */
 char *generate_group_dir (char *gid) {
     
     char *group_dir = NULL;
@@ -904,6 +1205,7 @@ char *generate_group_dir (char *gid) {
     return group_dir;
 }
 
+/* Generates a path of the form "../USERS/xxxxx/xxxxx_login.txt" */
 char *generate_login_file (char *uid) {
     
     char *login_file = NULL;
@@ -924,6 +1226,7 @@ char *generate_login_file (char *uid) {
     return login_file;
 }
 
+/* Generates a path of the form "../USERS/xxxxx/xxxxx_pass.txt" */
 char *generate_password_file (char *uid) {
     
     char *password_file = NULL;
@@ -944,6 +1247,7 @@ char *generate_password_file (char *uid) {
     return password_file;
 }
 
+/* Generates a path of the form "../GROUPS/xx/xx_name.txt" */
 char *generate_gname_file(char *gid) {
 
     char *gname_file = NULL;
@@ -964,7 +1268,8 @@ char *generate_gname_file(char *gid) {
     return gname_file;
 }
 
-char *generate_msg_dir(char *gid) {
+/* Generates a path of the form "../GROUPS/xx/MSG/" */
+char *generate_msg_dir_father(char *gid) {
 
     char *msg_dir = NULL;
     char *group_dir = generate_group_dir(gid);
@@ -977,13 +1282,35 @@ char *generate_msg_dir(char *gid) {
         return NULL;
     }
 
-    sprintf(msg_dir, "%s" MSG_DIR_EXTENSION "/", group_dir);
+    sprintf(msg_dir, "%s" MSG_DIR_EXTENSION , group_dir);
     msg_dir[strlen(MSG_DIR)] = '\0';
     
     free(group_dir);
     return msg_dir;
 }
 
+/* Generates a path of the form "../GROUPS/xx/MSG/xxxx/" */
+char *generate_msg_dir(char *gid, char *mid) {
+
+    char *msg_dir = NULL;
+    char *group_dir = generate_group_dir(gid);
+
+    if (group_dir == NULL) {
+        return msg_dir;
+    }
+
+    if ((msg_dir = (char *) malloc((strlen(MSG_DIR) + 1) * sizeof(char))) == NULL) {
+        return NULL;
+    }
+
+    sprintf(msg_dir, "%s" MSG_DIR_EXTENSION "/%s/", group_dir, mid);
+    msg_dir[strlen(MSG_DIR) + MID_SIZE + 1] = '\0';
+    
+    free(group_dir);
+    return msg_dir;
+}
+
+/* Generates a path of the form "USER_DIR "../USERS/xxxxx/"*/
 char *generate_user_file (char *gid, char *uid) {
     
     char *user_file = NULL;
@@ -1004,10 +1331,11 @@ char *generate_user_file (char *gid, char *uid) {
     return user_file;
 }
 
+/* Generates a path of the form "../GROUPS/xx/MSG/xxxx/T E X T.txt" */
 char *generate_text_file(char *gid, char *mid) {
 
     char *text_file = NULL;
-    char *msg_dir = generate_msg_dir(gid);
+    char *msg_dir = generate_msg_dir(gid, mid);
 
     if (msg_dir == NULL) {
         return text_file;
@@ -1017,16 +1345,17 @@ char *generate_text_file(char *gid, char *mid) {
         return NULL;
     }
 
-    sprintf(text_file, "%s%s/%s", msg_dir, mid, TEXT_FILE_EXTENSION);
+    sprintf(text_file, "%s%s", msg_dir, TEXT_FILE_EXTENSION);
     text_file[strlen(TEXT_FILE)] = '\0';
 
     free(msg_dir);
     return text_file;
 }
 
+/* Generates a path of the form "../GROUPS/xx/MSG/xxxx/A U T H O R.txt" */ 
 char *generate_author_file(char *gid, char *mid) {
     char *author_file = NULL;
-    char *msg_dir = generate_msg_dir(gid);
+    char *msg_dir = generate_msg_dir(gid, mid);
 
     if (msg_dir == NULL) {
         return author_file;
@@ -1036,9 +1365,11 @@ char *generate_author_file(char *gid, char *mid) {
         return NULL;
     }
 
-    sprintf(author_file, "%s%s/" AUTHOR_FILE_EXTENSION, msg_dir, mid);
+    sprintf(author_file, "%s" AUTHOR_FILE_EXTENSION, msg_dir);
     author_file[strlen(AUTHOR_FILE)] = '\0';
 
     free(msg_dir);
     return author_file;
 }
+
+

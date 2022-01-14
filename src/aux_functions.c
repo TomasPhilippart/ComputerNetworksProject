@@ -9,8 +9,9 @@
 #include <unistd.h>
 #include <regex.h>
 #include <string.h>
-#define __USE_XOPEN_EXTENDED 500
 #include <ftw.h>
+
+#define __USE_XOPEN_EXTENDED 500
 
 
 // Check if UID is 5 digits and not 0000
@@ -33,8 +34,8 @@ int check_pass(char *pass) {
 }
 
 int check_filename(char *filename) {
-	// filename[i] == '_' || filename[i] == '.' || filename[i] == '-'
-	if (!parse_regex(filename, "^[a-zA-Z0-9_.-]{1,20}.[a-z0-9]{3}$")) {
+
+	if (!parse_regex(filename, "^[a-zA-Z0-9_.-]{1,20}.[a-zA-Z]{3}$")) {
 		return FALSE;
 	}
 	
@@ -117,8 +118,10 @@ void flush_buffer(Buffer buffer, int positions) {
 	- res: the result of the write function (normally the number of bytes)
 */
 int write_to_buffer(Buffer buffer, int num_bytes, int (*write_function)(char *, int)) {
+
 	int to_write = MIN(num_bytes,  (buffer->size - buffer->tail));
 	int res = write_function(buffer->buf + buffer->tail, to_write);
+	
 	if (res > 0) {
 		buffer->tail += res;
 		(buffer->buf)[buffer->tail] = '\0';

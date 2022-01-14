@@ -48,8 +48,9 @@ void setup() {
 		printf("Error: Binding socket.\n");
 		exit(EXIT_FAILURE);
 	}
-    /* Setup the file system */
+
     setup_state();
+
 }
 
 void process_requests() {

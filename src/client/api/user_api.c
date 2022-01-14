@@ -56,6 +56,8 @@ char ***parse_messages(char *buf, int num_messages);
 void exchange_messages_udp(char *buf, ssize_t max_rcv_size);
 void send_message_tcp(char *buf, ssize_t num_bytes);
 int rcv_message_tcp(char *buf, int num_bytes);
+int start_timer(int fd);
+int stop_timer(int fd);
 
 /*	Creates client socket and sets up the server address.
 	Terminates program if socked could not be created or hostname/IP address
@@ -286,7 +288,6 @@ int logout() {
 		printf("Error: Invalid message format, %s\n", buf);
 		end_session(EXIT_FAILURE);
 	}
-
 	if (!strcmp(status, "OK")) {
 		logged_in = FALSE;
 		memset(UID, 0, sizeof(UID) * sizeof(char));
@@ -477,8 +478,7 @@ int get_subscribed_groups(char ****list) {
 		return STATUS_ERR;
 	}
 
-	/* NOTE: use a regex for this, somethings like 123aaa will pass through */
-	if ((atoi(num_groups) == 0) && strcmp(num_groups, "0")) {
+	if (!parse_regex(num_groups, "^[0-9]{0,2}$")) {
 		printf("Error: Invalid number of groups, %s.\n", num_groups);
 		end_session(EXIT_FAILURE);
 	} 
@@ -565,6 +565,7 @@ int get_uids_group(char ****list) {
 		exit(EXIT_FAILURE);
 	}
 
+	memset(buf, 0, MAX_BUF_SIZE);
 	sprintf(buf, "ULS %." STR(MAX_ARG_SIZE) "s\n", GID); 
 
 	// NOTE: check these
@@ -640,6 +641,7 @@ int get_uids_group(char ****list) {
 	}
 
 	return STATUS_OK;
+	printf("My pid: %d\n", getpid());
 
 }
 
@@ -665,6 +667,7 @@ int post(char* text, char *mid, char *filename) {
 
 	// NOTE: check this
 	setup_tcp();	
+	memset(buf, 0, MAX_BUF_SIZE);
 	
 	if (filename == NULL) {  
 		sprintf(buf, "PST %." STR(MAX_ARG_SIZE) "s %." STR(MAX_ARG_SIZE) "s %ld %." STR(MAX_TSIZE) "s\n", 
@@ -712,9 +715,11 @@ int post(char* text, char *mid, char *filename) {
 		end_session(EXIT_FAILURE);
 	}
 	
+	memset(buf, 0, sizeof(char) * MAX_BUF_SIZE);
 	rcv_size = rcv_message_tcp(buf, MAX_LINE_SIZE - 1);	// NOTE: check this
 	buf[rcv_size] = '\0';
 	freeaddrinfo(res_tcp);
+
 	if (close(tcp_socket) == -1) {
 		exit(EXIT_FAILURE);
 	}
@@ -723,7 +728,7 @@ int post(char* text, char *mid, char *filename) {
 		return STATUS_ERR;
 	} else if (parse_regex(buf, "^RPT NOK\\\n$") && (strlen("RPT NOK\n$") == rcv_size)) {
 		return STATUS_NOK;
-	} else if (parse_regex(buf, "^RPT " MID_EXP "\\\n") && ((strlen("RPT \n") + MID_SIZE) == rcv_size)) {
+	} else if (parse_regex(buf, "^RPT [0-9]{" STR(MID_SIZE) "}\\\n") && ((strlen("RPT ") + MID_SIZE + 1) == rcv_size)) {
 		sscanf(buf, "%*s %s\n", mid);
 		if (!atoi(mid)) {
 			exit(EXIT_FAILURE);
@@ -770,6 +775,7 @@ int retrieve(char *mid, char ****list) {
 	/* Parse "RRT status N" which has its maximum size when status = OK */
 	reset_buffer(rcv_buf);
 	write_to_buffer(rcv_buf, strlen("RRT OK ") + MAX_NUM_MSG_DIGITS,  rcv_message_tcp); // NOTE: return value??
+	printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
 	
 	// NOTE: use regex to parse spaces, one for each case!!!*/
 	num_tokens = sscanf(rcv_buf->buf, "%" STR(MAX_ARG_SIZE) "s %" STR(MAX_ARG_SIZE) "s %" 
@@ -808,12 +814,17 @@ int retrieve(char *mid, char ****list) {
 
 	/* push rest of response to the front of the buffer */
 	flush_buffer(rcv_buf, strlen(command) + strlen(status) + strlen(num_messages) + 2);
+	printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
 	write_to_buffer(rcv_buf, MAX(0, 3 + MID_SIZE + UID_SIZE + 3 - rcv_buf->tail), rcv_message_tcp);
+	
 
 	for (int i = 0; i < atoi(num_messages); i++) {
+		printf("\n\n\n");
+		printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
 
 		/* Parse [ MID UID Tsize text] */
 		if (!parse_regex(rcv_buf->buf, "^ [0-9]{" STR(MID_SIZE) "} [0-9]{" STR(UID_SIZE) "} [0-9]{1,3}")) {
+			printf("a\n");
 			destroy_buffer(rcv_buf);
 			free_list(*list, 3);
 			exit(EXIT_FAILURE);
@@ -821,18 +832,14 @@ int retrieve(char *mid, char ****list) {
 		
 		char text_size[4], mid_aux[MID_SIZE + 1], uid_aux[UID_SIZE + 1];
 		sscanf(rcv_buf->buf, " %s %s %s", mid_aux, uid_aux, text_size);
-		
-		if (!(atoi(mid_aux) > 0 && atoi(uid_aux) > 0 && atoi(text_size) > 0)) {	
-			destroy_buffer(rcv_buf);
-			free_list(*list, 3);
-			exit(EXIT_FAILURE);
-		}
 	
 		flush_buffer(rcv_buf, MID_SIZE + UID_SIZE + strlen(text_size) + 3);
+		printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
 		write_to_buffer(rcv_buf, MAX(0, 1 + atoi(text_size) - rcv_buf->tail), rcv_message_tcp);
+		printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
 	
-
-		if (!parse_regex(rcv_buf->buf, "^ .{1,240}$")) {
+		if (!parse_regex(rcv_buf->buf, "^ .{0,240}")) {
+			printf("c\n");
 			destroy_buffer(rcv_buf);
 			free_list(*list, 3);
 			exit(EXIT_FAILURE);
@@ -841,19 +848,29 @@ int retrieve(char *mid, char ****list) {
 		(*list)[i][0] = (char *) malloc(sizeof(char) * (atoi(text_size) + 1));
 		memcpy((*list)[i][0], rcv_buf->buf + 1, atoi(text_size) * sizeof(char));
 		(*list)[i][0][atoi(text_size)] = '\0';
-		reset_buffer(rcv_buf);
-		write_to_buffer(rcv_buf, 2, rcv_message_tcp);
+		flush_buffer(rcv_buf, 1 + atoi(text_size));
+		printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
+		write_to_buffer(rcv_buf, MAX(0, 2 - rcv_buf->tail), rcv_message_tcp);
+		printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
 		/* Check the existence of a file in the message */
 		if (!parse_regex(rcv_buf->buf, "^ /")) {
-			write_to_buffer(rcv_buf, 3 + MID_SIZE + UID_SIZE + 3, rcv_message_tcp);
+			printf("d\n");
+			write_to_buffer(rcv_buf, MAX(0, 3 + MID_SIZE + UID_SIZE + 3 - rcv_buf->tail), rcv_message_tcp);
 			continue;
 		}
 
-		reset_buffer(rcv_buf);
-		write_to_buffer(rcv_buf, 3 + MAX_FNAME + MAX_FSIZE, rcv_message_tcp);
-		
+
+		flush_buffer(rcv_buf, 2);
+		printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
+		write_to_buffer(rcv_buf, MAX(0, 3 + MAX_FNAME + MAX_FSIZE - rcv_buf->tail), rcv_message_tcp);
+		printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
+		for (int i = 0; i < rcv_buf->tail; i++) {
+			printf("%x\n", (rcv_buf->buf)[i]);
+		}
+	
 		/* parse [Fname Fsize data] */
 		if (!parse_regex(rcv_buf->buf, "^ [a-zA-Z0-9._-]{1,21}.[a-zA-Z0-9]{3} [0-9]{1,10} ")) {
+			printf("e\n");
 			destroy_buffer(rcv_buf);
 			free_list(*list, 3);
 			exit(EXIT_FAILURE);
@@ -861,25 +878,29 @@ int retrieve(char *mid, char ****list) {
 	
 		if ((((*list)[i][1] = (char *) malloc(sizeof(char) * (FILENAME_MAX + 1))) == NULL) ||
 			(((*list)[i][2] = (char *) malloc(sizeof(char) * (MAX_FSIZE + 1))) == NULL)) {
+			printf("f\n");
 			destroy_buffer(rcv_buf);
 			free_list(*list, 3);
 			exit(EXIT_FAILURE);
 		}
 
 		if (atoi((*list)[i][2]) >= pow(10, MAX_FSIZE)) {
+			printf("g\n");
 			destroy_buffer(rcv_buf);
 			free_list(*list, 3);
 			exit(EXIT_FAILURE);
 		}
 
 		sscanf(rcv_buf->buf, " %s %s ", (*list)[i][1], (*list)[i][2]);
-		flush_buffer(rcv_buf, 3 + strlen((*list)[i][1]) + strlen((*list)[i][2]));
 	
-
+		flush_buffer(rcv_buf, 3 + strlen((*list)[i][1]) + strlen((*list)[i][2]));
+		printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
+	
 		if ((file = fopen((*list)[i][1], "wb"))) {
 
 			int file_size = atoi((*list)[i][2]);
 			int bytes_to_write = MIN(file_size, rcv_buf->tail);
+			printf("The file size is %d\n", file_size);
 			
 			if (fwrite(rcv_buf->buf, sizeof(char), bytes_to_write, file) != bytes_to_write) {
 				destroy_buffer(rcv_buf);
@@ -889,11 +910,13 @@ int retrieve(char *mid, char ****list) {
 			
 			file_size -= bytes_to_write;
 			flush_buffer(rcv_buf, bytes_to_write);
+			printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
 
 			while (file_size != 0) {
 				bytes_to_write = MIN(file_size, rcv_buf->size);
 
 				write_to_buffer(rcv_buf, bytes_to_write, rcv_message_tcp);	// NOTE: check this
+				printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
 				//printf("Buffer state: %s\n", rcv_buf->buf);
 
 				if (fwrite(rcv_buf->buf, sizeof(char), bytes_to_write, file) != bytes_to_write) {
@@ -912,21 +935,26 @@ int retrieve(char *mid, char ****list) {
 				exit(EXIT_FAILURE);
 			}
 			
-			write_to_buffer(rcv_buf, 3 + MID_SIZE + UID_SIZE + 3, rcv_message_tcp);
+			write_to_buffer(rcv_buf, MAX(0, 3 + MID_SIZE + UID_SIZE + 3 - rcv_buf->tail), rcv_message_tcp);
 		} 
 	}
-
+	printf("Saltei fora\n");
+	printf("Buffer with size: <%s> <%d>\n", rcv_buf->buf, rcv_buf->tail);
+	
 	/* Ensure that the response ended */
 	if (!(parse_regex(rcv_buf->buf, "^\\\n$") && (write_to_buffer(rcv_buf, 1, rcv_message_tcp) == 0))) {
+		printf("Por aqui\n");
 		exit(EXIT_FAILURE);
 	}
-	
+
 	freeaddrinfo(res_tcp);
 	
 	if (close(tcp_socket) == -1) {
 		exit(EXIT_FAILURE);
 	}
 	destroy_buffer(rcv_buf);
+
+	printf("E bazei!\n");
 
 	return STATUS_OK;
 }
@@ -1001,7 +1029,7 @@ void send_message_tcp(char *buf, ssize_t num_bytes) {
 	while (num_bytes_left > 0) {
 		num_bytes_written = write(tcp_socket, aux, num_bytes_left);
 		if (num_bytes_written < 0) {
-			printf("Error: Failed to write message to TCP socket.\n");
+			printf("Error: Failed to write message to TCP socket. Why: %s\n", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 		num_bytes_left -= num_bytes_written;
@@ -1009,7 +1037,7 @@ void send_message_tcp(char *buf, ssize_t num_bytes) {
 	}
 
 	// Debug
-	//printf("Sent: %s\n", buf);
+	printf("Sent: %s\n", buf);
 
 }
 
@@ -1021,15 +1049,27 @@ int rcv_message_tcp(char *buf, int num_bytes) {
 	num_bytes_left = num_bytes;
 
 	while (num_bytes_left != 0) {
+		//printf("Waiting...\n");
 
+		//start_timer(tcp_socket);
 		num_bytes_read = read(tcp_socket, aux, num_bytes_left);
+		//stop_timer(tcp_socket);
+		
+		//printf("Read %d bytes\n", num_bytes_read);
+		//for (int i = 0; i < num_bytes_read; i++) {
+		//	putchar(*(aux + i));
+		//}
+		//putchar('\n');
 
 		if (num_bytes_read == 0) {
 			break;
 		}
 		
 		if (num_bytes_read == -1) {
-			printf("Error: Failed to read message from TCP socket.\n");
+			if (errno == EWOULDBLOCK || errno == EAGAIN) {
+				break;
+			}
+			printf("Error: Failed to read message to TCP socket. Why: %s with errno %d\n", strerror(errno), errno);
 			exit(EXIT_FAILURE);
 		}
 		
@@ -1037,6 +1077,13 @@ int rcv_message_tcp(char *buf, int num_bytes) {
 		num_bytes_left -= num_bytes_read;
 
 	}
+	//int i;
+	//for (i = 0; i < MAX_BUF_SIZE; i++) {
+	//	if (*(buf + i) == 0) {
+	//		break;
+	//	}
+	//}
+	//printf("First NULL at %d\n", i);
 
 	// Debug
 	//if (*buf != '\0') {
@@ -1069,4 +1116,19 @@ int is_logged_in () {
 void debug(char *buf) {
 	exchange_messages_udp(buf, strlen(buf));
 	printf("I received %s\n", buf);
+}
+
+int start_timer(int fd) {
+    struct timeval timeout;
+
+    memset((char *) &timeout, 0, sizeof(timeout)); 
+    timeout.tv_sec = 1;
+
+    return (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *) &timeout, sizeof(struct timeval)));
+}
+
+int stop_timer(int fd) {
+    struct timeval timeout;
+    memset((char *)&timeout, 0, sizeof(timeout)); 
+    return (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *) &timeout, sizeof(struct timeval)));
 }
