@@ -284,7 +284,7 @@ int logout() {
 
 	if (!strcmp(status, "OK")) {
 		logged_in = FALSE;
-		memset(UID, 0, sizeof(UID));
+		memset(UID, 0, sizeof(UID) * sizeof(char));
 		return STATUS_OK;
 	} else if (!strcmp(status, "NOK")) {
 		return STATUS_NOK;
@@ -410,7 +410,7 @@ int unsubscribe_group(char *gid) {
 
 	if (!strcmp(status, "OK")) {
 		if (!strcmp(gid, GID)) {
-			memset(GID, 0, sizeof(GID));
+			memset(GID, 0, sizeof(GID) * sizeof(char));
 		}
 		return STATUS_OK;
 	} else if (!strcmp(status, "E_USR")) {
@@ -944,7 +944,7 @@ void exchange_messages_udp(char *buf, ssize_t max_rcv_size) {
 		exit(EXIT_FAILURE);
 	}
 	
-	memset(buf, 0, strlen(buf) * sizeof(char));
+	memset(buf, 0, sizeof(buf) * sizeof(char));
 	
 	if ((num_bytes = recvfrom(udp_socket, buf, MAX_BUF_SIZE, 0, (struct sockaddr*) &addr, &addrlen)) <= 0){
 		printf("Error: Failed to receive message.\n");
@@ -1033,6 +1033,7 @@ void end_session(int status) {
 	free(server_ip);
 	free(server_port);
 
+	printf("Ending session with status %s.\n", status == SUCCESS ? "SUCCESS" : "FAIL");
 	exit(status);
 }
 

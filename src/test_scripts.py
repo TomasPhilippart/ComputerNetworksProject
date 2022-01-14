@@ -51,6 +51,6 @@ for script_number in UDP_scripts:
 			print(f"\n {stuff[i]} {stuff[i+1]}", end="")
 	if (do_reset):
 		reset_state()
-	time.sleep(15)
+	time.sleep(15) 
 
 

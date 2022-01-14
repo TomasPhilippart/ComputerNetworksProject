@@ -235,6 +235,21 @@ void process_input() {
 				continue;
 			}
 
+			
+			if (is_logged_in()) {
+				status = logout();
+				switch (status) {
+					case STATUS_OK:
+						end_session(EXIT_SUCCESS);
+						break;
+					case STATUS_NOK:
+						printf("Error logging out.\n");
+						end_session(EXIT_FAILURE);
+						break;
+				}
+			}
+			
+			end_session(EXIT_SUCCESS);
 			break;
 		}
 

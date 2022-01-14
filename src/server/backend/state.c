@@ -496,14 +496,14 @@ int check_group_exists(char *gid, char *group_dir) {
     closedir(dir);
    
     /* Check GID_name.txt file exists */
-    memset(path, '\0', MAX_BUF_SIZE);
+    memset(path, 0, MAX_BUF_SIZE * sizeof(char));
     sprintf(path, "%s/%s_name.txt", group_dir, gid);
     if(access(path, F_OK) != 0 ) {
         return FALSE;
     }
     
     /* Check MSG folder exists */
-    memset(path, '\0', MAX_BUF_SIZE);
+    memset(path, 0, MAX_BUF_SIZE * sizeof(char));
     sprintf(path, "%s/MSG", group_dir);
     dir = opendir(path);
 
@@ -528,14 +528,14 @@ int check_message_exists(char *gid, char *mid, char *message_dir) {
     closedir(dir);
 
     /* Check T E X T.txt file exists */
-    memset(path, '\0', MAX_BUF_SIZE);
+    memset(path, 0, MAX_BUF_SIZE * sizeof(char));
     sprintf(path, "%s/T E X T.txt", message_dir);
     if (access(path, F_OK) != 0) {
         return FALSE;
     }
 
     /* Check A U T H O R.txt file exists */
-    memset(path, '\0', MAX_BUF_SIZE);
+    memset(path, 0, MAX_BUF_SIZE * sizeof(char));
     sprintf(path, "%s/A U T H O R.txt", message_dir);
     if (access(path, F_OK) != 0) {
         return FALSE;
