@@ -363,12 +363,20 @@ void process_requests() {
 				
 			} else if (status == STATUS_NOK) {
 				sprintf(send_buf, "RRT NOK\n");
+				send_message_tcp(send_buf, strlen(send_buf));
 			} else if (status == STATUS_ERR) {
 				sprintf(send_buf, "ERR\n");
+				send_message_tcp(send_buf, strlen(send_buf));
 			}
 
 			break;
 			
+		} else {
+			char send_buf[MAX_BUF_SIZE];
+			sprintf(send_buf, "ERR\n");
+			send_message_tcp(send_buf, strlen(send_buf));
+			break;
+
 		}
     }
 
