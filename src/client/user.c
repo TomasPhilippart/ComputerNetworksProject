@@ -235,23 +235,6 @@ void process_input() {
 				continue;
 			}
 
-<<<<<<< HEAD
-			
-			if (is_logged_in()) {
-				status = logout();
-				switch (status) {
-					case STATUS_OK:
-						end_session(EXIT_SUCCESS);
-						break;
-					case STATUS_NOK:
-						printf("Error logging out.\n");
-						end_session(EXIT_FAILURE);
-						break;
-				}
-			}
-			
-			end_session(EXIT_SUCCESS);
-=======
 			if (is_logged_in()) {
 				status = logout();
 				switch(status) {
@@ -265,7 +248,6 @@ void process_input() {
 				}
 			}
 			end_session(STATUS_OK);
->>>>>>> 0ddee450a9bb56fc2119a02ceb2b9609bee21e8f
 			break;
 		}
 

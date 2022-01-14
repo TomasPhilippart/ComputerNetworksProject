@@ -250,7 +250,7 @@ int login(char *user, char *pass) {
 		printf("Error: Invalid message format, %s.\n", buf);
 		end_session(EXIT_FAILURE);
 	}
-
+	printf("So i received %s\n", status);
 	if (!strcmp(status, "OK")) {
 		strncpy(UID, user, UID_SIZE + 1);
 		strncpy(password, pass, PASSWORD_SIZE + 1);
@@ -329,12 +329,12 @@ void get_all_groups(char ****list) {
 		printf("Error: Invalid message format, %s.\n", buf);
 		end_session(EXIT_FAILURE);
 	}
-								 // NOTE: use isnumber()
+								
 	if (strcmp(command, "RGL") || (atoi(num_groups) == 0 && strcmp(num_groups, "0"))) {
 		printf("Error: Invalid message format, %s.\n", buf);
 		end_session(EXIT_FAILURE);
 	} 
-	
+
 	/* advance pointer to group section of server response for parsing */
 	aux = buf + (strlen(command) + strlen(num_groups) + 1) * sizeof(char);
 	*list = parse_groups(aux, atoi(num_groups));
@@ -365,9 +365,9 @@ int subscribe_group(char *gid, char *gName) {
 		gid[0] = '0';
 		strcpy(gid + 1, aux);
 	}
-
+	
 	sprintf(buf, "%s %s %s %s\n", "GSR", UID, gid, gName);
-
+	
 	exchange_messages_udp(buf, strlen(buf));
 
 	int num_tokens = sscanf(buf, "%s %s %s\n", command, status, new_gid);
@@ -375,6 +375,7 @@ int subscribe_group(char *gid, char *gName) {
 		printf("Error: Invalid message format, %s.\n", buf);
 		end_session(EXIT_FAILURE);
 	}
+	
 
 	if (!strcmp(status, "OK")) {
 		return STATUS_OK;
@@ -410,10 +411,11 @@ int unsubscribe_group(char *gid) {
 	char buf[MAX_LINE_SIZE] = "";
 	char status[MAX_ARG_SIZE] = "";
 	char command[MAX_ARG_SIZE] = "";
+	
 	sprintf(buf, "%s %s %s\n", "GUR", UID, gid);
 
 	exchange_messages_udp(buf, strlen(buf));
-
+	
 	int num_tokens = sscanf(buf, "%s %s\n", command, status); //NOTE: Check this
 	if (num_tokens != 2 || strcmp(command, "RGU") != 0) {
 		printf("Error : unsubscribe group, bad message received, %s.\n", buf);
@@ -504,6 +506,7 @@ char ***parse_groups(char *buf, int num_groups) {
 	char ***response = (char***) malloc(sizeof(char**) * (num_groups + 1));
 	char mid[MID_SIZE + 1] = "";
 	int num_tokens;
+	char *aux = buf;
 
 	for (int i = 0; i < num_groups; i++) {
 		response[i] = (char **) malloc(sizeof(char*) * (21));
@@ -511,18 +514,21 @@ char ***parse_groups(char *buf, int num_groups) {
 			response[i][j] = (char *) malloc(sizeof(char) * (MAX_FNAME + 1));
 		}
 	}
+	
 	for (int i = 0; i < num_groups; i++) {
-		num_tokens = sscanf(buf, " %s %s %s", response[i][0], response[i][1], mid);
+		
+		num_tokens = sscanf(aux, " %s %s %s", response[i][0], response[i][1], mid);
+		
 		if (num_tokens != 3) {
 			printf("Error: Invalid message format, %s.\n", buf);
 			end_session(EXIT_FAILURE);
 		}
 		/* advance buf pointer 3 tokens */
-		buf += (strlen(response[i][0]) + strlen(response[i][1]) + strlen(mid) + 3) * sizeof(char);
+		aux += (strlen(response[i][0]) + strlen(response[i][1]) + strlen(mid) + 3) * sizeof(char);
 	}
 	
 	/* Ensure that there are exactly num_messages messages  */
-	if (*(buf) != '\n') {
+	if (*(aux) != '\n') {
 		printf("Error: Buffer doesn't end in a \\n\n");
 		end_session(EXIT_FAILURE);
 	}
@@ -1048,18 +1054,11 @@ void end_session(int status) {
 	close(tcp_socket);
 
 	freeaddrinfo(res_udp);
-<<<<<<< HEAD
-	free(server_ip);
-	free(server_port);
-
-	printf("Ending session with status %s.\n", status == SUCCESS ? "SUCCESS" : "FAIL");
-=======
 	if (server_ip != NULL) {
 		free(server_ip);
 	}
 	
 	printf("Ending session with status %s\n", status == STATUS_OK ? "SUCCESS" : "FAIL");
->>>>>>> 0ddee450a9bb56fc2119a02ceb2b9609bee21e8f
 	exit(status);
 }
 

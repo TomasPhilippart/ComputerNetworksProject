@@ -31,8 +31,8 @@
 #define MSG_DIR "../GROUPS/xx/MSG/"
 #define USER_FILE "../GROUPS/xx/xxxxx.txt"
 #define GNAME_FILE "../GROUPS/xx/xx_name.txt"
-#define TEXT_FILE "../GROUPS/xx/MSG/T E X T.txt"
-#define AUTHOR_FILE "../GROUPS/xx/MSG/A U T H O R.txt"
+#define TEXT_FILE "../GROUPS/xx/MSG/xxxx/T E X T.txt"
+#define AUTHOR_FILE "../GROUPS/xx/MSG/xxxx/A U T H O R.txt"
 
 #define MSG_DIR_EXTENSION "MSG"
 #define USER_FILE_EXTENSION ".txt"
@@ -62,8 +62,8 @@ char *generate_password_file (char *uid);
 char *generate_gname_file(char *gid);
 char *generate_msg_dir(char *gid);
 char *generate_user_file (char *gid, char *uid);
-char* generate_text_file(char *gid);
-char* generate_author_file(char *gid); 
+char* generate_text_file(char *gid, char *mid);
+char* generate_author_file(char *gid, char *mid); 
 
 void setup_state() {
 
@@ -277,9 +277,9 @@ int all_groups(int *num_groups, char ****groups) {
     }
 
     for (int i = 1; i < next_available_gid; i++) {
-        
+     
         sprintf(gid, "%02d", i);
-
+        //printf("Checking group %s\n", gid);
         if (get_group_name(gid, group_name) == STATUS_FAIL) {
             printf("Error: Couldn't get GID %s's group name.\n", gid);
             return STATUS_FAIL;
@@ -651,35 +651,23 @@ int check_group_exists(char *gid) {
     free(group_dir);
    
     /* Check GID_name.txt file exists */
-<<<<<<< HEAD
-    memset(path, 0, MAX_BUF_SIZE * sizeof(char));
-    sprintf(path, "%s/%s_name.txt", group_dir, gid);
-    if(access(path, F_OK) != 0 ) {
-=======
     if ((gname_file = generate_gname_file(gid)) == NULL) {
         return STATUS_NOK;
     }
 
     if(access(gname_file, F_OK) != 0 ) {
         free(gname_file);
->>>>>>> 0ddee450a9bb56fc2119a02ceb2b9609bee21e8f
         return FALSE;
     }
 
     free(gname_file);
 
     /* Check MSG folder exists */
-<<<<<<< HEAD
-    memset(path, 0, MAX_BUF_SIZE * sizeof(char));
-    sprintf(path, "%s/MSG", group_dir);
-    dir = opendir(path);
-=======
     if ((msg_dir = generate_msg_dir(gid)) == NULL) {
         return STATUS_FAIL;
     }
 
     dir = opendir(msg_dir);
->>>>>>> 0ddee450a9bb56fc2119a02ceb2b9609bee21e8f
 
     if (!(dir)) {
         free(msg_dir);
@@ -696,6 +684,7 @@ int check_message_exists(char *gid, char *mid) {
     char *msg_dir, *text_file, *author_file;
 
     if ((msg_dir = generate_msg_dir(gid)) == NULL) {
+        
         return STATUS_FAIL;
     }
 
@@ -709,37 +698,22 @@ int check_message_exists(char *gid, char *mid) {
     closedir(dir);
 
     /* Check T E X T.txt file exists */
-<<<<<<< HEAD
-    memset(path, 0, MAX_BUF_SIZE * sizeof(char));
-    sprintf(path, "%s/T E X T.txt", message_dir);
-    if (access(path, F_OK) != 0) {
-=======
-    if ((text_file = generate_text_file(gid)) == NULL) {
+    if ((text_file = generate_text_file(gid, mid)) == NULL) {
         return STATUS_FAIL;
     }
     
     if (access(text_file, F_OK) != 0) {
         free(text_file);
->>>>>>> 0ddee450a9bb56fc2119a02ceb2b9609bee21e8f
         return FALSE;
     }
     free(text_file);
 
     /* Check A U T H O R.txt file exists */
-<<<<<<< HEAD
-    memset(path, 0, MAX_BUF_SIZE * sizeof(char));
-    sprintf(path, "%s/A U T H O R.txt", message_dir);
-    if (access(path, F_OK) != 0) {
-=======
-    if ((author_file = generate_author_file(gid)) == NULL) {
+    if ((author_file = generate_author_file(gid, mid)) == NULL) {
         return STATUS_FAIL;
     }
-
-    printf("author_file : %s\n", author_file);
-
     if (access(author_file, F_OK) != 0) {
         free(author_file);
->>>>>>> 0ddee450a9bb56fc2119a02ceb2b9609bee21e8f
         return FALSE;
     }
 
@@ -841,7 +815,13 @@ int get_group_name(char *gid, char *group_name) {
     }
     free(gname_file);
   
-    group_name[read_bytes] = '\0';
+    if (group_name[read_bytes - 1] == '\n') {
+        group_name[read_bytes - 1] = '\0';
+    } else {
+         group_name[read_bytes] = '\0';
+    }
+
+    //if (group_name[read_bytes])
 
     if (fclose(file) != 0) {
         printf("Error closing group name file.\n");
@@ -862,11 +842,12 @@ int get_last_mid(char *gid, char *last_mid) {
 
     char mid[MID_SIZE + 1] = "";
 
-    for (int i = 1; i < pow(10, strlen(STR(MID_SIZE))); i++) {
+    for (int i = 1; i < pow(10, MID_SIZE); i++) {
         sprintf(mid, "%0" STR(MID_SIZE) "d", i);
 
         if (check_message_exists(gid, mid) == FALSE) {
             sprintf(last_mid, "%0" STR(MID_SIZE) "d", i - 1);
+            //printf("message %s does not exist\n", mid);
             return SUCCESS;
         }
     }
@@ -901,6 +882,7 @@ char *generate_user_dir (char *uid) {
     }
 
     sprintf(user_dir, USERS_DIR "%." STR(UID_SIZE) "s/", uid);
+    user_dir[strlen(USER_DIR)] = '\0';
     return user_dir;
 }
 
@@ -917,6 +899,7 @@ char *generate_group_dir (char *gid) {
     }
 
     sprintf(group_dir, GROUPS_DIR "%." STR(GID_SIZE) "s/", gid);
+    group_dir[strlen(GROUP_DIR)] = '\0';
 
     return group_dir;
 }
@@ -935,6 +918,7 @@ char *generate_login_file (char *uid) {
     }
 
     sprintf(login_file, "%s%." STR(UID_SIZE) "s" LOGIN_FILE_EXTENSION, user_dir, uid);
+    login_file[strlen(LOGIN_FILE)] = '\0';
 
     free(user_dir);
     return login_file;
@@ -954,6 +938,7 @@ char *generate_password_file (char *uid) {
     }
 
     sprintf(password_file, "%s%." STR(UID_SIZE) "s" PASSWORD_FILE_EXTENSION, user_dir, uid);
+    password_file[strlen(PASSWORD_FILE)] = '\0';
 
     free(user_dir);
     return password_file;
@@ -973,6 +958,7 @@ char *generate_gname_file(char *gid) {
     }
 
     sprintf(gname_file, "%s%." STR(GID_SIZE) "s" GNAME_FILE_EXTENSION, group_dir, gid);
+    gname_file[strlen(GNAME_FILE)] = '\0';
 
     free(group_dir);
     return gname_file;
@@ -992,6 +978,7 @@ char *generate_msg_dir(char *gid) {
     }
 
     sprintf(msg_dir, "%s" MSG_DIR_EXTENSION "/", group_dir);
+    msg_dir[strlen(MSG_DIR)] = '\0';
     
     free(group_dir);
     return msg_dir;
@@ -1011,12 +998,13 @@ char *generate_user_file (char *gid, char *uid) {
     }
 
     sprintf(user_file, "%s%." STR(UID_SIZE) "s" USER_FILE_EXTENSION , group_dir, uid);
+    user_file[strlen(USER_FILE)] = '\0';
 
     free(group_dir);
     return user_file;
 }
 
-char *generate_text_file(char *gid) {
+char *generate_text_file(char *gid, char *mid) {
 
     char *text_file = NULL;
     char *msg_dir = generate_msg_dir(gid);
@@ -1029,13 +1017,14 @@ char *generate_text_file(char *gid) {
         return NULL;
     }
 
-    sprintf(text_file, "%s" TEXT_FILE_EXTENSION, msg_dir);
-    
+    sprintf(text_file, "%s%s/%s", msg_dir, mid, TEXT_FILE_EXTENSION);
+    text_file[strlen(TEXT_FILE)] = '\0';
+
     free(msg_dir);
     return text_file;
 }
 
-char *generate_author_file(char *gid) {
+char *generate_author_file(char *gid, char *mid) {
     char *author_file = NULL;
     char *msg_dir = generate_msg_dir(gid);
 
@@ -1047,7 +1036,8 @@ char *generate_author_file(char *gid) {
         return NULL;
     }
 
-    sprintf(author_file, "%s" AUTHOR_FILE_EXTENSION, msg_dir);
+    sprintf(author_file, "%s%s/" AUTHOR_FILE_EXTENSION, msg_dir, mid);
+    author_file[strlen(AUTHOR_FILE)] = '\0';
 
     free(msg_dir);
     return author_file;
