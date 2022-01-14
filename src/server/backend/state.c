@@ -80,6 +80,7 @@ int check_group_exists(char *gid);
 int check_message_exists(char *gid, char *mid);
 int create_group(char *group_name, char *new_gid);
 void free_groups(char ***groups, int num_groups);
+int logout_user(char *uid, char *pass);
 
 int get_group_name(char *gid, char *group_name);
 int get_last_mid(char *gid, char *last_mid);
@@ -182,6 +183,14 @@ int unregister_user(char *uid, char *pass) {
         return STATUS_NOK;
     }
 
+    /* If unregistering a logged in user, force logout first */
+    if (check_user_logged(uid)) {
+        if (logout_user(uid, pass) != STATUS_OK) {
+            printf("Error: Logging out when unregistering UID %s,\n", uid);
+            return STATUS_FAIL;
+        }
+    }
+
     if ((password_file = generate_password_file(uid)) == NULL) {
         return STATUS_FAIL;
     }
@@ -197,14 +206,6 @@ int unregister_user(char *uid, char *pass) {
 
     if ((user_dir = generate_user_dir(uid)) == NULL) {
         return STATUS_FAIL;
-    }
-
-    /* If unregistering a logged in user, force logout first */
-    if (check_user_logged(uid)) {
-        if (logout_user(uid, pass) != STATUS_OK) {
-            printf("Error: Logging out when unregistering UID %s,\n", uid);
-            return STATUS_FAIL;
-        }
     }
 
     /* Remove remove the directory USERS/UID */
