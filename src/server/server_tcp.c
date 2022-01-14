@@ -418,8 +418,7 @@ int start_timer(int fd) {
     struct timeval timeout;
 
     memset((char *) &timeout, 0, sizeof(timeout)); 
-    timeout.tv_sec = 0;
-	timeout.tv_usec = 50000;
+    timeout.tv_sec = 2;
 
     return (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *) &timeout, sizeof(struct timeval)));
 }

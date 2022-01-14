@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	} else if (pid_udp == -1) {
 		exit(EXIT_FAILURE);
-    } 
+    }
        
     if ((pid_tcp = fork()) == 0) {
 		execl("./server_tcp", "./server_tcp", port, verbose ? "1" : "0", NULL);

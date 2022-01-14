@@ -997,12 +997,12 @@ void exchange_messages_udp(char *buf, ssize_t max_rcv_size) {
 	
 	
 	memset(buf, 0, sizeof(buf) * sizeof(char));
-	start_timer(udp_socket);
+	//start_timer(udp_socket);
 	if ((num_bytes = recvfrom(udp_socket, buf, MAX_BUF_SIZE, 0, (struct sockaddr*) &addr, &addrlen)) <= 0){
 		printf("Error: Failed to receive message.\n");
 		exit(EXIT_FAILURE);
 	}
-	stop_timer(udp_socket);
+	//stop_timer(udp_socket);
 
 	buf[num_bytes] = '\0';
 
@@ -1056,21 +1056,17 @@ int rcv_message_tcp(char *buf, int num_bytes) {
 		num_bytes_read = read(tcp_socket, aux, num_bytes_left);
 		stop_timer(tcp_socket);
 
-		/* if reply read */
-		
-
-		//printf("Read %d bytes\n", num_bytes_read);
-		//for (int i = 0; i < num_bytes_read; i++) {
-		//	putchar(*(aux + i));
+		///* if reply read (\n is at the end of the buffer)*/
+		//if (stopping_flag &(*(buf + num_bytes_read - 1) == '\n')) {
+		//	return break;
 		//}
-		//putchar('\n');
-		printf("bytes read = %ld\n", num_bytes_read);
+		////printf("bytes read = %ld\n", num_bytes_read);
 		if (num_bytes_read == 0) {
 			break;
 		}
 		
 		if (num_bytes_read == -1) {
-			if (errno == EWOULDBLOCK || errno == EAGAIN) {
+			if (errno == EWOULDBLOCK || errno == EAGAIN || errno == ECONNRESET) {
 				break;
 			}
 			printf("Error: Failed to read message from TCP socket. Why: %s with errno %d\n", strerror(errno), errno);
@@ -1125,7 +1121,7 @@ int start_timer(int fd) {
     struct timeval timeout;
 
     memset((char *) &timeout, 0, sizeof(timeout)); 
-    timeout.tv_sec = 5; /* 5 seconds timeout*/
+    timeout.tv_sec = 1;
 
     return (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *) &timeout, sizeof(struct timeval)));
 }
