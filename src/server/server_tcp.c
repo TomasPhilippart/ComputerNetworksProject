@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -36,13 +37,12 @@ int rcv_message_tcp(char *buf, int num_bytes);
 int start_timer(int fd);
 int stop_timer(int fd);
 
-
 /* Setup the UDP server */
 void setup() {
 	int option = 1;
     fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (fd == -1) {
-        printf("Error: Failed to create UDP socket.\n");
+        printf("(TCP) Error: Failed to create TCP socket.\n");
 		exit(EXIT_FAILURE);
 	}
 	setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
@@ -56,21 +56,19 @@ void setup() {
 
     // NOTE: free structures on failure */
 	if (getaddrinfo(NULL, port, &hints, &res) != 0) {
-        printf("(TCP) Error: DNS couldn't resolve server's IP address for UDP connection.\n");
+        printf("(TCP) Error: DNS couldn't resolve server's IP address for TCP connection.\n");
 		exit(EXIT_FAILURE);
 	}
 	
     if (bind(fd, res->ai_addr, res->ai_addrlen) == -1) {
-		printf("(TCP) Error: Could not bind socket.  Why: %s\n", strerror(errno));
+		printf("(TCP) Error: Could not bind socket. Why: %s\n", strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 
-    // NOTE change this constant
     if (listen(fd, QUEUE_SIZE) == -1) {
-        printf("(TCP) Error: Could not perform liste\n");
+        printf("(TCP) Error: Could not perform listening\n");
 		exit(EXIT_FAILURE);
     }
-
 }
 
 // NOTE: mudar a implementação do buffer
@@ -90,23 +88,24 @@ void process_requests() {
             exit(EXIT_FAILURE);
         }
 		
-        if ((pid = fork()) == -1) {
+        if ((pid = fork()) < 0) {
             exit(EXIT_FAILURE);
         } else if (pid != 0) {
+			if (close(new_fd) == -1) {
+				printf("Error closing the socket: %s\n", strerror(errno));
+			}
 
-				if (close(new_fd) == -1) {
-					printf("Error closing the socket: %s\n", strerror(errno));
-				}
-				int status;
-				int aux = wait(&status);
-				if(WIFEXITED(status)) {
+			// NOTE what is the point of forking if the parent waits for
+			// the child to end
+			int status;
+			int aux = wait(&status);
+			if(WIFEXITED(status)) {
 				/* The child process exited normally */
 				printf("Exit value %d\n", WEXITSTATUS(status));
 			} else if(WIFSIGNALED(status)) {
 				/* The child process was killed by a signal. Note the use of strsignal
 				to make the output human-readable. */
 				printf("Killed by %s\n", strsignal(WTERMSIG(status)));
-				
 			}
 			continue;
         }
@@ -123,7 +122,7 @@ void process_requests() {
 		reset_buffer(rcv_buf);
         write_to_buffer(rcv_buf, rcv_buf->size, rcv_message_tcp);    
 		
-
+		/* ====== ULIST ====== */
 		if (parse_regex(rcv_buf->buf, "^ULS [0-9]{" STR(GID_SIZE) "}\\\n$") && rcv_buf->tail == strlen("ULS ") + GID_SIZE + 1) {
 
 			char gid[UID_SIZE + 1], group_name[MAX_GNAME + 1];
@@ -160,6 +159,10 @@ void process_requests() {
 				case STATUS_FAIL:
 					exit(EXIT_FAILURE);
 			}
+
+			break;
+
+		/* ====== POST ====== */
 		} else if (parse_regex(rcv_buf->buf, "^PST [0-9]{"STR(UID_SIZE)"} [0-9]{"STR(GID_SIZE)"} [0-9]{1,3} .{1,"STR(MAX_TSIZE)"}")) {
 			int status;
 			char uid[UID_SIZE + 1], gid[GID_SIZE + 1];
@@ -174,13 +177,10 @@ void process_requests() {
 			text[atoi(text_size)] = '\0';
 			
 			flush_buffer(rcv_buf, atoi(text_size));
-			printf("Here is the buffer: %s\n", rcv_buf->buf);
 			if (!(parse_regex(rcv_buf->buf, "^\\\n") && rcv_buf->tail == 1)) {
 				if (parse_regex(rcv_buf->buf, "^ [0-9a-zA-Z._-]{1,20}.[a-zA-Z]{3} [0-9]{1," STR(MAX_FSIZE)"} ")) {
-					printf("Entrei!\n");
 					sscanf(rcv_buf->buf, " %s %s ", file_name, file_size);
 					if (!atoi(file_size)) {
-						printf("What 1\n");
 						exit(EXIT_FAILURE);
 					}
 					flush_buffer(rcv_buf, 3 + strlen(file_name) + strlen(file_size));
@@ -189,7 +189,6 @@ void process_requests() {
            			}
 					status = post_message(uid, gid, text, mid, file_name, atoi(file_size), rcv_buf, rcv_message_tcp);
 				} else {
-					printf("Bazei por aqui!\n");
 					exit(EXIT_FAILURE);
 				}
 			} else {
@@ -210,8 +209,11 @@ void process_requests() {
 				case STATUS_FAIL:
 					exit(EXIT_FAILURE);
 			}
+			
+			break;
 		}
 //
+			/* ====== RETRIEVE ====== */
 		//} else if (parse_regex(rcv_buf->buf, "^RTV [0-9]{" STR(UID_SIZE) "} [0-9]{" STR(GID_SIZE) "} [0-9]{" STR(MID_SIZE) "}\\\n$")) {
 		//	char uid[UID_SIZE + 1], gid[GID_SIZE + 1], mid[MID_SIZE + 1];
 		//	char **text_files, **content_files, **uids;
@@ -330,14 +332,13 @@ void process_requests() {
 		//	}
 		//	
 		}
-		//sleep(3);
+		
 		if (close(new_fd) == -1) {
 			printf("Error closing socket: %s\n", strerror(errno));
 		}
-		printf("Closed it\n");
 		exit(EXIT_SUCCESS);
     //}
-}//
+}
 
 /*	Sends the message in buf to the server through the UDP socket 
 	and puts a response of size max_rcv_size in buf 

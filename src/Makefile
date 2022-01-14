@@ -43,4 +43,4 @@ aux_functions.o: aux_functions.c
 
 clean:
 	@echo Cleaning...
-	rm -f client/api/*.o client/*.o server/*.o server/backend/*.o *.html user DS server_tcp server_udp
+	rm -f client/api/*.o client/*.o server/*.o server/backend/*.o *.html *.o user DS server_tcp server_udp

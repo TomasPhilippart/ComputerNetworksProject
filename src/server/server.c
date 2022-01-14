@@ -20,7 +20,6 @@ int verbose = FALSE;
 
 static void parse_args(int argc, char **argv);
 void process_input();
-void init_forum();
 int validate_port(char *port);
 
 int main(int argc, char **argv) {
@@ -49,8 +48,8 @@ int main(int argc, char **argv) {
     }
 
 	while (finished != 2) {
-		//printf("Finished %d\n", finished);
 		aux = wait(&status);
+		//printf("Finished %lu\n", aux);
 		finished++;
 	}
    

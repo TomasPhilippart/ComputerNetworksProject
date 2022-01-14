@@ -9,9 +9,11 @@
 #include <unistd.h>
 #include <regex.h>
 #include <string.h>
-#include <ftw.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 #define __USE_XOPEN_EXTENDED 500
+#include <ftw.h>
 
 
 // Check if UID is 5 digits and not 0000

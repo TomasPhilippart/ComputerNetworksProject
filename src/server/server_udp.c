@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <sys/stat.h>
 
+
 /* variables needed for UDP connection */
 char *port;
 int verbose;
@@ -25,6 +26,9 @@ struct sockaddr_in addr;
 
 char host[NI_MAXHOST] = "";
 char service[NI_MAXSERV] = "";
+
+int start_timer(int fd);
+int stop_timer(int fd);
 
 /* Setup the UDP server */
 void setup() {
@@ -66,7 +70,8 @@ void process_requests() {
     int num_bytes, num_tokens, status;
 
     while (1) {
-
+        
+        /* TODO where to start/stop timer? */
         if ((num_bytes = recvfrom(fd, receiving_buf, MAX_LINE_SIZE - 1, 0, (struct sockaddr*) &addr, &addrlen)) <= 0) {
             printf("Error: ");
             exit(EXIT_FAILURE);
@@ -82,7 +87,7 @@ void process_requests() {
                 printf("(UDP) %s@%s: %s", host, service, receiving_buf); /* /n missing because buf already contains it */ 
             }
         }
-    
+
         num_tokens = sscanf(receiving_buf, "%" STR(MAX_ARG_SIZE) "s %" STR(MAX_ARG_SIZE) "s %" 
 									 STR(MAX_ARG_SIZE) "s %" STR(MAX_ARG_SIZE) "s %"
                                      STR(MAX_ARG_SIZE) "s ", command, arg1, arg2, arg3, arg4);
@@ -406,6 +411,22 @@ void process_requests() {
 	} 
 }
 
+int start_timer(int fd) {
+    struct timeval timeout;
+
+    memset((char *) &timeout, 0, sizeof(timeout)); 
+    timeout.tv_sec = 0;
+	timeout.tv_usec = 50000;
+
+    return (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *) &timeout, sizeof(struct timeval)));
+}
+
+int stop_timer(int fd){
+    struct timeval timeout;
+    memset((char *)&timeout, 0, sizeof(timeout)); 
+    return (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *) &timeout, sizeof(struct timeval)));
+}
+
 int main(int argc, char **argv) {
 
 	/* No need to validate port since it was already validated*/
@@ -416,3 +437,4 @@ int main(int argc, char **argv) {
 
     return 0;
 }
+

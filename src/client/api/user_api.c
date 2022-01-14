@@ -252,7 +252,7 @@ int login(char *user, char *pass) {
 		printf("Error: Invalid message format, %s.\n", buf);
 		end_session(EXIT_FAILURE);
 	}
-	printf("So i received %s\n", status);
+	// printf("So i received %s\n", status);
 	if (!strcmp(status, "OK")) {
 		strncpy(UID, user, UID_SIZE + 1);
 		strncpy(password, pass, PASSWORD_SIZE + 1);
@@ -641,8 +641,6 @@ int get_uids_group(char ****list) {
 	}
 
 	return STATUS_OK;
-	printf("My pid: %d\n", getpid());
-
 }
 
 /*	Post a message with text (and possibly a file with name filename),
@@ -991,18 +989,21 @@ void exchange_messages_udp(char *buf, ssize_t max_rcv_size) {
 
 	int num_bytes;
 	
+	
 	if (sendto(udp_socket, buf, strlen(buf), 0, res_udp->ai_addr, res_udp->ai_addrlen) != strlen(buf) * sizeof(char)) {
 		printf("Error: Failed to send message.\n");
 		exit(EXIT_FAILURE);
 	}
 	
-	memset(buf, 0, sizeof(buf) * sizeof(char));
 	
+	memset(buf, 0, sizeof(buf) * sizeof(char));
+	start_timer(udp_socket);
 	if ((num_bytes = recvfrom(udp_socket, buf, MAX_BUF_SIZE, 0, (struct sockaddr*) &addr, &addrlen)) <= 0){
 		printf("Error: Failed to receive message.\n");
 		exit(EXIT_FAILURE);
 	}
-	
+	stop_timer(udp_socket);
+
 	buf[num_bytes] = '\0';
 
 	// DEBUG :
@@ -1037,7 +1038,7 @@ void send_message_tcp(char *buf, ssize_t num_bytes) {
 	}
 
 	// Debug
-	printf("Sent: %s\n", buf);
+	// printf("Sent: %s\n", buf);
 
 }
 
@@ -1051,16 +1052,19 @@ int rcv_message_tcp(char *buf, int num_bytes) {
 	while (num_bytes_left != 0) {
 		//printf("Waiting...\n");
 
-		//start_timer(tcp_socket);
+		start_timer(tcp_socket);
 		num_bytes_read = read(tcp_socket, aux, num_bytes_left);
-		//stop_timer(tcp_socket);
+		stop_timer(tcp_socket);
+
+		/* if reply read */
 		
+
 		//printf("Read %d bytes\n", num_bytes_read);
 		//for (int i = 0; i < num_bytes_read; i++) {
 		//	putchar(*(aux + i));
 		//}
 		//putchar('\n');
-
+		printf("bytes read = %ld\n", num_bytes_read);
 		if (num_bytes_read == 0) {
 			break;
 		}
@@ -1069,13 +1073,12 @@ int rcv_message_tcp(char *buf, int num_bytes) {
 			if (errno == EWOULDBLOCK || errno == EAGAIN) {
 				break;
 			}
-			printf("Error: Failed to read message to TCP socket. Why: %s with errno %d\n", strerror(errno), errno);
+			printf("Error: Failed to read message from TCP socket. Why: %s with errno %d\n", strerror(errno), errno);
 			exit(EXIT_FAILURE);
 		}
 		
 		aux += num_bytes_read;
 		num_bytes_left -= num_bytes_read;
-
 	}
 	//int i;
 	//for (i = 0; i < MAX_BUF_SIZE; i++) {
@@ -1086,10 +1089,10 @@ int rcv_message_tcp(char *buf, int num_bytes) {
 	//printf("First NULL at %d\n", i);
 
 	// Debug
-	//if (*buf != '\0') {
-	//	printf("Received: %s\n", buf);
+	if (*buf != '\0') {
+		printf("Received: %s\n", buf);
 	//	printf("With length: %d\n", strlen(buf));
-	//}
+	}
 
 	return num_bytes - num_bytes_left;
 
@@ -1122,7 +1125,7 @@ int start_timer(int fd) {
     struct timeval timeout;
 
     memset((char *) &timeout, 0, sizeof(timeout)); 
-    timeout.tv_sec = 1;
+    timeout.tv_sec = 5; /* 5 seconds timeout*/
 
     return (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *) &timeout, sizeof(struct timeval)));
 }
