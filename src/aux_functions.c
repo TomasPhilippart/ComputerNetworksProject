@@ -9,6 +9,8 @@
 #include <unistd.h>
 #include <regex.h>
 #include <string.h>
+#define __USE_XOPEN_EXTENDED 500
+#include <ftw.h>
 
 
 // Check if UID is 5 digits and not 0000
@@ -134,4 +136,18 @@ void reset_buffer(Buffer buffer) {
 void destroy_buffer(Buffer buffer) {
 	free(buffer->buf);
 	free(buffer);
+}
+
+int unlink_cb(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf) {
+    int rv = remove(fpath);
+
+    if (rv)
+        perror(fpath);
+
+    return rv;
+}
+
+/* Removes a path emulating a rf -rf command*/
+int rmrf(char *path) {
+    return nftw(path, unlink_cb, 64, FTW_DEPTH | FTW_PHYS);
 }

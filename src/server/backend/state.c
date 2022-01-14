@@ -746,11 +746,8 @@ int check_message_exists(char *gid, char *mid) {
     return TRUE;
 }
 
-// REVIEW this for not needing to pass path?
 int create_group(char *group_name, char *new_gid) {
     
-    // NOTE if in the middle of creating a group it fails need 
-    // to delete all files crated before the bug occurred
     FILE *file;
     char *group_dir, *gname_file, *msg_dir;
 
@@ -766,16 +763,19 @@ int create_group(char *group_name, char *new_gid) {
         free(group_dir);
 		return STATUS_FAIL;
 	}
+    
     free(group_dir);
 
     /* 2. Create GROUPS/GID/GID_name.txt with group name inside txt */
     if ((gname_file = generate_gname_file(new_gid)) == NULL) {
+        rmrf(group_dir);
         return STATUS_FAIL;
     }
 
     if (!(file = fopen(gname_file, "w"))) {
         printf("Error opening group name file.\n");
         free(gname_file);
+        rmrf(group_dir);
         return STATUS_FAIL;
     }
     free(gname_file);
@@ -783,21 +783,25 @@ int create_group(char *group_name, char *new_gid) {
     group_name[strlen(group_name)] = '\0';
     if (fwrite(group_name, sizeof(char), strlen(group_name), file) != strlen(group_name)) {
         printf("Error writing group name to file.\n");
+        rmrf(group_dir);
         return STATUS_FAIL;
     }
 
     if (fclose(file) != 0) {
         printf("Error closing group name file.\n");
+        rmrf(group_dir);
         return STATUS_FAIL;
     }
 
     /* 3. Create sub directory GROUPS/GID/MSG */
     if ((msg_dir = generate_msg_dir(new_gid)) == NULL) {
+        rmrf(group_dir);
         return STATUS_FAIL;
     }
 
     if (mkdir(msg_dir, 0777) == STATUS_FAIL) {
         printf("Error creating MSG sub directory.\n");
+        rmrf(group_dir);
 		return STATUS_FAIL;
 	}
 
@@ -805,6 +809,7 @@ int create_group(char *group_name, char *new_gid) {
     next_available_gid++;
     return SUCCESS;
 }
+
 
 /*  Getter for group name of group with a given gid
     Input: 
