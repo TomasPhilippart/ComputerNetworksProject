@@ -502,14 +502,16 @@ int user_subscribed_groups(char *uid, int *num_groups, char ****groups) {
 }
 
 int get_uids_group(char *gid, char *group_name, char ***uids,  int *num_uids) {
-    char *group_dir_name;
+    
     DIR *groups;
+    char *group_dir_name;
+
     struct dirent *uid_dir;
     int base_size = 100;
 
-    *num_uids = 0;
+    (*num_uids) = 0;
+
     if ((*uids = (char **) malloc(base_size * sizeof(char *))) == NULL) {
-         printf("nao pode mano\n");
         return STATUS_FAIL;
     }
     memset(*uids, 0, base_size * sizeof(char *));
@@ -521,7 +523,11 @@ int get_uids_group(char *gid, char *group_name, char ***uids,  int *num_uids) {
     if (get_group_name(gid, group_name) != SUCCESS) {
         return STATUS_FAIL;
     }
-    group_dir_name = generate_group_dir(gid);
+    
+    if ((group_dir_name = generate_group_dir(gid)) == NULL) {
+        return STATUS_FAIL;
+    }
+
     //printf("Searching in %s\n", group_dir_name);
     groups = opendir(group_dir_name);
     if (groups) {
@@ -577,7 +583,6 @@ int post_message(char *uid, char *gid, char *text, char *mid, char *file_name, i
     }
    
     get_last_mid(gid, last_mid);
-    printf("Here is the last mid: %s\n", last_mid);
     if (!strcmp(last_mid, "9999")) {
         return STATUS_NOK;
     }
@@ -585,16 +590,19 @@ int post_message(char *uid, char *gid, char *text, char *mid, char *file_name, i
     sprintf(mid, "%04d", atoi(last_mid) + 1);
     mid[MID_SIZE] = '\0';
 
-    msg_dir = generate_msg_dir(gid, mid);
-    printf("Writing to %s\n", msg_dir);
+    if ((msg_dir = generate_msg_dir(gid, mid)) == NULL) {
+        return STATUS_FAIL;
+    }
    
-    if (mkdir(msg_dir, 0700) == -1) {
+    if (mkdir(msg_dir, 0777) == -1) {
         free(msg_dir);
         return STATUS_FAIL;
     }
 
-    author_file = generate_author_file(gid, mid);
-    printf("Writing to %s\n", author_file);
+    if ((author_file = generate_author_file(gid, mid)) == NULL) {
+        return STATUS_FAIL;
+    }
+
     // write to file 
     if ((file = fopen(author_file, "w")) == NULL) {
         free(msg_dir);
@@ -618,8 +626,11 @@ int post_message(char *uid, char *gid, char *text, char *mid, char *file_name, i
         rmdir(msg_dir);
         return STATUS_FAIL;
     }
-    text_file = generate_text_file(gid, mid);
-    printf("Writing to %s\n", text_file);
+
+    if ((text_file = generate_text_file(gid, mid)) == NULL) {
+        return STATUS_FAIL;
+    }
+
     /* register messate text to a file */
     if ((file = fopen(text_file, "w")) == NULL) {
         unlink(author_file);
@@ -652,6 +663,7 @@ int post_message(char *uid, char *gid, char *text, char *mid, char *file_name, i
         return STATUS_OK;
     }
 
+    // NOTE make generate path function for file_name?
     sprintf(file_dir, "%s%s", msg_dir, file_name);
     if ((file = fopen(file_dir, "w")) == NULL) {
         unlink(author_file);
@@ -703,6 +715,9 @@ int post_message(char *uid, char *gid, char *text, char *mid, char *file_name, i
         return STATUS_FAIL;
     }
 
+    free(msg_dir);
+    free(author_file);
+    free(text_file);
     return STATUS_OK;
    
 }
