@@ -119,6 +119,7 @@ void process_requests() {
 			int aux = wait(&status);
 			if(WIFEXITED(status)) {
 				/* The child process exited normally */
+				printf("Status: %d\n", status);
 			} else if(WIFSIGNALED(status)) {
 				/* The child process was killed by a signal. Note the use of strsignal
 				to make the output human-readable. */
@@ -194,7 +195,7 @@ void process_requests() {
 			
 			flush_buffer(rcv_buf, atoi(text_size));
 			if (!(parse_regex(rcv_buf->buf, "^\\\n") && rcv_buf->tail == 1)) {
-				if (parse_regex(rcv_buf->buf, "^ [0-9a-zA-Z._-]{1,20}.[a-zA-Z]{3} [0-9]{1," STR(MAX_FSIZE)"} ")) {
+				if (parse_regex(rcv_buf->buf, "^ [0-9a-zA-Z._-]{1,20}.[a-zA-Z0-9]{3} [0-9]{1," STR(MAX_FSIZE)"} ")) {
 					sscanf(rcv_buf->buf, " %s %s ", file_name, file_size);
 					if (!atoi(file_size)) {
 						exit(EXIT_FAILURE);
@@ -233,7 +234,7 @@ void process_requests() {
 			char uid[UID_SIZE + 1], gid[GID_SIZE + 1], mid[MID_SIZE + 1];
 			char **text_files, **content_files, **uids;
 			int num_messages, status;
-			int pos;
+			int pos = 0;
 			char send_buf[MAX_BUF_SIZE];
 			
 			sscanf(rcv_buf->buf, "%*s %s %s %s\n", uid, gid, mid);
@@ -241,7 +242,8 @@ void process_requests() {
 			if (verbose) {
                 	printf("(TCP) %s@%s: RTV %s %s %s\n", host, service, uid, gid, mid); 
            	}
-			status = retrieve_messages(uid, gid, mid, &uids, &text_files, &content_files, &num_messages);;
+			status = retrieve_messages(uid, gid, mid, &uids, &text_files, &content_files, &num_messages);
+			printf("Got %d messages\n", num_messages);
 		
 			if (status == STATUS_OK) {
 
@@ -256,10 +258,9 @@ void process_requests() {
 
 				FILE *file;
 				sprintf(send_buf, "RRT OK %d", num_messages);
+			
 				
-				char aux[MID_SIZE + 1];
-				
-				pos += strlen("RRT OK ") + strlen(aux) + 1;
+				pos += strlen("RRT OK ") + num_digits(num_messages) + 1;
 				send_buf[pos] = '\0';
 
 				printf("here is the buffer <%s> with size %d\n", rcv_buf, strlen(rcv_buf));
@@ -462,7 +463,7 @@ int start_timer(int fd) {
 
     memset((char *) &timeout, 0, sizeof(timeout)); 
     timeout.tv_sec = 0;
-	timeout.tv_usec = 50000;
+	timeout.tv_usec = 500000;
 
     return (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *) &timeout, sizeof(struct timeval)));
 }

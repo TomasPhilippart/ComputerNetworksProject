@@ -37,7 +37,7 @@ int check_pass(char *pass) {
 
 int check_filename(char *filename) {
 
-	if (!parse_regex(filename, "^[a-zA-Z0-9_.-]{1,20}.[a-zA-Z]{3}$")) {
+	if (!parse_regex(filename, "^[a-zA-Z0-9_.-]{1,20}.[a-zA-Z0-9]{3}$")) {
 		return FALSE;
 	}
 	

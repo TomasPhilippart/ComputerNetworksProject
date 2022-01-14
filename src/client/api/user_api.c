@@ -800,6 +800,7 @@ int retrieve(char *mid, char ****list) {
 	num_tokens = sscanf(rcv_buf->buf, "%" STR(MAX_ARG_SIZE) "s %" STR(MAX_ARG_SIZE) "s %" 
 								 STR(MAX_ARG_SIZE) "s\n", command, status, num_messages);
 
+	printf("Initialy i received %s\n", rcv_buf->buf);
 
 	if ((num_tokens == 1) && !strcmp(command, "ERR")) {
 		destroy_buffer(rcv_buf);
@@ -833,13 +834,16 @@ int retrieve(char *mid, char ****list) {
 
 	/* push rest of response to the front of the buffer */
 	flush_buffer(rcv_buf, strlen(command) + strlen(status) + strlen(num_messages) + 2);
+	printf("Buffer: <%s> with size %d\n", rcv_buf->buf, rcv_buf->tail);
 	write_to_buffer(rcv_buf, MAX(0, 3 + MID_SIZE + UID_SIZE + 3 - rcv_buf->tail), rcv_message_tcp);
+	printf("Buffer: <%s> with size %d\n", rcv_buf->buf, rcv_buf->tail);
 	
 
 	for (int i = 0; i < atoi(num_messages); i++) {
 
 		/* Parse [ MID UID Tsize text] */
 		if (!parse_regex(rcv_buf->buf, "^ [0-9]{" STR(MID_SIZE) "} [0-9]{" STR(UID_SIZE) "} [0-9]{1,3}")) {
+
 			destroy_buffer(rcv_buf);
 			free_list(*list, 3);
 			exit(EXIT_FAILURE);
@@ -849,14 +853,15 @@ int retrieve(char *mid, char ****list) {
 		sscanf(rcv_buf->buf, " %s %s %s", mid_aux, uid_aux, text_size);
 	
 		flush_buffer(rcv_buf, MID_SIZE + UID_SIZE + strlen(text_size) + 3);
+		//printf("Buffer: <%s> with size %d\n", rcv_buf->buf, rcv_buf->tail);
 		write_to_buffer(rcv_buf, MAX(0, 1 + atoi(text_size) - rcv_buf->tail), rcv_message_tcp);
+		//printf("Buffer: <%s> with size %d\n", rcv_buf->buf, rcv_buf->tail);
 	
 		if (!parse_regex(rcv_buf->buf, "^ .{0,240}")) {
 			destroy_buffer(rcv_buf);
 			free_list(*list, 3);
 			exit(EXIT_FAILURE);
 		}
-		
 		if (((*list)[i][0] = (char *) malloc(sizeof(char) * (atoi(text_size) + 1))) == NULL) {
 			printf("Error : malloc");
 			exit(EXIT_FAILURE);
@@ -865,7 +870,9 @@ int retrieve(char *mid, char ****list) {
 		memcpy((*list)[i][0], rcv_buf->buf + 1, atoi(text_size) * sizeof(char));
 		(*list)[i][0][atoi(text_size)] = '\0';
 		flush_buffer(rcv_buf, 1 + atoi(text_size));
+		//printf("Buffer: <%s> with size %d\n", rcv_buf->buf, rcv_buf->tail);
 		write_to_buffer(rcv_buf, MAX(0, 2 - rcv_buf->tail), rcv_message_tcp);
+		//printf("Buffer: <%s> with size %d\n", rcv_buf->buf, rcv_buf->tail);
 		/* Check the existence of a file in the message */
 		if (!parse_regex(rcv_buf->buf, "^ /")) {
 			write_to_buffer(rcv_buf, MAX(0, 3 + MID_SIZE + UID_SIZE + 3 - rcv_buf->tail), rcv_message_tcp);
@@ -873,15 +880,18 @@ int retrieve(char *mid, char ****list) {
 		}
 
 		flush_buffer(rcv_buf, 2);
+		//printf("Buffer: <%s> with size %d\n", rcv_buf->buf, rcv_buf->tail);
 		write_to_buffer(rcv_buf, MAX(0, 3 + MAX_FNAME + MAX_FSIZE - rcv_buf->tail), rcv_message_tcp);
-	
+		//printf("Buffer: <%s> with size %d\n", rcv_buf->buf, rcv_buf->tail);
+
 		/* parse [Fname Fsize data] */
 		if (!parse_regex(rcv_buf->buf, "^ [a-zA-Z0-9._-]{1,21}.[a-zA-Z0-9]{3} [0-9]{1,10} ")) {
+
 			destroy_buffer(rcv_buf);
 			free_list(*list, 3);
 			exit(EXIT_FAILURE);
 		}
-	
+
 		if ((((*list)[i][1] = (char *) malloc(sizeof(char) * (FILENAME_MAX + 1))) == NULL) ||
 			(((*list)[i][2] = (char *) malloc(sizeof(char) * (MAX_FSIZE + 1))) == NULL)) {
 			destroy_buffer(rcv_buf);
@@ -890,6 +900,7 @@ int retrieve(char *mid, char ****list) {
 		}
 
 		if (atoi((*list)[i][2]) >= pow(10, MAX_FSIZE)) {
+
 			destroy_buffer(rcv_buf);
 			free_list(*list, 3);
 			exit(EXIT_FAILURE);
@@ -898,9 +909,9 @@ int retrieve(char *mid, char ****list) {
 		sscanf(rcv_buf->buf, " %s %s ", (*list)[i][1], (*list)[i][2]);
 	
 		flush_buffer(rcv_buf, 3 + strlen((*list)[i][1]) + strlen((*list)[i][2]));
+		//printf("Buffer: <%s> with size %d\n", rcv_buf->buf, rcv_buf->tail);
 	
 		if ((file = fopen((*list)[i][1], "wb"))) {
-
 			int file_size = atoi((*list)[i][2]);
 			int bytes_to_write = MIN(file_size, rcv_buf->tail);
 			
@@ -912,11 +923,13 @@ int retrieve(char *mid, char ****list) {
 			
 			file_size -= bytes_to_write;
 			flush_buffer(rcv_buf, bytes_to_write);
+			//printf("Buffer: <%s> with size %d\n", rcv_buf->buf, rcv_buf->tail);
 
 			while (file_size != 0) {
 				bytes_to_write = MIN(file_size, rcv_buf->size);
 
 				write_to_buffer(rcv_buf, bytes_to_write, rcv_message_tcp);	// NOTE: check this
+				//printf("Buffer: <%s> with size %d\n", rcv_buf->buf, rcv_buf->tail);
 
 				if (fwrite(rcv_buf->buf, sizeof(char), bytes_to_write, file) != bytes_to_write) {
 					destroy_buffer(rcv_buf);
@@ -931,15 +944,23 @@ int retrieve(char *mid, char ****list) {
 			if (fclose(file) != 0) {
 				destroy_buffer(rcv_buf);
 				free_list(*list, 3);
+
 				exit(EXIT_FAILURE);
 			}
 		
 		} 
 		write_to_buffer(rcv_buf, MAX(0, 3 + MID_SIZE + UID_SIZE + 3 - rcv_buf->tail), rcv_message_tcp);
+		////printf("Buffer: <%s> with size %d\n", rcv_buf->buf, rcv_buf->tail);
 	}
-	
+	printf("I retrieved %d files\n", atoi(num_messages));
 	/* Ensure that the response ended */
 	if (!(parse_regex(rcv_buf->buf, "^\\\n$") && (write_to_buffer(rcv_buf, 1, rcv_message_tcp) == 0))) {
+		if (!(parse_regex(rcv_buf->buf, "^\\\n$"))) {
+			printf("Falhou 1\n");
+		} else {
+			printf("Falhou2\n");
+		}
+		printf("pila\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -1048,6 +1069,7 @@ int rcv_message_tcp(char *buf, int num_bytes) {
 			if (errno == EWOULDBLOCK || errno == EAGAIN || errno == ECONNRESET) {
 				break;
 			}
+			printf("Exit because of %s\n", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 		
