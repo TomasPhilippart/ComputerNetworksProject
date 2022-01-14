@@ -16,7 +16,7 @@
 #include <errno.h>
 #include <math.h>
 #include <libgen.h>
-#include<signal.h>
+#include <signal.h>
 
 #define QUEUE_SIZE 10
 
@@ -42,6 +42,7 @@ int stop_timer(int fd);
 
 void ctrlC_handler (int sig_no);
 void end_session();
+int num_digits(int a);
 
 /* Setup the UDP server */
 void setup() {
@@ -232,10 +233,11 @@ void process_requests() {
 			char uid[UID_SIZE + 1], gid[GID_SIZE + 1], mid[MID_SIZE + 1];
 			char **text_files, **content_files, **uids;
 			int num_messages, status;
+			int pos;
 			char send_buf[MAX_BUF_SIZE];
 			
-			memset(send_buf, 0, MAX_BUF_SIZE * sizeof(char));
 			sscanf(rcv_buf->buf, "%*s %s %s %s\n", uid, gid, mid);
+
 			if (verbose) {
                 	printf("(TCP) %s@%s: RTV %s %s %s\n", host, service, uid, gid, mid); 
            	}
@@ -247,19 +249,32 @@ void process_requests() {
 
 				if (num_messages == 0) {
 					sprintf(send_buf, "RRT EOF\n");
+					send_buf[strlen(send_buf)] = '\0';
 					send_message_tcp(send_buf, strlen(send_buf));
 					break;
 				}
 
 				FILE *file;
 				sprintf(send_buf, "RRT OK %d", num_messages);
+				
+				char aux[MID_SIZE + 1];
+				
+				pos += strlen("RRT OK ") + strlen(aux) + 1;
+				send_buf[pos] = '\0';
+
+				printf("here is the buffer <%s> with size %d\n", rcv_buf, strlen(rcv_buf));
 				send_message_tcp(send_buf, strlen(send_buf));
-				memset(send_buf, 0, strlen(send_buf) * sizeof(char));
+		
+				send_buf[0] = '\0';
+				pos = 0;
 
 				for (int i = 0; i < num_messages; i++) {
 					/* Send text files */
 					sprintf(send_buf, " %04d %s", atoi(mid) + i, uids[i]);
-		
+					pos += 2 + MID_SIZE + UID_SIZE;
+					printf("here is the buffer <%s> with size %d\n", rcv_buf, strlen(rcv_buf));
+					send_buf[pos] = '\0';
+					
 					if ((file = fopen(text_files[i], "r")) == NULL) {
 						exit(EXIT_FAILURE);
 					}
@@ -270,18 +285,26 @@ void process_requests() {
 						exit(EXIT_FAILURE);
 					}
 
-					sprintf(send_buf + strlen(send_buf), " %d ", file_size);
+					sprintf(send_buf + pos, " %d ", file_size);
+					
+					pos += 2 + num_digits(file_size);
+					send_buf[pos] = '\0';
+					printf("here is the buffer <%s> with size %d\n", rcv_buf, strlen(rcv_buf));
 
 					if (fread(send_buf + strlen(send_buf), sizeof(char), file_size, file) < 0) {
 						exit(EXIT_FAILURE);
 					}
-
+					pos += file_size;
+					send_buf[pos] = '\0';
+					printf("here is the buffer <%s> with size %d\n", rcv_buf, strlen(rcv_buf));
 
 					if (fclose(file) != 0) {
 						exit(EXIT_FAILURE);
 					}
 					send_message_tcp(send_buf, strlen(send_buf));
-					memset(send_buf, 0, (strlen(send_buf) * sizeof(char)));
+
+					pos = 0;
+					send_buf[pos] = '\0';
 
 					/* Send file content, if it exists */
 					if (content_files[i] != NULL) {
@@ -299,8 +322,12 @@ void process_requests() {
 							exit(EXIT_FAILURE);
 						}
 						sprintf(send_buf, " / %s %d ", basename(content_files[i]), file_size);
+						pos += 5 + strlen(basename(content_files[i])) + num_digits(file_size);
+						send_buf[pos] = '\0';
 						send_message_tcp(send_buf, strlen(send_buf));
-						memset(send_buf, 0, strlen(send_buf) * sizeof(char));
+						
+						pos = 0;
+						send_buf[pos] = '\0';
 
 						/* Check maximum filesize */
 						if (file_size >= pow(10, MAX_FSIZE)) {
@@ -310,7 +337,10 @@ void process_requests() {
 						while (1) {
 							bytes_read = fread(send_buf, sizeof(char), MAX_BUF_SIZE - 1, file);
 							send_message_tcp(send_buf, bytes_read);	// NOTE: check this
-							memset(send_buf, 0, sizeof(char) * bytes_read);
+
+							pos = 0;
+							send_buf[pos] = '\0';
+
 							if (feof(file)) {
 								break;
 							} else if (ferror(file)) {
@@ -321,7 +351,9 @@ void process_requests() {
 						if (fclose(file) != 0) {
 							exit(EXIT_FAILURE);
 						}
-						memset(send_buf, 0, MAX_BUF_SIZE * sizeof(char));
+						
+						pos = 0;
+						send_buf[pos] = '\0';
 					}
 					
 				}
@@ -445,4 +477,13 @@ void ctrlC_handler (int sig_no) {
 void end_session (int status) {
 	free(port);
 	freeaddrinfo(res);
+}
+
+int num_digits(int a) {
+	int res = 0;
+	while (a > 0) {
+		a = a / 10;
+		res ++;
+	}
+	return res;
 }
