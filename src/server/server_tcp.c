@@ -18,7 +18,7 @@
 #include <libgen.h>
 #include<signal.h>
 
-#define QUEUE_SIZE 5
+#define QUEUE_SIZE 10
 
 struct sigaction old_action;
 
@@ -138,7 +138,6 @@ void process_requests() {
 		reset_buffer(rcv_buf);
         write_to_buffer(rcv_buf, rcv_buf->size, rcv_message_tcp);
 
-		printf("buffer in server_tcp : %s\n", rcv_buf->buf);
 		/* ====== ULIST ====== */
 		if (parse_regex(rcv_buf->buf, "^ULS [0-9]{" STR(GID_SIZE) "}\\\n$") && rcv_buf->tail == strlen("ULS ") + GID_SIZE + 1) {
 
@@ -150,13 +149,11 @@ void process_requests() {
 
 			memset(send_buf, 0, ((1000 * (UID_SIZE + 1)) + 50) * sizeof(char));
 			sscanf(rcv_buf->buf, "%*s %s", gid);
-			printf("Got %s\n", gid);
 
 			if (verbose) {
                 printf("(TCP) %s@%s: %s", host, service, rcv_buf->buf); 
             }
 			status = get_uids_group(gid, group_name, &uids, &num_uids);
-			printf("status : %d\n", status);
 
 			switch (status) {
 				case STATUS_NOK:
@@ -171,7 +168,6 @@ void process_requests() {
 						pos += 1 + UID_SIZE;
 					}
 					sprintf(send_buf + pos, "\n");
-					printf("Final buffer %s\n", send_buf);
 					send_message_tcp(send_buf, strlen(send_buf));
  					break;
 			
@@ -213,7 +209,7 @@ void process_requests() {
 			} else {
 				if (verbose) {
                 	printf("(TCP) %s@%s: PST %s %s %s\n", host, service, uid, gid, text); 
-           		 }
+           		}
 				status = post_message(uid, gid, text, mid, NULL, 0, NULL, NULL);
 			}
 			switch (status) {
@@ -229,138 +225,156 @@ void process_requests() {
 					exit(EXIT_FAILURE);
 			}
 
-			break;	
-		}
-//
+			break;
+
 			/* ====== RETRIEVE ====== */
-		//} else if (parse_regex(rcv_buf->buf, "^RTV [0-9]{" STR(UID_SIZE) "} [0-9]{" STR(GID_SIZE) "} [0-9]{" STR(MID_SIZE) "}\\\n$")) {
-		//	char uid[UID_SIZE + 1], gid[GID_SIZE + 1], mid[MID_SIZE + 1];
-		//	char **text_files, **content_files, **uids;
-		//	int num_messages, status;
-		//	char send_buf[MAX_BUF_SIZE];
-		//	
-		//	memset(send_buf, 0, MAX_BUF_SIZE * sizeof(char));
-//
-		//	sscanf(rcv_buf->buf, "%*s %s %s %s\n", uid, gid, mid);
-		//	status = retrieve_messages(uid, gid, mid, &uids, &text_files, &content_files, &num_messages);
-//
-		//	for (int i = 0; i < num_messages; i++) {
-		//		printf("Fetching %s ", text_files[i]);
-		//		if (content_files[i] != NULL) {
-		//			printf("and %s ", content_files[i]);
-		//		}
-		//		printf("from %s\n", uids[i]);
-		//	}
-//
-		//	if (status == STATUS_OK) {
-//
-		//		int file_size, bytes_read, total;
-//
-		//		FILE *file;
-		//		sprintf(send_buf, "RRT OK %d", num_messages);
-		//		send_message_tcp(send_buf, strlen(send_buf));
-		//		memset(send_buf, 0, strlen(send_buf) * sizeof(char));
-//
-		//		for (int i = 0; i < num_messages; i++) {
-		//			printf("Fetching text %s \n", text_files[i]);
-		//			/* Send text files */
-		//			sprintf(send_buf, " %04d %s", atoi(mid) + i, uids[i]);
-		//			printf("Buffer for now %s with size %d\n", send_buf, strlen(send_buf));
-		//
-		//			if ((file = fopen(text_files[i], "r")) == NULL) {
-		//				exit(EXIT_FAILURE);
-		//			}
-		//			/* Get size of file data */
-		//			if ((fseek(file, 0, SEEK_END) != 0) || 
-		//				((file_size = ftell(file)) == -1) ||
-		//				(fseek(file, 0, SEEK_SET) != 0)) {
-		//				exit(EXIT_FAILURE);
-		//			}
-//
-		//			///* Check maximum filesize */
-		//			//if (file_size >= pow(10, MAX_FSIZE)) {
-		//			//	exit(EXIT_FAILURE);
-		//			//}
-		//			
-		//			sprintf(send_buf + strlen(send_buf), " %d ", file_size);
-		//			printf("Buffer for now %s with size %d\n", send_buf, strlen(send_buf));
-//
-		//			if (fread(send_buf + strlen(send_buf), sizeof(char), file_size, file) < 0) {
-		//				exit(EXIT_FAILURE);
-		//			}
-//
-		//			printf("Buffer for now %s with size %d\n", send_buf, strlen(send_buf));
-//
-		//			if (fclose(file) != 0) {
-		//				exit(EXIT_FAILURE);
-		//			}
-		//			send_message_tcp(send_buf, strlen(send_buf));
-		//			memset(send_buf, 0, (strlen(send_buf) * sizeof(char)));
-//
-		//			/* Send file content, if it exists */
-		//			if (content_files[i] != NULL) {
-//
-		//				printf("Fetching content file %s\n", content_files[i]);
-//
-		//				if ((file = fopen(content_files[i], "r")) == NULL) {
-		//					exit(EXIT_FAILURE);
-		//				}
-//
-		//				/* Get size of file data */
-		//				if ((fseek(file, 0, SEEK_END) != 0) || 
-		//					((file_size = ftell(file)) == -1) ||
-		//					(fseek(file, 0, SEEK_SET) != 0)) {
-		//					exit(EXIT_FAILURE);
-		//				}
-		//				sprintf(send_buf, " / %s %d ", basename(content_files[i]), file_size);
-		//				printf("Buffer for now %s with size %d\n", send_buf, strlen(send_buf));
-		//				send_message_tcp(send_buf, strlen(send_buf));
-//
-		//				/* Check maximum filesize */
-		//				if (file_size >= pow(10, MAX_FSIZE)) {
-		//					exit(EXIT_FAILURE);
-		//				}
-//
-		//				total = 0;
-		//				while (1) {
-		//					bytes_read = fread(send_buf, sizeof(char), MAX_BUF_SIZE - 1, file);
-		//					total += bytes_read;
-		//					if (feof(file)) {
-		//						break;
-		//					} else if (ferror(file)) {
-		//						exit(EXIT_FAILURE);
-		//					}
-		//					send_message_tcp(send_buf, bytes_read);	// NOTE: check this
-		//				}
-		//				send_message_tcp(send_buf, bytes_read + 1); // NOTE: check this
-		//				if (fclose(file) != 0) {
-		//					exit(EXIT_FAILURE);
-		//				}
-		//				memset(send_buf, 0, MAX_BUF_SIZE * sizeof(char));
-		//			}
-		//			
-		//		}
-//
-		//		sprintf(send_buf, "\n");
-		//		send_message_tcp(send_buf, 1);
-		//		
-		//	} else if (status == STATUS_NOK) {
-		//		sprintf(send_buf, "RRT NOK\n");
-		//	} else if (status == STATUS_ERR) {
-		//		sprintf(send_buf, "ERR\n");
-		//	}
-		//	
-		}
+		} else if (parse_regex(rcv_buf->buf, "^RTV [0-9]{" STR(UID_SIZE) "} [0-9]{" STR(GID_SIZE) "} [0-9]{" STR(MID_SIZE) "}\\\n$")) {
+			char uid[UID_SIZE + 1], gid[GID_SIZE + 1], mid[MID_SIZE + 1];
+			char **text_files, **content_files, **uids;
+			int num_messages, status;
+			char send_buf[MAX_BUF_SIZE];
+			
+			memset(send_buf, 0, MAX_BUF_SIZE * sizeof(char));
+			sscanf(rcv_buf->buf, "%*s %s %s %s\n", uid, gid, mid);
+			if (verbose) {
+                	printf("(TCP) %s@%s: RTV %s %s %s\n", host, service, uid, gid, mid); 
+           	}
+			status = retrieve_messages(uid, gid, mid, &uids, &text_files, &content_files, &num_messages);
+
+			//for (int i = 0; i < num_messages; i++) {
+			//	printf("Fetching %s ", text_files[i]);
+			//	if (content_files[i] != NULL) {
+			//		printf("and %s ", content_files[i]);
+			//	}
+			//	printf("from %s\n", uids[i]);
+			//}
+
+			//send_message_tcp("Ye\n", strlen(send_buf));
 		
-		if (shutdown(new_fd, SHUT_RDWR) == -1) {
-			printf("Error closing socket: %s\n", strerror(errno));
-		}
+//
+			if (status == STATUS_OK) {
+//
+				int file_size, bytes_read, total;
+
+				if (num_messages == 0) {
+					sprintf(send_buf, "RRT EOF\n");
+					send_message_tcp(send_buf, strlen(send_buf));
+					break;
+				}
+//
+				FILE *file;
+				sprintf(send_buf, "RRT OK %d", num_messages);
+				//printf("Buffer for now %s with size %d\n", send_buf, strlen(send_buf));
+				send_message_tcp(send_buf, strlen(send_buf));
+				memset(send_buf, 0, strlen(send_buf) * sizeof(char));
+
+				for (int i = 0; i < num_messages; i++) {
+					printf("Fetching text %s \n", text_files[i]);
+					/* Send text files */
+					sprintf(send_buf, " %04d %s", atoi(mid) + i, uids[i]);
+					//printf("Buffer for now \"%s\" with size %d\n", send_buf, strlen(send_buf));
 		
-		if (close(new_fd) == -1) {
-			printf("Error closing socket: %s\n", strerror(errno));
+					if ((file = fopen(text_files[i], "r")) == NULL) {
+						exit(EXIT_FAILURE);
+					}
+					/* Get size of file data */
+					if ((fseek(file, 0, SEEK_END) != 0) || 
+						((file_size = ftell(file)) == -1) ||
+						(fseek(file, 0, SEEK_SET) != 0)) {
+						exit(EXIT_FAILURE);
+					}
+
+					///* Check maximum filesize */
+					//if (file_size >= pow(10, MAX_FSIZE)) {
+					//	exit(EXIT_FAILURE);
+					//}
+					
+					sprintf(send_buf + strlen(send_buf), " %d ", file_size);
+					//printf("Buffer for now \"%s\" with size %d\n", send_buf, strlen(send_buf));
+//
+					if (fread(send_buf + strlen(send_buf), sizeof(char), file_size, file) < 0) {
+						exit(EXIT_FAILURE);
+					}
+
+					//printf("Buffer for now \"%s\" with size %d\n", send_buf, strlen(send_buf));
+
+					if (fclose(file) != 0) {
+						exit(EXIT_FAILURE);
+					}
+					send_message_tcp(send_buf, strlen(send_buf));
+					memset(send_buf, 0, (strlen(send_buf) * sizeof(char)));
+//
+					/* Send file content, if it exists */
+					if (content_files[i] != NULL) {
+
+						printf("Fetching content file %s\n", basename(content_files[i]));
+
+						if ((file = fopen(content_files[i], "r")) == NULL) {
+							exit(EXIT_FAILURE);
+						}
+
+						/* Get size of file data */
+						if ((fseek(file, 0, SEEK_END) != 0) || 
+							((file_size = ftell(file)) == -1) ||
+							(fseek(file, 0, SEEK_SET) != 0)) {
+							exit(EXIT_FAILURE);
+						}
+						sprintf(send_buf, " / %s %d ", basename(content_files[i]), file_size);
+						//printf("Buffer for now \"%s\" with size %d\n", send_buf, strlen(send_buf));
+						send_message_tcp(send_buf, strlen(send_buf));
+						memset(send_buf, 0, strlen(send_buf) * sizeof(char));
+
+						/* Check maximum filesize */
+						if (file_size >= pow(10, MAX_FSIZE)) {
+							exit(EXIT_FAILURE);
+						}
+
+						//printf("Sending file\n");
+						while (1) {
+							bytes_read = fread(send_buf, sizeof(char), MAX_BUF_SIZE - 1, file);
+							//printf("Buffer for now \"%s\" with size %d\n", send_buf, strlen(send_buf));
+							send_message_tcp(send_buf, bytes_read);	// NOTE: check this
+							memset(send_buf, 0, sizeof(char) * bytes_read);
+							if (feof(file)) {
+								//printf("Bazei??\n");
+								break;
+							} else if (ferror(file)) {
+								exit(EXIT_FAILURE);
+							}
+						}
+						
+						if (fclose(file) != 0) {
+							exit(EXIT_FAILURE);
+						}
+						memset(send_buf, 0, MAX_BUF_SIZE * sizeof(char));
+					}
+					
+				}
+
+				sprintf(send_buf, "\n");
+				send_message_tcp(send_buf, 1);
+				
+			} else if (status == STATUS_NOK) {
+				sprintf(send_buf, "RRT NOK\n");
+			} else if (status == STATUS_ERR) {
+				sprintf(send_buf, "ERR\n");
+			}
+
+			break;
+			
 		}
-		exit(EXIT_SUCCESS);
-    //}
+    }
+
+	if (shutdown(new_fd, SHUT_RDWR) == -1) {
+			printf("Error closing socket: %s\n", strerror(errno));
+	}
+		
+	if (close(new_fd) == -1) {
+		printf("Error closing socket: %s\n", strerror(errno));
+	}
+
+	exit(EXIT_SUCCESS);
+    
 }
 
 /*	Sends the message in buf to the server through the UDP socket 
