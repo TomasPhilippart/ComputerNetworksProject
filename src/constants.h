@@ -4,8 +4,6 @@
 #define TRUE 1
 #define FALSE 0
 
-// NOTE giving warning
-// REVIEW changed to 100 just to not show warnings
 #define STATUS_FAIL -1
 #define SUCCESS 0
 

@@ -10,9 +10,6 @@
 #include <stdio.h>
 #include <ctype.h>
 
-// NOTE: Make this function a wrapper of a regex validator 
-// NOTE: Check one-argument commands
-
 static void parse_args(int argc, char **argv);
 void process_input();
 

@@ -71,6 +71,9 @@ char* generate_author_file(char *gid, char *mid);
 
 // NOTE make server end_session
 // NOTE some timers commented
+// NOTE tirar printf
+// NOTE valgrind
+// NOTE tirar funções de timer onde não são necessárias
 
 void setup_state() {
 
@@ -307,7 +310,7 @@ int all_groups(int *num_groups, char ****groups) {
             return STATUS_USR_INVALID;
         }
 
-        /*
+    
         if ((((*groups)[i - 1][0] = (char *) malloc((GID_SIZE  + 1) * sizeof(char))) == NULL) ||
             (((*groups)[i - 1][1] = (char *) malloc((MAX_GNAME  + 1) * sizeof(char))) == NULL) ||
             (((*groups)[i - 1][2] = (char *) malloc((MID_SIZE  + 1) * sizeof(char))) == NULL)) {
@@ -315,10 +318,6 @@ int all_groups(int *num_groups, char ****groups) {
             printf("error malloc\n");
             return STATUS_USR_INVALID;
         }
-        */
-        (*groups)[i - 1][0] = (char *) malloc((GID_SIZE  + 1) * sizeof(char));
-        (*groups)[i - 1][1] = (char *) malloc((MAX_GNAME  + 1) * sizeof(char));
-        (*groups)[i - 1][2] = (char *) malloc((MID_SIZE  + 1) * sizeof(char));
         
         strcpy((*groups)[i - 1][0], gid);
         memset((*groups)[i - 1][1], '\0', MAX_GNAME + 1);

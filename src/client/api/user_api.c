@@ -363,7 +363,11 @@ int subscribe_group(char *gid, char *gName) {
 	/* add a zero on the left if gid = 0 for new group creation */
 	if (!strcmp(gid, "0")) {
 		char *aux = gid;
-		gid = (char *) malloc(sizeof(char) * (strlen(aux) + 1));
+		
+		if ((gid = (char *) malloc(sizeof(char) * (strlen(aux) + 1))) == NULL) {
+			printf("Error : malloc");
+			exit(EXIT_FAILURE);
+		}
 		gid[0] = '0';
 		strcpy(gid + 1, aux);
 	}
@@ -505,15 +509,26 @@ int get_subscribed_groups(char ****list) {
 char ***parse_groups(char *buf, int num_groups) {
 	
 	/* Allocate and fill response entries with each GID and GNAME */
-	char ***response = (char***) malloc(sizeof(char**) * (num_groups + 1));
+	char ***response;
+	if ((response = (char***) malloc(sizeof(char**) * (num_groups + 1))) == NULL) {
+		printf("Error : malloc");
+		exit(EXIT_FAILURE);
+	}
+
 	char mid[MID_SIZE + 1] = "";
 	int num_tokens;
 	char *aux = buf;
 
 	for (int i = 0; i < num_groups; i++) {
-		response[i] = (char **) malloc(sizeof(char*) * (21));
+		if ((response[i] = (char **) malloc(sizeof(char*) * (21))) == NULL) {
+			printf("Error : malloc");
+			exit(EXIT_FAILURE);
+		}
 		for (int j = 0; j < 2; j++) {
-			response[i][j] = (char *) malloc(sizeof(char) * (MAX_FNAME + 1));
+			if ((response[i][j] = (char *) malloc(sizeof(char) * (MAX_FNAME + 1))) == NULL) {
+				printf("Error : malloc");
+				exit(EXIT_FAILURE);
+			}
 		}
 	}
 	
@@ -613,8 +628,15 @@ int get_uids_group(char ****list) {
 			exit(EXIT_FAILURE);
 		}
 
-		(*list)[parsed_groups] = (char **) malloc(sizeof(char *));
-		(*list)[parsed_groups][0] = (char *) malloc(sizeof(char) * (UID_SIZE + 1));
+		if (((*list)[parsed_groups] = (char **) malloc(sizeof(char *))) == NULL) {
+			printf("Error : malloc");
+			exit(EXIT_FAILURE);
+		}
+		
+		if (((*list)[parsed_groups][0] = (char *) malloc(sizeof(char) * (UID_SIZE + 1))) == NULL) {
+			printf("Error : malloc");
+			exit(EXIT_FAILURE);
+		}
 		
 		sscanf(rcv_buffer->buf, " %s", (*list)[parsed_groups][0]);
 
@@ -837,7 +859,11 @@ int retrieve(char *mid, char ****list) {
 			exit(EXIT_FAILURE);
 		}
 		
-		(*list)[i][0] = (char *) malloc(sizeof(char) * (atoi(text_size) + 1));
+		if (((*list)[i][0] = (char *) malloc(sizeof(char) * (atoi(text_size) + 1))) == NULL) {
+			printf("Error : malloc");
+			exit(EXIT_FAILURE);
+		}
+		
 		memcpy((*list)[i][0], rcv_buf->buf + 1, atoi(text_size) * sizeof(char));
 		(*list)[i][0][atoi(text_size)] = '\0';
 		flush_buffer(rcv_buf, 1 + atoi(text_size));

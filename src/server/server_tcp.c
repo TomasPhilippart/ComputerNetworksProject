@@ -118,7 +118,6 @@ void process_requests() {
 			int aux = wait(&status);
 			if(WIFEXITED(status)) {
 				/* The child process exited normally */
-				printf("Exit value %d\n", WEXITSTATUS(status));
 			} else if(WIFSIGNALED(status)) {
 				/* The child process was killed by a signal. Note the use of strsignal
 				to make the output human-readable. */
