@@ -17,6 +17,7 @@ void flush_buffer(Buffer buf, int positions);
 int write_to_buffer(Buffer buf, int num_bytes, int (* write_function)(char *, int));
 void reset_buffer(Buffer buffer);
 void destroy_buffer(Buffer buffer);
+int rmrf(char *path);
 
 int check_pass(char *pass);
 int check_uid(char *uid);

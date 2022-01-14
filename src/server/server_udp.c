@@ -48,8 +48,9 @@ void setup() {
 		printf("Error: Binding socket.\n");
 		exit(EXIT_FAILURE);
 	}
-    /* Setup the file system */
+
     setup_state();
+
 }
 
 void process_requests() {
@@ -219,7 +220,6 @@ void process_requests() {
             
             if (parse_regex(receiving_buf, "^GLS\\\n$") == FALSE) {
                 printf("(UDP) Bad message format in command %s\n", command);
-                // NOTE should we send ERR message?
                 exit(EXIT_FAILURE);
             }
 
@@ -234,7 +234,7 @@ void process_requests() {
                 printf("Error: Couldn't allocate memory for sending_buf\n");
             }
 
-            memset(sending_buf, 0, sending_buf_size);
+            memset(sending_buf, 0, sending_buf_size * sizeof(char));
 
             switch (status) {
                 case STATUS_OK:
@@ -246,6 +246,7 @@ void process_requests() {
 
                     for (int i = 0; i < num_groups; i++) {
                         sprintf(aux, " %s %s %s", groups[i][0], groups[i][1], groups[i][2]);
+                        // printf("Got %s %s %s\n", groups[i][0], groups[i][1], groups[i][2]);
                         aux += (strlen(aux) * sizeof(char));
                     }
 
@@ -365,7 +366,7 @@ void process_requests() {
                 printf("Error: Couldn't allocate memory for sending_buf\n");
             }
 
-            memset(sending_buf, 0, sending_buf_size);
+            memset(sending_buf, 0, sending_buf_size * sizeof(char));
 
             switch (status) {
                 case STATUS_OK:

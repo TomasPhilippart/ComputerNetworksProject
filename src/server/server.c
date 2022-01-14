@@ -29,7 +29,6 @@ int main(int argc, char **argv) {
 	int status; 
 
 	parse_args(argc, argv);
-	init_forum();
 
 	printf("Running server on port %s and %s\n", port, verbose ? "Verbose" : "Non-Verbose");
 
@@ -67,7 +66,7 @@ int main(int argc, char **argv) {
 }
 
 /*	Parse arguments from the command line according to 
-	format  ./server [-p DSport] [-v]\n" */
+	format  ./server [-p DSport] [-v]\n" */	
 static void parse_args(int argc, char **argv) {
 
     int opt;
@@ -108,21 +107,6 @@ static void parse_args(int argc, char **argv) {
 				exit(EXIT_FAILURE);
 		}	
     }
-}
-
-void init_forum() {
-
-	if (mkdir("../USERS", 0777) == -1) {
-		if (errno != EEXIST) {
-			exit(EXIT_FAILURE);
-		}
-	}
-
-	if (mkdir("../GROUPS", 0777) == -1) {
-		if (errno != EEXIST) {
-			exit(EXIT_FAILURE);
-		}
-	}
 }
 
 int validate_port(char *port_to_validate) {
