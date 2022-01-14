@@ -69,9 +69,8 @@ char *generate_user_file (char *gid, char *uid);
 char* generate_text_file(char *gid, char *mid);
 char* generate_author_file(char *gid, char *mid); 
 
-// NOTE make server end_session
-// NOTE some timers commented
 // NOTE tirar printf
+// NOTE make server end_session
 // NOTE valgrind
 // NOTE tirar funções de timer onde não são necessárias
 
@@ -79,7 +78,7 @@ void setup_state() {
 
     /* Check for the next available GID */
     char gid[GID_SIZE + 1] = "";
-
+    
     for (next_available_gid = 1; next_available_gid <= 99; next_available_gid++) {
         sprintf(gid, "%02d", next_available_gid);
        
@@ -92,6 +91,7 @@ void setup_state() {
 
 int register_user(char *uid, char *pass) {
     char *user_dir, *password_file;
+    int status;
     FILE *file;
 
     if (!(check_uid(uid) && check_pass(pass))) {
@@ -99,8 +99,11 @@ int register_user(char *uid, char *pass) {
     }
 
     /* Check if the uid is registed */
-    if (check_user_registered(uid) == TRUE) {
+    status = check_user_registered(uid); 
+    if (status == TRUE) {
         return STATUS_DUP;
+    } else if (status == STATUS_FAIL) {
+        return STATUS_FAIL;
     }
 
     if ((user_dir = generate_user_dir(uid)) == NULL) {
@@ -147,27 +150,37 @@ int register_user(char *uid, char *pass) {
 int unregister_user(char *uid, char *pass) {
     
     char *user_dir, *password_file, *login_file;
+    int status;
 
     if (!(check_uid(uid) && check_pass(pass))) {
         return STATUS_NOK;
     }
 
     /* Check if the uid is registed */
-    if (check_user_registered(uid) == FALSE) {
+    status = check_user_registered(uid); 
+    if (status == FALSE) {
         return STATUS_NOK;
+    } else if (status == STATUS_FAIL) {
+        return STATUS_FAIL;
     }
 
     /* Check if the password is correct */
-    if (check_correct_password(uid, pass) == FALSE) {
+    status = check_correct_password(uid, pass); 
+    if (status == FALSE) {
         return STATUS_NOK;
+    } else if (status == STATUS_FAIL) {
+        return STATUS_FAIL;
     }
 
     /* If unregistering a logged in user, force logout first */
-    if (check_user_logged(uid)) {
+    status = check_user_logged(uid);
+    if (status == TRUE) {
         if (logout_user(uid, pass) != STATUS_OK) {
             printf("Error: Logging out when unregistering UID %s,\n", uid);
             return STATUS_FAIL;
         }
+    } else if (status == STATUS_FAIL) {
+        return STATUS_FAIL;
     }
 
     if ((password_file = generate_password_file(uid)) == NULL) {
@@ -203,19 +216,26 @@ int login_user(char *uid, char *pass) {
     FILE *file;
     char *user_dir, *password_file;  
     char *login_file;
+    int status;
 
     if (!(check_uid(uid) && check_pass(pass))) {
         return STATUS_NOK;
     }
 
     /* Check if the uid is registed */
-    if (check_user_registered(uid) == FALSE) {
+    status = check_user_registered(uid); 
+    if (status == FALSE) {
         return STATUS_NOK;
+    } else if (status == STATUS_FAIL) {
+        return STATUS_FAIL;
     }
 
     /* Check if the password is correct */
-    if (check_correct_password(uid, pass) == FALSE) {
+    status = check_correct_password(uid, pass);
+    if (status == FALSE) {
         return STATUS_NOK;
+    } else if (status == STATUS_FAIL) {
+        return STATUS_FAIL;
     }
 
     /* Create login file */
@@ -241,24 +261,34 @@ int login_user(char *uid, char *pass) {
 int logout_user(char *uid, char *pass) {
 
     char *login_file;
+    int status;
 
     if (!(check_uid(uid) && check_pass(pass))) {
         return STATUS_NOK;
     }
 
     /* Check if the uid is registed */
-    if (check_user_registered(uid) == FALSE) {
+    status = check_user_registered(uid);
+    if (status == FALSE) {
         return STATUS_NOK;
+    } else if (status == STATUS_FAIL) {
+        return STATUS_FAIL;
     }
 
     /* Check if the password is correct */
-    if (check_correct_password(uid, pass) == FALSE) {
+    status = check_correct_password(uid, pass);
+    if (status == FALSE) {
         return STATUS_NOK;
+    } else if (status == STATUS_FAIL) {
+        return STATUS_FAIL;
     }
 
     /* Remove login file */
-    if (check_user_logged(uid) == FALSE) {
+    status = check_user_logged(uid);
+    if (status == FALSE) {
         return STATUS_NOK;
+    } else if (status == STATUS_FAIL) {
+        return STATUS_FAIL;
     }
 
     if ((login_file = generate_login_file(uid)) == NULL) {
@@ -315,7 +345,7 @@ int all_groups(int *num_groups, char ****groups) {
             (((*groups)[i - 1][1] = (char *) malloc((MAX_GNAME  + 1) * sizeof(char))) == NULL) ||
             (((*groups)[i - 1][2] = (char *) malloc((MID_SIZE  + 1) * sizeof(char))) == NULL)) {
             free_groups(*groups, *num_groups + 1);
-            printf("error malloc\n");
+            printf("Error: malloc\n");
             return STATUS_USR_INVALID;
         }
         
@@ -336,20 +366,30 @@ int subscribe_group(char *uid, char *gid, char *group_name, char *new_gid) {
     int new_group_created = FALSE;
     char *user_file;
     FILE *file;    
+    int status;
 
     /* Check UID */
-    if (!check_uid(uid) || check_user_registered(uid) == FALSE) {
+    status = check_user_registered(uid);
+    if (!check_uid(uid) || status == FALSE) {
         return STATUS_USR_INVALID;
+    } else if (status == STATUS_FAIL) {
+        return STATUS_FAIL;
     }
 
-    if (check_user_logged(uid) == FALSE) {
+    status = check_user_logged(uid);
+    if (status == FALSE) {
         return STATUS_USR_INVALID;
+    } else if (status == STATUS_FAIL) {
+        return STATUS_FAIL;
     }
 
     /* Check GID: GID invalid OR group doesn't exist and isn't 00 */
-    if ( (!check_gid(gid) && strcmp(gid, "00")) || (check_group_exists(gid) == FALSE && strcmp(gid, "00"))) {
+    status = check_group_exists(gid);
+    if ( (!check_gid(gid) && strcmp(gid, "00")) || (status == FALSE && strcmp(gid, "00"))) {
         return STATUS_GID_INVALID;
-    } 
+    }  else if (status == STATUS_FAIL) {
+        return STATUS_FAIL;
+    }
     
     /* Check GNAME */
     if (check_group_name(group_name) == FALSE ) {
@@ -367,6 +407,7 @@ int subscribe_group(char *uid, char *gid, char *group_name, char *new_gid) {
             printf("Error creating group.\n");
             return STATUS_FAIL;
         }
+
         strcpy(gid, new_gid);
         new_group_created = TRUE;
     } 
@@ -400,20 +441,30 @@ int unsubscribe_user(char *uid, char *gid) {
     
     char *user_file;
     FILE *file;  
+    int status;
 
     /* Check UID */
-    if (!check_uid(uid) || check_user_registered(uid) == FALSE) {
+    status = check_user_registered(uid);
+    if (!check_uid(uid) || status == FALSE) {
         return STATUS_USR_INVALID;
+    } else if (status == STATUS_FAIL) {
+        return STATUS_FAIL;
     }
 
-    if (check_user_logged(uid) == FALSE) {
+    status = check_user_logged(uid);
+    if (status == FALSE) {
         return STATUS_USR_INVALID;
+    } else if (status == STATUS_FAIL) {
+        return STATUS_FAIL;
     }
     
     /* Check GID */
-    if (check_group_exists(gid) == FALSE || !strcmp(gid, "00") || check_gid(gid) == FALSE) {
+    status = check_group_exists(gid);
+    if (status == FALSE || !strcmp(gid, "00") || check_gid(gid) == FALSE) {
         return STATUS_GID_INVALID;
-    } 
+    }  else if (status == STATUS_FAIL) {
+        return STATUS_FAIL;
+    }
 
     if ((user_file = generate_user_file(gid, uid)) == NULL) {
         return STATUS_FAIL;
@@ -442,6 +493,7 @@ int user_subscribed_groups(char *uid, int *num_groups, char ****groups) {
     char gid[GID_SIZE + 1];
     char last_mid[MID_SIZE + 1], group_name[MAX_GNAME + 1];
     int base_size = 100;
+    int status;
 
     *num_groups = 0;
     if (((*groups) = (char ***) malloc(sizeof(char **) * base_size)) == NULL) {
@@ -449,20 +501,26 @@ int user_subscribed_groups(char *uid, int *num_groups, char ****groups) {
     }
     
     /* Check UID */
-    if (!(check_uid(uid) && check_user_registered(uid))) {
+    status = check_user_registered(uid);
+    if (!(check_uid(uid) && status == TRUE)) {
         return STATUS_USR_INVALID;
+    } else if (status == STATUS_FAIL) {
+        return STATUS_FAIL;
     }
 
-    if (check_user_logged(uid) == FALSE) {
+    status = check_user_logged(uid);
+    if (status == FALSE) {
         return STATUS_USR_INVALID;
+    } else if (status == STATUS_FAIL) {
+        return STATUS_FAIL;
     }
 
     /* Loop through all created groups and verify is 
        UID is subscribed in that group */
     for (int i = 1; i < next_available_gid; i++) {
-   
         sprintf(gid, "%02d", i);
-        if (check_user_subscribed(uid, gid)) {
+        status = check_user_subscribed(uid, gid);
+        if (status == TRUE) {
             
             /* Get group name */
             if (get_group_name(gid, group_name) == STATUS_FAIL) {
@@ -501,8 +559,10 @@ int user_subscribed_groups(char *uid, int *num_groups, char ****groups) {
                 }
                 *groups = aux;
             }            
+        } else if (status == STATUS_FAIL) {
+            return STATUS_FAIL;
         }
-    }
+    } 
     
     return STATUS_OK;
 }
@@ -513,7 +573,7 @@ int get_uids_group(char *gid, char *group_name, char ***uids,  int *num_uids) {
     char *group_dir_name;
 
     struct dirent *uid_dir;
-    int base_size = 100;
+    int base_size = 100, status;
 
     (*num_uids) = 0;
 
@@ -522,8 +582,11 @@ int get_uids_group(char *gid, char *group_name, char ***uids,  int *num_uids) {
     }
     memset(*uids, 0, base_size * sizeof(char *));
 
-    if (!check_group_exists(gid)) {
+    status = check_group_exists(gid);
+    if (status == FALSE) {
         return STATUS_NOK;
+    }  else if (status == STATUS_FAIL) {
+        return STATUS_FAIL;
     }
 
     if (get_group_name(gid, group_name) != SUCCESS) {
@@ -578,14 +641,22 @@ int post_message(char *uid, char *gid, char *text, char *mid, char *file_name, i
     char *author_file, *msg_dir, *text_file;
     char last_mid[MID_SIZE + 1], file_dir[strlen(MSG_DIR) + UID_SIZE + 1 + MAX_FNAME + 1];
     FILE *file;
+    int status, status2;
 
     /* Check UID */
-    if (!(check_uid(uid) && check_user_registered(uid) & check_user_logged(uid))) { 
+    status = check_user_registered(uid);
+    status2 = check_user_logged(uid);
+    if (!(check_uid(uid) && status == TRUE && status2 == TRUE)) { 
         return STATUS_NOK;
+    } else if (status == STATUS_FAIL || status2 == STATUS_FAIL) {
+        return STATUS_FAIL;
     }
 
-    if (!check_user_subscribed(uid, gid)) {
+    status = check_user_subscribed(uid, gid);
+    if (status == FALSE) {
         return STATUS_NOK;
+    } else if (status == STATUS_FAIL) {
+        return STATUS_FAIL;
     }
    
     get_last_mid(gid, last_mid);
@@ -734,7 +805,7 @@ int retrieve_messages(char *uid, char *gid, char *mid, char ***uids,
     DIR *entries;
     FILE *file;
     struct dirent *entry;
-    int i;
+    int i, status, status2;
 
     if ((((*uids) = (char **) malloc(sizeof(char *) * 20)) == NULL) || 
         (((*text_files) = (char **) malloc(sizeof(char *) * 20)) == NULL) || 
@@ -743,13 +814,20 @@ int retrieve_messages(char *uid, char *gid, char *mid, char ***uids,
     }
 
     /* Check UID */
-    if (!(check_uid(uid) && check_user_registered(uid) && check_user_logged(uid))) { 
+    status = check_user_registered(uid);
+    status2 = check_user_logged(uid);
+    if (!(check_uid(uid) && status == TRUE && status2 == TRUE)) { 
         return STATUS_NOK;
+    } else if (status == STATUS_FAIL || status2 == STATUS_FAIL) {
+        return STATUS_FAIL;
     }
 
     /* Check if user is subscribed */
-    if (!check_user_subscribed(uid, gid)) {
+    status = check_user_subscribed(uid, gid);
+    if (status = FALSE) {
         return STATUS_NOK;
+    } else if (status == STATUS_FAIL) {
+        return STATUS_FAIL;
     }
 
     for (i = 0; i < 20; i++) {
@@ -760,9 +838,12 @@ int retrieve_messages(char *uid, char *gid, char *mid, char ***uids,
         sprintf(curr_mid, "%04d", atoi(mid) + i);
 
         // NOTE See this
-        if (!(check_message_exists(gid, curr_mid))) {
+        status = check_message_exists(gid, mid);
+        if (status == FALSE) {
             break;
-        }
+        } else if (status == STATUS_FAIL) {
+             return STATUS_FAIL;
+        }   
        
         (*text_files)[i] = generate_text_file(gid, curr_mid);
         msg_dir = generate_msg_dir(gid, curr_mid);
@@ -1157,14 +1238,18 @@ int get_group_name(char *gid, char *group_name) {
 int get_last_mid(char *gid, char *last_mid) {
 
     char mid[MID_SIZE + 1] = "";
-
+    int status;
+    
     for (int i = 1; i < pow(10, MID_SIZE); i++) {
         sprintf(mid, "%0" STR(MID_SIZE) "d", i);
 
-        if (check_message_exists(gid, mid) == FALSE) {
+        status = check_message_exists(gid, mid); 
+        if (status == FALSE) {
             sprintf(last_mid, "%0" STR(MID_SIZE) "d", i - 1);
             //printf("message %s does not exist\n", mid);
             return SUCCESS;
+        } else if (status == STATUS_FAIL) {
+            return STATUS_FAIL;
         }
     }
 

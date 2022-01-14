@@ -17,13 +17,10 @@
 #include<math.h>
 
 
-// NOTE check malloc syscall return code
 // NOTE check if every response ends with /n
 // NOTE check extra token on response
 // NOTE check filesize
 // NOTE pass error string to end session
-// NOTE regex instead of atoi
-// NOTE freeing server_ip and server_port when they are not altered can be a source of trouble
 // NOTE check all regexes!!!
 
 /* Default server ip and port */
@@ -31,10 +28,10 @@ char *server_ip = NULL;
 char server_port[MAX_PORT_SIZE + 1] = "58043";
 
 /* User ID, password, group ID and flag for when a user is logged in */
-char UID[UID_SIZE + 1] = "95565"; // 5 digit numeric
-char password[PASSWORD_SIZE + 1] = "12345678"; // 8 alphanumeric characters
-char GID[GID_SIZE + 1] = "09"; // 2 digit numeric (01-99)
-int logged_in = TRUE;
+char UID[UID_SIZE + 1] = ""; // 5 digit numeric
+char password[PASSWORD_SIZE + 1] = ""; // 8 alphanumeric characters
+char GID[GID_SIZE + 1] = ""; // 2 digit numeric (01-99)
+int logged_in = FALSE;
 
 /* variables needed for UDP connection */
 int udp_socket; 
@@ -616,7 +613,6 @@ int get_uids_group(char ****list) {
 		/* fetch remaining bytes to parse a " UID" token */
 		if (rcv_buffer->tail < UID_SIZE + 1) {
 
-			// NOTE
 			if (write_to_buffer(rcv_buffer, 1 + UID_SIZE - rcv_buffer->tail, rcv_message_tcp) < 1 + UID_SIZE - rcv_buffer->tail) {	
 				break;
 			}
@@ -1071,7 +1067,6 @@ int rcv_message_tcp(char *buf, int num_bytes) {
 	return num_bytes - num_bytes_left;
 }
 
-// NOTE: leave at least some kind of message??
 void end_session(int status) {
 	close(udp_socket);
 	close(tcp_socket);

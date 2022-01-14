@@ -62,7 +62,6 @@ void setup() {
 
 	addrlen = sizeof(addr);             /* for receiving messages */
 
-    // NOTE: free structures on failure */
 	if (getaddrinfo(NULL, port, &hints, &res) != 0) {
         printf("(TCP) Error: DNS couldn't resolve server's IP address for TCP connection.\n");
 		exit(EXIT_FAILURE);
