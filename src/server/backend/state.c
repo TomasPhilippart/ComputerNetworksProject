@@ -40,37 +40,7 @@
 #define TEXT_FILE_EXTENSION "T E X T.txt"
 #define AUTHOR_FILE_EXTENSION "A U T H O R.txt"
 
-// NOTE defines for directories?
 int next_available_gid;
-
-/* NOTE stuff to check
-    > reg : user that exists DONE
-            user that dont exist DONE
-
-    > unr : user that exists DONE 
-            user that dont exist DONE
-            incorrect pass DONE 
-            invalid UID DONE 
-    > login : user that exists DONE 
-              user that dont exist DONE 
-              incorrect password DONE
-    > logout : with all ok DONE
-    > gl : with some groups created <-----------------
-           with no groups created DONE
-    > subscribe : new group
-                  99 groups created
-                  to an existing group
-                  invalid group (group that doesnt exist yet)
-                  invalid group (group with different name than created)
-    > unsubscribe : existing group
-                    to a group that wasnt yet created
-    > mgl : with some groups subscribe to
-            with no groups subscribed to
-    > 
-
-*/
-
-// NOTE comment shit
 
 int check_user_subscribed(char *uid, char *gid);
 int check_user_registered(char *uid);
@@ -128,9 +98,8 @@ int register_user(char *uid, char *pass) {
         return STATUS_FAIL;
     }
     
-    // NOTE is this 0700?
     /* Create user directory */
-    if (mkdir(user_dir, 0700) == STATUS_FAIL) {
+    if (mkdir(user_dir, 0777) == STATUS_FAIL) {
         printf("Error : Couldn't create new dir with path %s\n", user_dir);
         free(user_dir);
         return STATUS_FAIL;
@@ -471,7 +440,7 @@ int user_subscribed_groups(char *uid, int *num_groups, char ****groups) {
     }
 
     /* Check UID */
-    if (!(check_uid(uid) && check_user_registered(uid))) { // NOTE: this is stupid as fuck
+    if (!(check_uid(uid) && check_user_registered(uid))) {
         return STATUS_USR_INVALID;
     }
 
@@ -543,9 +512,8 @@ int user_subscribed_groups(char *uid, int *num_groups, char ****groups) {
 */
 int check_user_registered(char *uid) {
 
-    // NOTE check if the folder ../USERS/uid was a uid_pass.txt file
     DIR* dir;
-    char *user_dir;
+    char *user_dir, *password_file;
     
     if ((user_dir = generate_user_dir(uid)) == NULL) {
         return STATUS_FAIL;
@@ -560,6 +528,17 @@ int check_user_registered(char *uid) {
 
     free(user_dir);
     closedir(dir);
+
+    if ((password_file = generate_password_file(uid)) == NULL) {
+        return STATUS_FAIL;
+    }
+
+    if(access(password_file, F_OK) != 0 ) {
+        free(password_file);
+        return FALSE;
+    }
+
+    free(password_file);
     return TRUE;
 }
 
@@ -587,8 +566,6 @@ int check_user_subscribed(char *uid, char *gid) {
     return TRUE;
 }
 
-// NOTE this function returns TRUE, FALSE and STATUS_FAIL, when calling it 
-// need to check for STATUS_FAIL (and propagate it to server_udp) not only TRUE and FALSE 
 /*  Check if pass is correct
     Input:
     - uid: the UID
@@ -746,7 +723,6 @@ int check_message_exists(char *gid, char *mid) {
     return TRUE;
 }
 
-// REVIEW this for not needing to pass path?
 int create_group(char *group_name, char *new_gid) {
     
     // NOTE if in the middle of creating a group it fails need 
