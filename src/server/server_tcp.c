@@ -83,15 +83,19 @@ void process_requests() {
 
     while (1) {
 		int option = 1;
-        if ((new_fd = accept(fd, (struct sockaddr*)&addr, &addrlen)) == -1) {
-            // NOTE: Free structures
-            exit(EXIT_FAILURE);
-        }
+
+		new_fd = accept(fd, (struct sockaddr*)&addr, &addrlen);
+		while ((new_fd == -1) && (errno == EINTR));
+        if (new_fd == -1) {
+			exit(EXIT_FAILURE);
+		}
 		
         if ((pid = fork()) < 0) {
             exit(EXIT_FAILURE);
         } else if (pid != 0) {
-			if (close(new_fd) == -1) {
+			int res = close(new_fd);
+			while ((res == -1) && (errno == EINTR));
+			if (res == -1) {
 				printf("Error closing the socket: %s\n", strerror(errno));
 			}
 
@@ -120,8 +124,10 @@ void process_requests() {
         }
 		
 		reset_buffer(rcv_buf);
-        write_to_buffer(rcv_buf, rcv_buf->size, rcv_message_tcp);    
-		
+		printf("Let's gooooo!\n");
+        write_to_buffer(rcv_buf, rcv_buf->size, rcv_message_tcp);
+
+		printf("buffer in server_tcp : %s\n", rcv_buf->buf);
 		/* ====== ULIST ====== */
 		if (parse_regex(rcv_buf->buf, "^ULS [0-9]{" STR(GID_SIZE) "}\\\n$") && rcv_buf->tail == strlen("ULS ") + GID_SIZE + 1) {
 
@@ -133,12 +139,14 @@ void process_requests() {
 
 			memset(send_buf, 0, ((1000 * (UID_SIZE + 1)) + 50) * sizeof(char));
 			sscanf(rcv_buf->buf, "%*s %s", gid);
+			printf("Got %s\n", gid);
 
 			if (verbose) {
                 printf("(TCP) %s@%s: %s", host, service, rcv_buf->buf); 
             }
 			status = get_uids_group(gid, group_name, &uids, &num_uids);
-			
+			printf("status : %d\n", status);
+
 			switch (status) {
 				case STATUS_NOK:
 					send_message_tcp("RUL NOK\n", strlen("RUL NOK\n"));
@@ -209,8 +217,11 @@ void process_requests() {
 				case STATUS_FAIL:
 					exit(EXIT_FAILURE);
 			}
-			
+
 			break;
+
+			
+			
 		}
 //
 			/* ====== RETRIEVE ====== */
@@ -333,6 +344,10 @@ void process_requests() {
 		//	
 		}
 		
+		if (shutdown(new_fd, SHUT_RDWR) == -1) {
+			printf("Error closing socket: %s\n", strerror(errno));
+		}
+		
 		if (close(new_fd) == -1) {
 			printf("Error closing socket: %s\n", strerror(errno));
 		}
@@ -363,6 +378,7 @@ void send_message_tcp(char *buf, ssize_t num_bytes) {
 		aux += num_bytes_written;
 	}
 
+	//write(new_fd, "", 0);
 	// Debug
 	//printf("Sent: %s\n", buf);
 
@@ -384,7 +400,7 @@ int rcv_message_tcp(char *buf, int num_bytes) {
 			if (errno == EWOULDBLOCK || errno == EAGAIN) {
 				break;
 			}
-			printf("Error: Failed to read message from TCP socket.\n");
+			printf("Error: Failed to read message from TCP socket %s.\n", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 		
@@ -406,8 +422,9 @@ int main(int argc, char **argv) {
 
     port = strdup(argv[1]);
     verbose = atoi(argv[2]);
-
+	
     setup();
+	printf("Let's go!\n");
     process_requests();
 	
     return TRUE;
@@ -418,7 +435,8 @@ int start_timer(int fd) {
     struct timeval timeout;
 
     memset((char *) &timeout, 0, sizeof(timeout)); 
-    timeout.tv_sec = 2;
+    timeout.tv_sec = 0;
+	timeout.tv_usec = 50000;
 
     return (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *) &timeout, sizeof(struct timeval)));
 }

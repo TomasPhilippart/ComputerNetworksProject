@@ -457,6 +457,7 @@ int get_subscribed_groups(char ****list) {
 	int num_tokens;
 	char *aux;
 
+	memset(buf, 0, MAX_BUF_SIZE);
 	sprintf(buf, "%s %s\n", "GLM", UID);	
 	exchange_messages_udp(buf, strlen(buf));
 
@@ -569,7 +570,7 @@ int get_uids_group(char ****list) {
 	sprintf(buf, "ULS %." STR(MAX_ARG_SIZE) "s\n", GID); 
 
 	// NOTE: check these
-	setup_tcp();						
+	setup_tcp();
 	send_message_tcp(buf, strlen(buf));	
 	write_to_buffer(rcv_buffer, 31, rcv_message_tcp);
 
@@ -822,7 +823,6 @@ int retrieve(char *mid, char ****list) {
 
 		/* Parse [ MID UID Tsize text] */
 		if (!parse_regex(rcv_buf->buf, "^ [0-9]{" STR(MID_SIZE) "} [0-9]{" STR(UID_SIZE) "} [0-9]{1,3}")) {
-			printf("a\n");
 			destroy_buffer(rcv_buf);
 			free_list(*list, 3);
 			exit(EXIT_FAILURE);
@@ -837,7 +837,6 @@ int retrieve(char *mid, char ****list) {
 		printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
 	
 		if (!parse_regex(rcv_buf->buf, "^ .{0,240}")) {
-			printf("c\n");
 			destroy_buffer(rcv_buf);
 			free_list(*list, 3);
 			exit(EXIT_FAILURE);
@@ -852,7 +851,6 @@ int retrieve(char *mid, char ****list) {
 		printf("Buffer %s  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
 		/* Check the existence of a file in the message */
 		if (!parse_regex(rcv_buf->buf, "^ /")) {
-			printf("d\n");
 			write_to_buffer(rcv_buf, MAX(0, 3 + MID_SIZE + UID_SIZE + 3 - rcv_buf->tail), rcv_message_tcp);
 			continue;
 		}
@@ -868,7 +866,6 @@ int retrieve(char *mid, char ****list) {
 	
 		/* parse [Fname Fsize data] */
 		if (!parse_regex(rcv_buf->buf, "^ [a-zA-Z0-9._-]{1,21}.[a-zA-Z0-9]{3} [0-9]{1,10} ")) {
-			printf("e\n");
 			destroy_buffer(rcv_buf);
 			free_list(*list, 3);
 			exit(EXIT_FAILURE);
@@ -883,7 +880,6 @@ int retrieve(char *mid, char ****list) {
 		}
 
 		if (atoi((*list)[i][2]) >= pow(10, MAX_FSIZE)) {
-			printf("g\n");
 			destroy_buffer(rcv_buf);
 			free_list(*list, 3);
 			exit(EXIT_FAILURE);
@@ -936,12 +932,9 @@ int retrieve(char *mid, char ****list) {
 			write_to_buffer(rcv_buf, MAX(0, 3 + MID_SIZE + UID_SIZE + 3 - rcv_buf->tail), rcv_message_tcp);
 		} 
 	}
-	printf("Saltei fora\n");
-	printf("Buffer with size: <%s> <%d>\n", rcv_buf->buf, rcv_buf->tail);
 	
 	/* Ensure that the response ended */
 	if (!(parse_regex(rcv_buf->buf, "^\\\n$") && (write_to_buffer(rcv_buf, 1, rcv_message_tcp) == 0))) {
-		printf("Por aqui\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -951,8 +944,6 @@ int retrieve(char *mid, char ****list) {
 		exit(EXIT_FAILURE);
 	}
 	destroy_buffer(rcv_buf);
-
-	printf("E bazei!\n");
 
 	return STATUS_OK;
 }
@@ -1038,7 +1029,7 @@ void send_message_tcp(char *buf, ssize_t num_bytes) {
 	}
 
 	// Debug
-	// printf("Sent: %s\n", buf);
+	//printf("Sent: %s\n", buf);
 
 }
 
@@ -1051,22 +1042,20 @@ int rcv_message_tcp(char *buf, int num_bytes) {
 
 	while (num_bytes_left != 0) {
 		//printf("Waiting...\n");
-
-		start_timer(tcp_socket);
+		//start_timer(tcp_socket);
 		num_bytes_read = read(tcp_socket, aux, num_bytes_left);
-		stop_timer(tcp_socket);
+		//stop_timer(tcp_socket);
 
-		///* if reply read (\n is at the end of the buffer)*/
-		//if (stopping_flag &(*(buf + num_bytes_read - 1) == '\n')) {
-		//	return break;
-		//}
-		////printf("bytes read = %ld\n", num_bytes_read);
+		printf("bytes read = %ld\n", num_bytes_read);
 		if (num_bytes_read == 0) {
+			printf("Arrived here!\n");
 			break;
 		}
 		
 		if (num_bytes_read == -1) {
+			printf("It returned -1\n");
 			if (errno == EWOULDBLOCK || errno == EAGAIN || errno == ECONNRESET) {
+				printf("Why: %s with errno %d\n", strerror(errno), errno);
 				break;
 			}
 			printf("Error: Failed to read message from TCP socket. Why: %s with errno %d\n", strerror(errno), errno);
@@ -1077,19 +1066,18 @@ int rcv_message_tcp(char *buf, int num_bytes) {
 		num_bytes_left -= num_bytes_read;
 	}
 	//int i;
-	//for (i = 0; i < MAX_BUF_SIZE; i++) {
-	//	if (*(buf + i) == 0) {
-	//		break;
-	//	}
-	//}
+	for (int i = 0; i < (num_bytes - num_bytes_left); i++) {
+		putchar(*(buf + i));
+	}
+	putchar('\n');
 	//printf("First NULL at %d\n", i);
 
 	// Debug
-	if (*buf != '\0') {
-		printf("Received: %s\n", buf);
-	//	printf("With length: %d\n", strlen(buf));
-	}
-
+	//if (*buf != '\0') {
+	//	printf("Received: %s\n", buf);
+	////	printf("With length: %d\n", strlen(buf));
+	//}
+	printf("I received  %d\n", num_bytes - num_bytes_left);
 	return num_bytes - num_bytes_left;
 
 }

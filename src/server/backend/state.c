@@ -441,7 +441,7 @@ int user_subscribed_groups(char *uid, int *num_groups, char ****groups) {
     if (((*groups) = (char ***) malloc(sizeof(char **) * base_size)) == NULL) {
         return STATUS_USR_INVALID;
     }
-
+    
     /* Check UID */
     if (!(check_uid(uid) && check_user_registered(uid))) {
         return STATUS_USR_INVALID;
@@ -523,7 +523,7 @@ int get_uids_group(char *gid, char *group_name, char ***uids,  int *num_uids) {
     if (get_group_name(gid, group_name) != SUCCESS) {
         return STATUS_FAIL;
     }
-    
+
     if ((group_dir_name = generate_group_dir(gid)) == NULL) {
         return STATUS_FAIL;
     }
@@ -533,7 +533,7 @@ int get_uids_group(char *gid, char *group_name, char ***uids,  int *num_uids) {
     if (groups) {
         free(group_dir_name);
         while ((uid_dir = readdir(groups)) != NULL) {
-
+            
             if (parse_regex(uid_dir->d_name, "^[0-9]{" STR(UID_SIZE) "}.txt$") && atoi(uid_dir->d_name)) {
 
                 if (((*uids)[*num_uids] = (char *) malloc(sizeof(char) * UID_SIZE)) == NULL) {
@@ -554,7 +554,7 @@ int get_uids_group(char *gid, char *group_name, char ***uids,  int *num_uids) {
         }
     } else {
         return STATUS_FAIL;
-    }
+    }   
     return STATUS_OK;
 
 }
