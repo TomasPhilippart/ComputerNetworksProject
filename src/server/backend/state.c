@@ -728,102 +728,94 @@ int post_message(char *uid, char *gid, char *text, char *mid, char *file_name, i
    
 }
 
-//int retrieve_messages(char *uid, char *gid, char *mid, char ***uids, 
-//                      char ***text_files, char ***files, int *num_messages) {
-//
-//    char user_dir[10 + UID_SIZE], login_file[10 + UID_SIZE + UID_SIZE + 12] = {0};
-//    char msg_dir[strlen(GROUPS_DIR) + GID_SIZE + MID_SIZE + 6 + 1];
-//    char curr_file[128];
-//    DIR *entries;
-//    FILE *file;
-//    struct dirent *entry;
-//    int i;
-//
-//    if ((((*uids) = (char **) malloc(sizeof(char *) * 20)) == NULL) || 
-//        (((*text_files) = (char **) malloc(sizeof(char *) * 20)) == NULL) || 
-//        (((*files) = (char **) malloc(sizeof(char *) * 20)) == NULL)) {
-//        return STATUS_FAIL;
-//    }
-//   
-//    /* Check UID */
-//    if (!(check_uid(uid) && check_user_registered(uid, user_dir))) { 
-//        return STATUS_NOK;
-//    }
-//
-//    sprintf(login_file, "%s/%s_login.txt", user_dir, uid);
-//    if (!check_user_logged(uid, login_file)) {
-//        return STATUS_NOK;
-//    }
-//
-//    if (!check_user_subscribed(uid, gid)) {
-//        return STATUS_NOK;
-//    }
-//
-//    for (i = 0; i < 20; i++) {
-//        int found = 0;
-//        char curr_mid[UID_SIZE + 1];
-//        char curr_file[128];
-//
-//        sprintf(curr_mid, "%04d", atoi(mid) + i);
-//
-//        if (!(check_message_exists(gid, curr_mid, msg_dir))) {
-//            printf("Bazei!\n");
-//            break;
-//        }
-//       
-//        (*text_files)[i] = (char *) malloc(sizeof(char) * (128));
-//        sprintf((*text_files)[i], "%sT E X T.txt", msg_dir);
-//
-//    
-//        entries = opendir(msg_dir);
-//        if (entries) {
-//            while ((entry = readdir(entries)) != NULL) {
-//                memset(curr_file, 0, 128);
-//                if (!strcmp(entry->d_name, "A U T H O R.txt")) { 
-//                    sprintf(curr_file, "%sA U T H O R.txt", msg_dir);
-//                    printf("Fetching author from %s\n", curr_file);
-//                    if ((file = fopen(curr_file, "r")) == NULL) {
-//                        return STATUS_FAIL;
-//                    }
-//                    (*uids)[i] = (char *) malloc(sizeof(char) * (UID_SIZE + 1));
-//                    if (fread((*uids)[i], sizeof(char), UID_SIZE, file) != UID_SIZE) {
-//                        return STATUS_FAIL;
-//                    }
-//                    if (fclose(file) != 0) {
-//                        return STATUS_FAIL;
-//                    }
-//                    //printf("Got the author: %s\n", (*uids)[i]);
-//                } else if (strcmp(entry->d_name, "T E X T.txt") && strcmp(entry->d_name,".") && 
-//                                                                   strcmp(entry->d_name,"..") && found == 0) { 
-//                    //printf("Here is the dir entry %s\n", entry->d_name);
-//                    (*files)[i] = (char *) malloc(sizeof(char) * (128));
-//                    sprintf((*files)[i], "%s%s", msg_dir, entry->d_name);
-//                    printf("Fetching content file from %s\n", (*files)[i]);
-//                    found = 1;
-//                }
-//
-//                if (found == 0) {
-//                    (*files)[i] = NULL;
-//                }
-//               
-//            }
-//            
-//        } else {
-//            return STATUS_FAIL;
-//        }
-//
-//    }
-//
-//    (*num_messages) = i;
-//
-//    return STATUS_OK;
-//
-//}
+int retrieve_messages(char *uid, char *gid, char *mid, char ***uids, 
+                      char ***text_files, char ***files, int *num_messages) {
 
+    char *author_file, *msg_dir;
+    DIR *entries;
+    FILE *file;
+    struct dirent *entry;
+    int i;
 
-/* ======== Auxiliary Functions ======== */
+    if ((((*uids) = (char **) malloc(sizeof(char *) * 20)) == NULL) || 
+        (((*text_files) = (char **) malloc(sizeof(char *) * 20)) == NULL) || 
+        (((*files) = (char **) malloc(sizeof(char *) * 20)) == NULL)) {
+        return STATUS_FAIL;
+    }
 
-// NOTE some auxiliary funcions are returning STATUS_FAIL that isnt  
+    /* Check UID */
+    if (!(check_uid(uid) && check_user_registered(uid) && check_user_logged(uid))) { 
+        return STATUS_NOK;
+    }
+
+    /* Check if user is subscribed */
+    if (!check_user_subscribed(uid, gid)) {
+        return STATUS_NOK;
+    }
+
+    for (i = 0; i < 20; i++) {
+        int found = 0;
+        char curr_mid[UID_SIZE + 1];
+        char curr_file[128];
+
+        sprintf(curr_mid, "%04d", atoi(mid) + i);
+
+        // NOTE See this
+        if (!(check_message_exists(gid, curr_mid))) {
+            break;
+        }
+       
+        (*text_files)[i] = generate_text_file(gid, curr_mid);
+        msg_dir = generate_msg_dir(gid, curr_mid);
+        entries = opendir(msg_dir);
+
+        if (entries) {
+            while ((entry = readdir(entries)) != NULL) {
+                //printf("Got %s\n", entry->d_name);
+                if (!strcmp(entry->d_name, "A U T H O R.txt")) { 
+                    author_file = generate_author_file(gid, curr_mid);
+                    //printf("Fetching author from %s\n", author_file);
+                    if ((file = fopen(author_file, "r")) == NULL) {
+                        free(author_file);
+                        return STATUS_FAIL;
+                    }
+                    (*uids)[i] = (char *) malloc(sizeof(char) * (UID_SIZE + 1));
+                    if (fread((*uids)[i], sizeof(char), UID_SIZE, file) != UID_SIZE) {
+                        free(author_file);
+                        return STATUS_FAIL;
+                    }
+                    if (fclose(file) != 0) {
+                        free(author_file);
+                        return STATUS_FAIL;
+                    }
+                   
+                } else if (strcmp(entry->d_name, "T E X T.txt") && strcmp(entry->d_name,".") && 
+                                                                   strcmp(entry->d_name,"..") && found == 0) { 
+                    //printf("Here is the dir entry %s\n", entry->d_name);
+                    (*files)[i] = (char *) malloc(sizeof(char) * (128));
+                    sprintf((*files)[i], "%s%s", msg_dir, entry->d_name);
+                    //printf("Fetching content file from %s\n", (*files)[i]);
+                    found = 1;
+                }   
+            }
+            if (found == 0) {
+                (*files)[i] = NULL;
+            }
+            //printf("Got out!\n");
+        } else {
+            return STATUS_FAIL;
+        }
+
+    }
+
+    (*num_messages) = i;
+
+    return STATUS_OK;
+
+}
+ 
+//======== Auxiliary Functions ======== */
+//NOTE some auxiliary funcions are returning STATUS_FAIL that isnt  
 // been checked for when the same function is called by the server
 
 /*  Check if user with UID uid is registered

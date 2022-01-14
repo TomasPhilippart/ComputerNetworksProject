@@ -595,15 +595,6 @@ void process_input() {
 			}
 		}
 
-		if (!strcmp(command, "debug")) {
-			char buf[MAX_TSIZE + 1] = "";
-			get_text(buf, line + strlen(command) + 1);
-			buf[strlen(buf) + 1] = '\0';
-			buf[strlen(buf)] = '\n';
-			debug(buf);
-			continue;
-		}
-
 		/* If another command token is received */
 		printf("Invalid command.\n");
 

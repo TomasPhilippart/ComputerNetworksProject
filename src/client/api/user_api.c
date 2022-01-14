@@ -31,10 +31,10 @@ char *server_ip = NULL;
 char server_port[MAX_PORT_SIZE + 1] = "58043";
 
 /* User ID, password, group ID and flag for when a user is logged in */
-char UID[UID_SIZE + 1] = ""; // 5 digit numeric
-char password[PASSWORD_SIZE + 1] = ""; // 8 alphanumeric characters
-char GID[GID_SIZE + 1] = ""; // 2 digit numeric (01-99)
-int logged_in = FALSE;
+char UID[UID_SIZE + 1] = "95565"; // 5 digit numeric
+char password[PASSWORD_SIZE + 1] = "12345678"; // 8 alphanumeric characters
+char GID[GID_SIZE + 1] = "09"; // 2 digit numeric (01-99)
+int logged_in = TRUE;
 
 /* variables needed for UDP connection */
 int udp_socket; 
@@ -848,12 +848,8 @@ int retrieve(char *mid, char ****list) {
 			continue;
 		}
 
-
 		flush_buffer(rcv_buf, 2);
 		write_to_buffer(rcv_buf, MAX(0, 3 + MAX_FNAME + MAX_FSIZE - rcv_buf->tail), rcv_message_tcp);
-		for (int i = 0; i < rcv_buf->tail; i++) {
-			printf("%x\n", (rcv_buf->buf)[i]);
-		}
 	
 		/* parse [Fname Fsize data] */
 		if (!parse_regex(rcv_buf->buf, "^ [a-zA-Z0-9._-]{1,21}.[a-zA-Z0-9]{3} [0-9]{1,10} ")) {
@@ -914,9 +910,10 @@ int retrieve(char *mid, char ****list) {
 				free_list(*list, 3);
 				exit(EXIT_FAILURE);
 			}
-			
-			write_to_buffer(rcv_buf, MAX(0, 3 + MID_SIZE + UID_SIZE + 3 - rcv_buf->tail), rcv_message_tcp);
+		
 		} 
+		write_to_buffer(rcv_buf, MAX(0, 3 + MID_SIZE + UID_SIZE + 3 - rcv_buf->tail), rcv_message_tcp);
+		//printf("Buffer \"%s\"  Tail: %d\n", rcv_buf->buf, rcv_buf->tail);
 	}
 	
 	/* Ensure that the response ended */
@@ -1045,11 +1042,6 @@ int rcv_message_tcp(char *buf, int num_bytes) {
 		aux += num_bytes_read;
 		num_bytes_left -= num_bytes_read;
 	}
-	//int i;
-	for (int i = 0; i < (num_bytes - num_bytes_left); i++) {
-		putchar(*(buf + i));
-	}
-	putchar('\n');
 	return num_bytes - num_bytes_left;
 }
 
@@ -1069,11 +1061,6 @@ void end_session(int status) {
 
 int is_logged_in () {
 	return logged_in;
-}
-
-void debug(char *buf) {
-	exchange_messages_udp(buf, strlen(buf));
-	printf("I received %s\n", buf);
 }
 
 int start_timer(int fd) {
