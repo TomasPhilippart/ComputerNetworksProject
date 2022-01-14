@@ -65,6 +65,8 @@ char *generate_user_file (char *gid, char *uid);
 char* generate_text_file(char *gid);
 char* generate_author_file(char *gid); 
 
+// NOTE make connection on timer
+
 void setup_state() {
 
     /* Check for the next available GID */
